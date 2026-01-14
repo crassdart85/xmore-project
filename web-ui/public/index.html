@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trading System Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📊 Stock Trading System</h1>
+            <p class="subtitle">Automated Prediction Dashboard</p>
+        </header>
+
+        <!-- System Stats -->
+        <section class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value" id="stocksTracked">-</div>
+                <div class="stat-label">Stocks Tracked</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="totalPredictions">-</div>
+                <div class="stat-label">Total Predictions</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="totalPrices">-</div>
+                <div class="stat-label">Price Records</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="latestDate">-</div>
+                <div class="stat-label">Latest Data</div>
+            </div>
+        </section>
+
+        <!-- Latest Predictions -->
+        <section class="section">
+            <h2>🔮 Latest Predictions</h2>
+            <div id="predictions">
+                <p class="loading">Loading predictions...</p>
+            </div>
+        </section>
+
+        <!-- Agent Performance -->
+        <section class="section">
+            <h2>📈 Agent Performance</h2>
+            <div id="performance">
+                <p class="loading">Loading performance data...</p>
+            </div>
+        </section>
+
+        <!-- Latest Prices -->
+        <section class="section">
+            <h2>💰 Latest Stock Prices</h2>
+            <div id="prices">
+                <p class="loading">Loading prices...</p>
+            </div>
+        </section>
+
+        <footer>
+            <button onclick="refreshData()" class="refresh-btn">🔄 Refresh Data</button>
+            <p class="disclaimer">⚠️ Not financial advice. For research purposes only.</p>
+        </footer>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,21 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "web-ui/server.js",
+      "use": "@vercel/node",
+      "config": {
+        "includeFiles": [
+          "../stocks.db",
+          "public/**"
+        ]
+      }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/web-ui/server.js"
+    }
+  ]
+}

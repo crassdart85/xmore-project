@@ -1,0 +1,384 @@
+"""
+Data Collection Script
+Fetches stock prices and news with retry logic and failsafes
+Implements: Retry 3 times → Store what you got → Flag issues
+"""
+
+import yfinance as yf
+import requests
+from datetime import datetime, timedelta
+import time
+import logging
+from typing import Optional, Dict, List, Tuple
+import json
+
+from config import *
+from database import get_connection, log_data_quality_issue, log_system_run
+
+# Setup logging
+logging.basicConfig(
+    level=getattr(logging, LOG_LEVEL),
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler(LOG_FILE),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
+
+# ============================================
+# STOCK PRICE COLLECTION
+# ============================================
+
+def fetch_stock_prices_with_retry(symbol: str, days: int = 5) -> Tuple[Optional[object], str]:
+    """
+    Fetch stock prices with retry logic (your B pattern)
+    Returns: (dataframe, status_message)
+    """
+    end_date = datetime.now()
+    start_date = end_date - timedelta(days=days)
+    
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            logger.info(f"📊 Fetching {symbol} (attempt {attempt}/{MAX_RETRIES})...")
+            
+            ticker = yf.Ticker(symbol)
+            df = ticker.history(start=start_date, end=end_date)
+            
+            if df.empty:
+                logger.warning(f"⚠️  No data returned for {symbol}")
+                if attempt < MAX_RETRIES:
+                    time.sleep(RETRY_DELAY_SECONDS)
+                    continue
+                return None, f"No data available for {symbol}"
+            
+            # Data validation
+            if df['Close'].isnull().any():
+                logger.warning(f"⚠️  {symbol} has missing close prices")
+                log_data_quality_issue(
+                    symbol, 
+                    'missing_data', 
+                    f"Missing close prices in recent data",
+                    'medium'
+                )
+            
+            logger.info(f"✅ {symbol}: Fetched {len(df)} days of data")
+            return df, "success"
+            
+        except Exception as e:
+            logger.error(f"❌ Error fetching {symbol} (attempt {attempt}): {str(e)}")
+            
+            if attempt < MAX_RETRIES:
+                logger.info(f"⏳ Waiting {RETRY_DELAY_SECONDS}s before retry...")
+                time.sleep(RETRY_DELAY_SECONDS)
+            else:
+                log_data_quality_issue(
+                    symbol,
+                    'api_failure',
+                    f"Failed after {MAX_RETRIES} attempts: {str(e)}",
+                    'high'
+                )
+                return None, f"Failed after {MAX_RETRIES} attempts: {str(e)}"
+    
+    return None, "Max retries exceeded"
+
+def save_prices_to_db(symbol: str, df: object) -> int:
+    """
+    Save price data to database (your D pattern - store what you got)
+    Returns: number of rows inserted
+    """
+    if df is None or df.empty:
+        return 0
+    
+    inserted = 0
+    
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        
+        for date, row in df.iterrows():
+            try:
+                cursor.execute("""
+                    INSERT OR REPLACE INTO prices 
+                    (symbol, date, open, high, low, close, volume, data_source)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    symbol,
+                    date.strftime('%Y-%m-%d'),
+                    row['Open'],
+                    row['High'],
+                    row['Low'],
+                    row['Close'],
+                    int(row['Volume']),
+                    'yahoo_finance'
+                ))
+                inserted += 1
+            except Exception as e:
+                logger.error(f"Error inserting {symbol} data for {date}: {e}")
+    
+    logger.info(f"💾 {symbol}: Saved {inserted} records to database")
+    return inserted
+
+# ============================================
+# NEWS COLLECTION
+# ============================================
+
+def fetch_news_with_retry(symbol: str, days: int = 1) -> Tuple[List[Dict], str]:
+    """
+    Fetch news for a symbol with retry logic
+    Returns: (list of articles, status_message)
+    """
+    if not FEATURES['collect_news']:
+        return [], "news collection disabled"
+    
+    if NEWS_API_KEY == 'YOUR_API_KEY_HERE':
+        logger.warning("⚠️  NEWS_API_KEY not configured, skipping news collection")
+        return [], "API key not configured"
+    
+    # Calculate date range
+    end_date = datetime.now()
+    start_date = end_date - timedelta(days=days)
+    
+    # Build search query (company name or symbol)
+    # You might want to map symbols to company names for better results
+    query = symbol
+    
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            logger.info(f"📰 Fetching news for {symbol} (attempt {attempt}/{MAX_RETRIES})...")
+            
+            url = "https://newsapi.org/v2/everything"
+            params = {
+                'q': query,
+                'from': start_date.strftime('%Y-%m-%d'),
+                'to': end_date.strftime('%Y-%m-%d'),
+                'language': 'en',
+                'sortBy': 'relevancy',
+                'pageSize': 10,
+                'apiKey': NEWS_API_KEY
+            }
+            
+            response = requests.get(url, params=params, timeout=10)
+            response.raise_for_status()
+            
+            data = response.json()
+            articles = data.get('articles', [])
+            
+            logger.info(f"✅ {symbol}: Found {len(articles)} news articles")
+            return articles, "success"
+            
+        except requests.exceptions.RequestException as e:
+            logger.error(f"❌ Error fetching news for {symbol}: {str(e)}")
+            
+            if attempt < MAX_RETRIES:
+                time.sleep(RETRY_DELAY_SECONDS)
+            else:
+                log_data_quality_issue(
+                    symbol,
+                    'news_api_failure',
+                    f"Failed to fetch news: {str(e)}",
+                    'low'
+                )
+                return [], f"Failed after {MAX_RETRIES} attempts"
+    
+    return [], "Max retries exceeded"
+
+def analyze_sentiment(text: str) -> Tuple[float, str]:
+    """
+    Simple sentiment analysis
+    Returns: (score from -1 to 1, label)
+    """
+    if not FEATURES['sentiment_analysis']:
+        return 0.0, 'neutral'
+    
+    try:
+        from textblob import TextBlob
+        
+        blob = TextBlob(text)
+        polarity = blob.sentiment.polarity  # -1 to 1
+        
+        if polarity > 0.1:
+            label = 'positive'
+        elif polarity < -0.1:
+            label = 'negative'
+        else:
+            label = 'neutral'
+        
+        return polarity, label
+        
+    except ImportError:
+        logger.warning("⚠️  textblob not installed, skipping sentiment analysis")
+        return 0.0, 'neutral'
+    except Exception as e:
+        logger.error(f"Error in sentiment analysis: {e}")
+        return 0.0, 'neutral'
+
+def save_news_to_db(symbol: str, articles: List[Dict]) -> int:
+    """Save news articles to database"""
+    if not articles:
+        return 0
+    
+    inserted = 0
+    
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        
+        for article in articles:
+            try:
+                headline = article.get('title', '')
+                description = article.get('description', '')
+                
+                # Analyze sentiment
+                full_text = f"{headline}. {description}"
+                sentiment_score, sentiment_label = analyze_sentiment(full_text)
+                
+                # Extract date
+                published_at = article.get('publishedAt', '')
+                if published_at:
+                    date = datetime.fromisoformat(published_at.replace('Z', '+00:00')).strftime('%Y-%m-%d')
+                else:
+                    date = datetime.now().strftime('%Y-%m-%d')
+                
+                cursor.execute("""
+                    INSERT OR IGNORE INTO news 
+                    (symbol, date, headline, source, url, sentiment_score, sentiment_label)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                """, (
+                    symbol,
+                    date,
+                    headline,
+                    article.get('source', {}).get('name', 'Unknown'),
+                    article.get('url', ''),
+                    sentiment_score,
+                    sentiment_label
+                ))
+                
+                if cursor.rowcount > 0:
+                    inserted += 1
+                    
+            except Exception as e:
+                logger.error(f"Error inserting news for {symbol}: {e}")
+    
+    logger.info(f"💾 {symbol}: Saved {inserted} news articles")
+    return inserted
+
+# ============================================
+# MAIN COLLECTION ROUTINE
+# ============================================
+
+def collect_all_data(stocks: List[str] = None, days: int = None) -> Dict:
+    """
+    Main data collection routine with your B→D pattern
+    Returns summary of what was collected
+    """
+    start_time = time.time()
+    
+    if stocks is None:
+        stocks = ALL_STOCKS
+    
+    if days is None:
+        days = DAILY_LOOKBACK_DAYS
+    
+    logger.info("="*70)
+    logger.info("🚀 STARTING DATA COLLECTION")
+    logger.info(f"📅 {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    logger.info(f"📊 Stocks: {len(stocks)}")
+    logger.info(f"📆 Days lookback: {days}")
+    logger.info("="*70)
+    
+    summary = {
+        'total_stocks': len(stocks),
+        'successful_prices': 0,
+        'failed_prices': 0,
+        'successful_news': 0,
+        'failed_news': 0,
+        'total_price_records': 0,
+        'total_news_articles': 0,
+        'errors': []
+    }
+    
+    for symbol in stocks:
+        logger.info(f"\n--- Processing {symbol} ---")
+        
+        # Collect prices (B→D pattern)
+        df, status = fetch_stock_prices_with_retry(symbol, days)
+        if df is not None:
+            records = save_prices_to_db(symbol, df)
+            summary['successful_prices'] += 1
+            summary['total_price_records'] += records
+        else:
+            summary['failed_prices'] += 1
+            summary['errors'].append(f"{symbol} prices: {status}")
+            logger.error(f"❌ {symbol}: {status}")
+        
+        # Collect news (B→D pattern)
+        articles, status = fetch_news_with_retry(symbol, days)
+        if articles:
+            news_count = save_news_to_db(symbol, articles)
+            summary['successful_news'] += 1
+            summary['total_news_articles'] += news_count
+        else:
+            summary['failed_news'] += 1
+            # News failure is less critical, so we don't add to errors
+        
+        # Small delay between stocks to be nice to APIs
+        time.sleep(1)
+    
+    execution_time = time.time() - start_time
+    
+    # Determine overall status
+    if summary['failed_prices'] == 0:
+        overall_status = 'success'
+    elif summary['successful_prices'] > 0:
+        overall_status = 'partial'
+    else:
+        overall_status = 'failure'
+    
+    # Log to system_log
+    log_system_run(
+        'collect_data.py',
+        overall_status,
+        json.dumps(summary),
+        execution_time
+    )
+    
+    # Print summary
+    logger.info("\n" + "="*70)
+    logger.info("📊 COLLECTION SUMMARY")
+    logger.info("="*70)
+    logger.info(f"✅ Successful: {summary['successful_prices']}/{summary['total_stocks']} stocks")
+    logger.info(f"💾 Price records: {summary['total_price_records']}")
+    logger.info(f"📰 News articles: {summary['total_news_articles']}")
+    logger.info(f"⏱️  Execution time: {execution_time:.2f}s")
+    
+    if summary['errors']:
+        logger.warning(f"\n⚠️  {len(summary['errors'])} errors occurred:")
+        for error in summary['errors']:
+            logger.warning(f"  - {error}")
+    
+    logger.info("="*70)
+    
+    return summary
+
+# ============================================
+# MAIN EXECUTION
+# ============================================
+
+if __name__ == "__main__":
+    # Check if this is initial setup (no data yet) or daily update
+    from database import initialize_database, get_statistics
+    
+    initialize_database()
+    stats = get_statistics()
+    
+    if stats['total_prices'] == 0:
+        logger.info("📚 First run detected - collecting initial historical data")
+        summary = collect_all_data(days=INITIAL_LOOKBACK_DAYS)
+    else:
+        logger.info("📅 Daily update - collecting recent data")
+        summary = collect_all_data(days=DAILY_LOOKBACK_DAYS)
+    
+    # Exit with appropriate code for n8n to detect
+    if summary['failed_prices'] > 0:
+        exit(1)  # Partial failure
+    else:
+        exit(0)  # Success
