@@ -39,11 +39,25 @@ def collect_prices():
     return success_count
 
 def collect_news():
-    """Fetch news headlines from NewsAPI"""
+    """Fetch news headlines from NewsAPI and analyze sentiment"""
     print("📰 Fetching news data...")
     newsapi = NewsApiClient(api_key=config.NEWS_API_KEY)
     success_count = 0
     
+    # Initialize FinBERT
+    print("🧠 Loading FinBERT model...")
+    try:
+        from transformers import pipeline
+        # Use a financial sentiment analysis model
+        sentiment_pipeline = pipeline("sentiment-analysis", model="ProsusAI/finbert")
+        use_sentiment = True
+    except ImportError:
+        print("⚠️ Transformers not installed. Skipping sentiment analysis.")
+        use_sentiment = False
+    except Exception as e:
+        print(f"⚠️ Error loading FinBERT: {e}. Skipping sentiment analysis.")
+        use_sentiment = False
+
     # We'll look for news from the last 2 days
     from_date = (datetime.now() - timedelta(days=2)).strftime('%Y-%m-%d')
     
@@ -53,16 +67,39 @@ def collect_news():
             
             with get_connection() as conn:
                 for art in articles['articles'][:10]: # Top 10 headlines per stock
+                    
+                    sentiment_score = 0
+                    sentiment_label = 'neutral'
+                    
+                    if use_sentiment:
+                        try:
+                            # Analyze title
+                            result = sentiment_pipeline(art['title'])[0]
+                            sentiment_label = result['label']
+                            score = result['score']
+                            
+                            # Map to -1 to 1
+                            if sentiment_label == 'positive':
+                                sentiment_score = score
+                            elif sentiment_label == 'negative':
+                                sentiment_score = -score
+                            else: # neutral
+                                sentiment_score = 0
+                        except Exception as e:
+                            print(f"Error analyzing sentiment for {symbol}: {e}")
+
                     conn.execute("""
                         INSERT OR IGNORE INTO news 
-                        (symbol, date, headline, source, url)
-                        VALUES (?, ?, ?, ?, ?)
+                        (symbol, date, headline, source, url, sentiment_score, sentiment_label)
+                        VALUES (?, ?, ?, ?, ?, ?, ?)
                     """, (
                         symbol,
                         art['publishedAt'][:10], # Extract YYYY-MM-DD
                         art['title'],
                         art['source']['name'],
-                        art['url']
+                        art['url'],
+                        sentiment_score,
+                        sentiment_label
                     ))
             success_count += 1
         except Exception as e:

@@ -29,12 +29,12 @@ const db = new sqlite3.Database(dbPath, sqlite3.OPEN_READONLY, (err) => {
 app.get('/api/predictions', (req, res) => {
   console.log('Received request for /api/predictions');
   const query = `
-    SELECT symbol, agent_name, prediction, prediction_date, target_date
+    SELECT symbol, agent_name, prediction, confidence, metadata, prediction_date, target_date
     FROM predictions
     WHERE prediction_date = (SELECT MAX(prediction_date) FROM predictions)
     ORDER BY symbol, agent_name
   `;
-  
+
   console.log('Executing query for /api/predictions');
   db.all(query, [], (err, rows) => {
     if (err) {
@@ -58,7 +58,7 @@ app.get('/api/performance', (req, res) => {
     FROM evaluations
     GROUP BY agent_name
   `;
-  
+
   db.all(query, [], (err, rows) => {
     if (err) {
       res.status(500).json({ error: err.message });
@@ -76,7 +76,7 @@ app.get('/api/prices', (req, res) => {
     WHERE date = (SELECT MAX(date) FROM prices WHERE symbol = prices.symbol)
     ORDER BY symbol
   `;
-  
+
   db.all(query, [], (err, rows) => {
     if (err) {
       res.status(500).json({ error: err.message });
@@ -94,10 +94,10 @@ app.get('/api/stats', (req, res) => {
     stocksTracked: 'SELECT COUNT(DISTINCT symbol) as count FROM prices',
     latestDate: 'SELECT MAX(date) as date FROM prices'
   };
-  
+
   const stats = {};
   let completed = 0;
-  
+
   Object.keys(queries).forEach(key => {
     db.get(queries[key], [], (err, row) => {
       if (!err) {

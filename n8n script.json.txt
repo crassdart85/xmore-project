@@ -1,0 +1,531 @@
+{
+  "name": "Trading System - Master Automation",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "start",
+      "name": "When clicking 'Test workflow'",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "30 16 * * 1-5"
+            }
+          ]
+        }
+      },
+      "id": "daily_trigger",
+      "name": "Daily Data Collection Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [240, 480]
+    },
+    {
+      "parameters": {
+        "command": "python",
+        "arguments": "f:\\xmore-project\\collect_data.py",
+        "options": {
+          "cwd": "f:\\xmore-project"
+        }
+      },
+      "id": "collect_data",
+      "name": "Collect Stock Data",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [460, 480]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.exitCode }}",
+              "operation": "equal",
+              "value2": 0
+            }
+          ]
+        }
+      },
+      "id": "check_collection_success",
+      "name": "Collection Success?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [680, 480]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "sendTo": "crassdart@gmail.com",
+        "subject": "✅ Trading System: Data Collection Success",
+        "emailType": "html",
+        "message": "<h2>✅ Data Collection Successful</h2>\n<p><strong>Date:</strong> {{ $now.format('MMMM dd, yyyy HH:mm:ss') }}</p>\n<p><strong>Stocks:</strong> AAPL, MSFT, GOOGL, JPM, XOM</p>\n<hr>\n<p>Dashboard: <a href=\"http://localhost:3000\">http://localhost:3000</a></p>",
+        "options": {}
+      },
+      "id": "email_success",
+      "name": "Email Success",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [900, 380],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "1",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "sendTo": "crassdart@gmail.com",
+        "subject": "❌ Trading System: Data Collection Failed",
+        "emailType": "html",
+        "message": "<h2>❌ Data Collection Failed</h2>\n<p><strong>Date:</strong> {{ $now.format('MMMM dd, yyyy HH:mm:ss') }}</p>\n<p><strong>Exit Code:</strong> {{ $('Collect Stock Data').item.json.exitCode }}</p>\n<p><strong>Error:</strong></p>\n<pre>{{ $('Collect Stock Data').item.json.stderr }}</pre>\n<hr>\n<p>Check logs at: f:\\xmore-project\\logs\\</p>",
+        "options": {}
+      },
+      "id": "email_failure",
+      "name": "Email Failure",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [900, 580],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "1",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 9 * * 5"
+            }
+          ]
+        }
+      },
+      "id": "evaluator_trigger",
+      "name": "Weekly Evaluator Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [240, 780]
+    },
+    {
+      "parameters": {
+        "command": "python",
+        "arguments": "f:\\xmore-project\\evaluate.py",
+        "options": {
+          "cwd": "f:\\xmore-project"
+        }
+      },
+      "id": "run_evaluation",
+      "name": "Run Evaluation",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [460, 780]
+    },
+    {
+      "parameters": {
+        "command": "python",
+        "arguments": "-c \"import sqlite3; import json; conn = sqlite3.connect('f:/xmore-project/stocks.db'); cursor = conn.cursor(); cursor.execute('SELECT agent_name, COUNT(*) as total, SUM(CASE WHEN was_correct = 1 THEN 1 ELSE 0 END) as correct, ROUND(AVG(CASE WHEN was_correct = 1 THEN 1.0 ELSE 0.0 END) * 100, 1) as accuracy FROM evaluations GROUP BY agent_name'); results = cursor.fetchall(); print(json.dumps([{'agent': r[0], 'total': r[1], 'correct': r[2], 'accuracy': r[3]} for r in results]))\"",
+        "options": {}
+      },
+      "id": "get_performance",
+      "name": "Get Performance Stats",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [680, 780]
+    },
+    {
+      "parameters": {
+        "jsCode": "const performance = JSON.parse($input.first().json.stdout);\n\nif (!performance || performance.length === 0) {\n  return [{\n    json: {\n      html: '<p style=\"color: #666;\">No evaluations yet. Predictions need time to mature (7 days).</p>',\n      hasData: false,\n      bestAgent: 'N/A',\n      bestAccuracy: 0\n    }\n  }];\n}\n\nlet html = '<table border=\"1\" style=\"border-collapse: collapse; width: 100%; font-family: Arial;\">';\nhtml += '<thead><tr style=\"background: #667eea; color: white;\"><th style=\"padding: 10px;\">Agent</th><th style=\"padding: 10px;\">Total</th><th style=\"padding: 10px;\">Correct</th><th style=\"padding: 10px;\">Accuracy</th></tr></thead>';\nhtml += '<tbody>';\n\nperformance.forEach(agent => {\n  const accuracyColor = agent.accuracy >= 70 ? '#10b981' : \n                        agent.accuracy >= 50 ? '#f59e0b' : '#ef4444';\n  html += '<tr>';\n  html += `<td style=\"padding: 10px;\"><strong>${agent.agent}</strong></td>`;\n  html += `<td style=\"padding: 10px; text-align: center;\">${agent.total}</td>`;\n  html += `<td style=\"padding: 10px; text-align: center;\">${agent.correct}</td>`;\n  html += `<td style=\"padding: 10px; background: ${accuracyColor}; color: white; text-align: center; font-weight: bold;\">${agent.accuracy}%</td>`;\n  html += '</tr>';\n});\n\nhtml += '</tbody></table>';\n\nconst best = performance.reduce((max, agent) => \n  agent.accuracy > max.accuracy ? agent : max\n);\n\nreturn [{\n  json: {\n    html: html,\n    bestAgent: best.agent,\n    bestAccuracy: best.accuracy,\n    hasData: true,\n    totalEvaluations: performance.reduce((sum, a) => sum + a.total, 0)\n  }\n}];"
+      },
+      "id": "format_performance",
+      "name": "Format Performance Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 780]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "sendTo": "crassdart@gmail.com",
+        "subject": "=📈 Performance Report - Top: {{ $json.bestAgent }} ({{ $json.bestAccuracy }}%)",
+        "emailType": "html",
+        "message": "=<h2>📊 Trading System - Weekly Performance Report</h2>\n<p><strong>Evaluated:</strong> {{ $now.format('MMMM dd, yyyy HH:mm') }}</p>\n<p><strong>Total Evaluations:</strong> {{ $json.totalEvaluations }}</p>\n\n{{ $json.html }}\n\n<h3 style=\"color: #667eea;\">🏆 Top Performer: {{ $json.bestAgent }} ({{ $json.bestAccuracy }}% accuracy)</h3>\n\n<hr>\n<p style=\"color: #666; font-size: 0.9em;\">Dashboard: <a href=\"http://localhost:3000\">http://localhost:3000</a></p>",
+        "options": {}
+      },
+      "id": "email_performance",
+      "name": "Email Performance Report",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [1120, 780],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "1",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 18 * * 5"
+            }
+          ]
+        }
+      },
+      "id": "predictor_trigger",
+      "name": "Weekly Predictor Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [240, 1080]
+    },
+    {
+      "parameters": {
+        "command": "python",
+        "arguments": "f:\\xmore-project\\run_agents.py",
+        "options": {
+          "cwd": "f:\\xmore-project"
+        }
+      },
+      "id": "run_predictions",
+      "name": "Run Predictions",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [460, 1080]
+    },
+    {
+      "parameters": {
+        "command": "python",
+        "arguments": "-c \"import sqlite3; import json; conn = sqlite3.connect('f:/xmore-project/stocks.db'); cursor = conn.cursor(); cursor.execute(\\\"SELECT symbol, agent_name, prediction FROM predictions WHERE prediction_date = date('now') ORDER BY symbol\\\"); results = cursor.fetchall(); print(json.dumps([{'symbol': r[0], 'agent': r[1], 'prediction': r[2]} for r in results]))\"",
+        "options": {}
+      },
+      "id": "get_predictions",
+      "name": "Get Latest Predictions",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [680, 1080]
+    },
+    {
+      "parameters": {
+        "jsCode": "const predictions = JSON.parse($input.first().json.stdout);\n\nif (!predictions || predictions.length === 0) {\n  return [{\n    json: {\n      html: '<p style=\"color: #666;\">No predictions generated. Check if run_agents.py executed successfully.</p>',\n      count: 0\n    }\n  }];\n}\n\n// Group by stock\nconst grouped = {};\npredictions.forEach(p => {\n  if (!grouped[p.symbol]) grouped[p.symbol] = [];\n  grouped[p.symbol].push(p);\n});\n\n// Build HTML table\nlet html = '<table border=\"1\" style=\"border-collapse: collapse; width: 100%; font-family: Arial;\">';\nhtml += '<thead><tr style=\"background: #667eea; color: white;\"><th style=\"padding: 10px;\">Stock</th><th style=\"padding: 10px;\">Agent</th><th style=\"padding: 10px;\">Prediction</th></tr></thead>';\nhtml += '<tbody>';\n\nObject.keys(grouped).sort().forEach(symbol => {\n  grouped[symbol].forEach((pred, idx) => {\n    const color = pred.prediction === 'UP' ? '#10b981' : \n                  pred.prediction === 'DOWN' ? '#ef4444' : '#6b7280';\n    html += '<tr>';\n    if (idx === 0) {\n      html += `<td rowspan=\"${grouped[symbol].length}\" style=\"padding: 10px;\"><strong>${symbol}</strong></td>`;\n    }\n    html += `<td style=\"padding: 10px;\">${pred.agent}</td>`;\n    html += `<td style=\"padding: 10px; background: ${color}; color: white; text-align: center; font-weight: bold;\">${pred.prediction}</td>`;\n    html += '</tr>';\n  });\n});\n\nhtml += '</tbody></table>';\n\nreturn [{\n  json: {\n    html: html,\n    count: predictions.length,\n    date: new Date().toISOString().split('T')[0],\n    stocks: Object.keys(grouped).length\n  }\n}];"
+      },
+      "id": "format_predictions",
+      "name": "Format Predictions Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 1080]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "sendTo": "crassdart@gmail.com",
+        "subject": "=🔮 Weekly Predictions - {{ $json.date }}",
+        "emailType": "html",
+        "message": "=<h2>📊 Trading System - Weekly Stock Predictions</h2>\n<p><strong>Generated:</strong> {{ $now.format('MMMM dd, yyyy HH:mm') }}</p>\n<p><strong>Stocks Analyzed:</strong> {{ $json.stocks }}</p>\n<p><strong>Total Predictions:</strong> {{ $json.count }}</p>\n\n{{ $json.html }}\n\n<hr>\n<p style=\"color: #666; font-size: 0.9em;\">\n⚠️ <strong>Disclaimer:</strong> These are automated predictions for research purposes only. Not financial advice.<br>\nDashboard: <a href=\"http://localhost:3000\">http://localhost:3000</a>\n</p>",
+        "options": {}
+      },
+      "id": "email_predictions",
+      "name": "Email Predictions Report",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [1120, 1080],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "1",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 30
+            }
+          ]
+        }
+      },
+      "id": "dashboard_check_trigger",
+      "name": "Dashboard Health Check",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [240, 1380]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:3000/api/stats",
+        "options": {
+          "timeout": 5000
+        }
+      },
+      "id": "check_dashboard",
+      "name": "Check Dashboard Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [460, 1380],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.statusCode }}",
+              "operation": "equal",
+              "value2": 200
+            }
+          ]
+        }
+      },
+      "id": "dashboard_running",
+      "name": "Dashboard Running?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [680, 1380]
+    },
+    {
+      "parameters": {},
+      "id": "dashboard_ok",
+      "name": "Dashboard OK",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [900, 1280]
+    },
+    {
+      "parameters": {
+        "command": "cmd",
+        "arguments": "/c \"cd f:\\xmore-project\\web-ui && start /B npm start\"",
+        "options": {}
+      },
+      "id": "restart_dashboard",
+      "name": "Restart Dashboard",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [900, 1480]
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "sendTo": "crassdart@gmail.com",
+        "subject": "🔄 Trading System: Dashboard Restarted",
+        "message": "The trading system dashboard was not responding and has been automatically restarted.\n\nTime: {{ $now.format('MMMM dd, yyyy HH:mm:ss') }}\nURL: http://localhost:3000\n\nIf this happens frequently, check the logs.",
+        "options": {}
+      },
+      "id": "email_restart",
+      "name": "Email Dashboard Restart",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [1120, 1480],
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "1",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Daily Data Collection Trigger": {
+      "main": [
+        [
+          {
+            "node": "Collect Stock Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Collect Stock Data": {
+      "main": [
+        [
+          {
+            "node": "Collection Success?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Collection Success?": {
+      "main": [
+        [
+          {
+            "node": "Email Success",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Email Failure",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Weekly Evaluator Trigger": {
+      "main": [
+        [
+          {
+            "node": "Run Evaluation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run Evaluation": {
+      "main": [
+        [
+          {
+            "node": "Get Performance Stats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Performance Stats": {
+      "main": [
+        [
+          {
+            "node": "Format Performance Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Performance Report": {
+      "main": [
+        [
+          {
+            "node": "Email Performance Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Weekly Predictor Trigger": {
+      "main": [
+        [
+          {
+            "node": "Run Predictions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run Predictions": {
+      "main": [
+        [
+          {
+            "node": "Get Latest Predictions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Latest Predictions": {
+      "main": [
+        [
+          {
+            "node": "Format Predictions Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Predictions Report": {
+      "main": [
+        [
+          {
+            "node": "Email Predictions Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dashboard Health Check": {
+      "main": [
+        [
+          {
+            "node": "Check Dashboard Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Dashboard Status": {
+      "main": [
+        [
+          {
+            "node": "Dashboard Running?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dashboard Running?": {
+      "main": [
+        [
+          {
+            "node": "Dashboard OK",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Restart Dashboard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Restart Dashboard": {
+      "main": [
+        [
+          {
+            "node": "Email Dashboard Restart",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 0,
+  "updatedAt": "2026-01-07T12:00:00.000Z",
+  "versionId": "1"
+}

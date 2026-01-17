@@ -5,11 +5,10 @@ from database import get_connection
 import sys
 import traceback
 
-# Import both agents
+# Import agents
 try:
-    from agents.agent_rsi import RSIAgent
-    from agents.agent_ma import MAAgent
-    print("✅ Agents imported successfully")
+    from agents.agent_ml import MLAgent
+    print("✅ ML Agent imported successfully")
 except Exception as e:
     print(f"❌ Failed to import agents: {e}")
     traceback.print_exc()
@@ -19,12 +18,12 @@ def execute():
     try:
         print("🚀 Starting predictions...")
         
-        # Create both agents
-        rsi_agent = RSIAgent()
-        ma_agent = MAAgent(short_window=10, long_window=50)
-        agents = [rsi_agent, ma_agent]
+        # Create ML Agent
+        # Note: You must run train_model.py first!
+        ml_agent = MLAgent()
+        agents = [ml_agent]
         
-        print(f"✅ Created {len(agents)} agents: {[a.name for a in agents]}")
+        print(f"✅ Created Agent: {ml_agent.name}")
         
         today = datetime.now().strftime('%Y-%m-%d')
         target = (datetime.now() + timedelta(days=7)).strftime('%Y-%m-%d')
@@ -36,20 +35,20 @@ def execute():
             for stock in config.ALL_STOCKS:
                 print(f"\n--- {stock} ---")
                 
-                query = f"SELECT date, close FROM prices WHERE symbol='{stock}' ORDER BY date"
+                # Fetch FULL price history for indicators (OHLCV)
+                query = f"SELECT * FROM prices WHERE symbol='{stock}' ORDER BY date"
                 df = pd.read_sql(query, conn)
                 print(f"  Loaded {len(df)} price records")
                 
-                if len(df) == 0:
-                    print(f"  ⚠️  No data found, skipping")
+                if len(df) < 50:
+                    print(f"  ⚠️  Not enough data, skipping")
                     continue
                 
                 # Show recent prices
-                if len(df) >= 3:
-                    recent = df.tail(3)
-                    print(f"  Recent prices: {recent['close'].values}")
+                recent = df.tail(3)
+                print(f"  Recent Close: {recent['close'].values}")
                 
-                # Run each agent
+                # Run agent
                 for agent in agents:
                     signal = agent.predict(df)
                     

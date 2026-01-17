@@ -1,0 +1,136 @@
+# 📈 Xmore Stock Prediction System - Technical Documentation
+
+## Overview
+
+Xmore is an advanced stock market prediction system that leverages **Ensemble Machine Learning** to forecast stock price movements. Unlike traditional systems that rely solely on technical indicators or simple heuristics, Xmore integrates:
+
+1.  **Quantitative Data**: Historical OHLCV (Open, High, Low, Close, Volume) data.
+2.  **Qualitative Data**: **Financial News Sentiment Analysis** using **FinBERT** (a BERT model fine-tuned on financial text).
+3.  **Technical Analysis**: Advanced indicators (RSI, MACD, Bollinger Bands) generated effectively inside the feature engineering pipeline.
+
+The system targets a **7-day prediction horizon**, classifying trends as **UP** (Buy), **DOWN** (Sell), or **FLAT** (Hold).
+
+---
+
+## 🏗 System Architecture
+
+The project consists of three main layers:
+
+### 1. Data Layer (SQLite)
+*   **`prices` table**: Stores historical stock data sourced from Yahoo Finance.
+*   **`news` table**: Stores financial news headlines and their encoded sentiment scores (FinBERT).
+*   **`predictions` / `evaluations` tables**: Store agent outputs and performance metrics.
+
+### 2. Logic & ML Layer (Python)
+*   **`collect_data.py`**: ETL script. Fetches prices (yfinance) and News (NewsAPI), runs FinBERT inference, and stores data.
+*   **`features.py`**: Centralized feature engineering module. Calculates RSI, MACD, Bollinger Bands, and merges sentiment data.
+*   **`train_model.py`**: Trains a **Random Forest Classifier** using **TimeSeriesSplit** validation to prevent look-ahead bias. Saves model to `models/stock_predictor.pkl`.
+*   **`run_agents.py`**: The inference engine. Loads the latest data, applies the Random Forest model, and generates predictions.
+*   **`evaluate.py`**: Back-testing and self-correction module. Compares past predictions with actual outcomes to track accuracy.
+
+### 3. Presentation Layer (Node.js/Express)
+*   **`web-ui/`**: A lightweight dashboard to visualize active predictions, confidence scores, and historical accuracy.
+
+---
+
+## 🚀 Execution Pipeline
+
+The entire workflow is orchestrated by `run_pipeline.py`.
+
+### Step-by-Step Flow:
+
+1.  **Data Collection**:
+    ```bash
+    python collect_data.py
+    ```
+    *   *Input*: Yahoo Finance API, NewsAPI.
+    *   *Process*: Downloads missing price data; fetches recent news; uses `ProsusAI/finbert` to generate sentiment scores (-1 to 1).
+    *   *Output*: DB updates.
+
+2.  **Model Training**:
+    ```bash
+    python train_model.py
+    ```
+    *   *Process*: Loads all history; generates features; creates ternary labels (UP/DOWN/FLAT); trains Random Forest; validates via 5-fold Time Series split.
+    *   *Output*: `models/stock_predictor.pkl`
+
+3.  **Inference**:
+    ```bash
+    python run_agents.py
+    ```
+    *   *Process*: Loads `MLAgent`; loads latest prices/news; generates features on-the-fly; predicts next 7 days.
+    *   *Output*: DB `predictions` table.
+
+4.  **Evaluation**:
+    ```bash
+    python evaluate.py
+    ```
+    *   *Process*: Checks simple accuracy of expired predictions.
+    *   *Output*: DB `evaluations` table.
+
+5.  **Visualization**:
+    ```bash
+    # In /web-ui directory
+    npm start
+    ```
+    *   *Output*: Dashboard at `http://localhost:3000`.
+
+---
+
+## 📂 Key Files Description
+
+| File | Description |
+| :--- | :--- |
+| `run_pipeline.py` | **Master script** to run the full end-to-end process. |
+| `agents/agent_ml.py` | Wrapper class for the ML model; handles loading and inference. |
+| `features.py` | Shared library for calculating technical indicators & sentiment features. |
+| `config.py` | Configuration constants (API keys, stock list, thresholds). |
+| `web-ui/server.js` | Express server providing API endpoints for the dashboard. |
+
+---
+
+## 🛠 Dependencies & Setup
+
+### Python Requirements
+*   `pandas`, `numpy`: Data manipulation.
+*   `scikit-learn`: Machine Learning (Random Forest).
+*   `yfinance`: Stock data API.
+*   `newsapi-python`: News aggregation.
+*   `transformers`, `torch`: FinBERT Sentiment Analysis.
+
+### Installation
+1.  **Install Python Deps**:
+    ```bash
+    pip install pandas numpy scikit-learn yfinance newsapi-python transformers torch
+    ```
+2.  **Install Node Deps** (for Dashboard):
+    ```bash
+    cd web-ui
+    npm install
+    ```
+3.  **Run**:
+    ```bash
+    python run_pipeline.py
+    ```
+
+---
+
+## 🤖 Model Details
+
+*   **Algorithm**: Random Forest Classifier (Ensemble).
+*   **Features**:
+    *   **Trend**: SMA_10, SMA_50, MACD, Signal Line.
+    *   **Momentum**: RSI (14-day).
+    *   **Volatility**: Bollinger Upper/Lower, 20-day Volatility.
+    *   **Sentiment**: Daily average FinBERT score.
+*   **Validation**: TimeSeriesSplit (5 Folds). ensures the model is not tested on data from the past relative to the training set.
+*   **Metric**: Accuracy (Binary/Ternary Classification).
+
+---
+
+## 🔮 Future Improvements
+
+1.  **Deep Learning**: Implement LSTM or Transformer-based time-series models for potentially better sequence modeling.
+2.  **Hyperparameter Tuning**: Use GridSearch to optimize Random Forest parameters.
+3.  **More Data Sources**: Integrate macro-economic indicators (fed rates, inflation) or alternative data (social media).
+4.  **Automated Trading**: Connect to a brokerage API (e.g., Alpaca) for paper trading.
