@@ -79,7 +79,8 @@ app.get('/api/predictions', (req, res) => {
       res.status(500).json({ error: err.message });
     } else {
       console.log('Successfully executed query for /api/predictions');
-      res.json(rows);
+      // Return empty array if no data yet
+      res.json(rows || []);
     }
   });
 });
@@ -100,7 +101,7 @@ app.get('/api/performance', (req, res) => {
     if (err) {
       res.status(500).json({ error: err.message });
     } else {
-      res.json(rows);
+      res.json(rows || []);
     }
   });
 });
@@ -118,7 +119,7 @@ app.get('/api/prices', (req, res) => {
     if (err) {
       res.status(500).json({ error: err.message });
     } else {
-      res.json(rows);
+      res.json(rows || []);
     }
   });
 });
