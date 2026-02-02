@@ -8,6 +8,7 @@ This module handles all database interactions including:
 - Statistics and reporting
 """
 
+import os
 import sqlite3
 from datetime import datetime
 import logging
@@ -20,18 +21,29 @@ from config import DATABASE_PATH
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Use PostgreSQL on Render, SQLite locally
+DATABASE_URL = os.getenv('DATABASE_URL')
+
 # ============================================
 # DATABASE CONNECTION
 # ============================================
+
+def _adapt_sql(sql):
+    """Convert SQLite-style ? placeholders to PostgreSQL-style %s when using PostgreSQL."""
+    if DATABASE_URL:
+        return sql.replace('?', '%s')
+    return sql
 
 @contextmanager
 def get_connection():
     """
     Context manager for database connections.
-    
+    Uses PostgreSQL when DATABASE_URL is set (production/Render),
+    falls back to SQLite locally.
+
     Yields:
-        sqlite3.Connection: A connection to the SQLite database with row_factory set.
-        
+        Connection object with dict-like row access.
+
     Raises:
         Exception: Rolls back transaction and re-raises any database errors.
 
@@ -39,8 +51,17 @@ def get_connection():
         >>> with get_connection() as conn:
         >>>     rows = conn.execute("SELECT * FROM prices").fetchall()
     """
-    conn = sqlite3.connect(DATABASE_PATH)
-    conn.row_factory = sqlite3.Row  # Access columns by name: row['column']
+    if DATABASE_URL:
+        # Production: PostgreSQL
+        import psycopg2
+        import psycopg2.extras
+        conn = psycopg2.connect(DATABASE_URL)
+        conn.cursor_factory = psycopg2.extras.RealDictCursor
+    else:
+        # Local: SQLite
+        conn = sqlite3.connect(DATABASE_PATH)
+        conn.row_factory = sqlite3.Row  # Access columns by name: row['column']
+
     try:
         yield conn
         conn.commit()  # Auto-commit if no errors
@@ -58,7 +79,7 @@ def get_connection():
 def create_tables():
     """
     Create all necessary database tables if they don't exist.
-    
+
     Tables created:
     - prices: Historical stock data
     - news: Financial news articles and sentiment
@@ -67,13 +88,21 @@ def create_tables():
     - data_quality_log: Logs for data issues (missing data, API errors)
     - system_log: Logs for script execution runs
     """
+    # Use different SQL syntax for PostgreSQL vs SQLite
+    if DATABASE_URL:
+        auto_id = "SERIAL PRIMARY KEY"
+        bool_default = "BOOLEAN DEFAULT FALSE"
+    else:
+        auto_id = "INTEGER PRIMARY KEY AUTOINCREMENT"
+        bool_default = "BOOLEAN DEFAULT 0"
+
     with get_connection() as conn:
         cursor = conn.cursor()
-        
+
         # Table 1: Stock Prices
-        cursor.execute("""
+        cursor.execute(f"""
             CREATE TABLE IF NOT EXISTS prices (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id {auto_id},
                 symbol TEXT NOT NULL,
                 date DATE NOT NULL,
                 open REAL,
@@ -86,89 +115,89 @@ def create_tables():
                 UNIQUE(symbol, date)
             )
         """)
-        
+
         # Table 2: Financial News
-        cursor.execute("""
+        cursor.execute(f"""
             CREATE TABLE IF NOT EXISTS news (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id {auto_id},
                 symbol TEXT NOT NULL,
                 date DATE NOT NULL,
                 headline TEXT NOT NULL,
                 source TEXT,
                 url TEXT,
-                sentiment_score REAL,  -- -1 to 1 (negative to positive)
-                sentiment_label TEXT,  -- 'positive', 'negative', 'neutral'
+                sentiment_score REAL,
+                sentiment_label TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 UNIQUE(symbol, headline, date)
             )
         """)
-        
+
         # Table 3: Predictions
-        cursor.execute("""
+        cursor.execute(f"""
             CREATE TABLE IF NOT EXISTS predictions (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id {auto_id},
                 symbol TEXT NOT NULL,
                 prediction_date DATE NOT NULL,
-                target_date DATE NOT NULL,  -- Date we're predicting for
+                target_date DATE NOT NULL,
                 agent_name TEXT NOT NULL,
-                prediction TEXT NOT NULL,  -- 'UP', 'DOWN', 'HOLD'
-                confidence REAL,  -- 0 to 1
-                predicted_change_pct REAL,  -- Optional: predicted % change
-                metadata TEXT,  -- JSON string with additional info
+                prediction TEXT NOT NULL,
+                confidence REAL,
+                predicted_change_pct REAL,
+                metadata TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 UNIQUE(symbol, prediction_date, target_date, agent_name)
             )
         """)
-        
+
         # Table 4: Evaluations
-        cursor.execute("""
+        cursor.execute(f"""
             CREATE TABLE IF NOT EXISTS evaluations (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id {auto_id},
                 prediction_id INTEGER NOT NULL,
                 symbol TEXT NOT NULL,
                 agent_name TEXT NOT NULL,
                 prediction TEXT NOT NULL,
-                actual_outcome TEXT,  -- 'UP', 'DOWN', 'FLAT'
+                actual_outcome TEXT,
                 was_correct BOOLEAN,
                 actual_change_pct REAL,
-                prediction_error REAL,  -- If we predicted magnitude
+                prediction_error REAL,
                 evaluated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY (prediction_id) REFERENCES predictions(id)
             )
         """)
-        
-        # Table 5: Data Quality Log (for your failsafe!)
-        cursor.execute("""
+
+        # Table 5: Data Quality Log
+        cursor.execute(f"""
             CREATE TABLE IF NOT EXISTS data_quality_log (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id {auto_id},
                 date DATE NOT NULL,
                 symbol TEXT NOT NULL,
-                issue_type TEXT NOT NULL,  -- 'missing_data', 'api_failure', 'invalid_data'
+                issue_type TEXT NOT NULL,
                 description TEXT,
-                severity TEXT,  -- 'low', 'medium', 'high'
-                resolved BOOLEAN DEFAULT 0,
+                severity TEXT,
+                resolved {bool_default},
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
-        
-        # Table 6: System Log (track script runs)
-        cursor.execute("""
+
+        # Table 6: System Log
+        cursor.execute(f"""
             CREATE TABLE IF NOT EXISTS system_log (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                id {auto_id},
                 script_name TEXT NOT NULL,
-                status TEXT NOT NULL,  -- 'success', 'failure', 'partial'
+                status TEXT NOT NULL,
                 message TEXT,
                 execution_time_seconds REAL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
-        
+
         # Create indexes for common queries
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_prices_symbol_date ON prices(symbol, date)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_news_symbol_date ON news(symbol, date)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_predictions_symbol ON predictions(symbol, prediction_date)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_predictions_date ON predictions(prediction_date)")
-        
+
         logger.info("✅ Database tables created successfully")
 
 # ============================================
@@ -190,11 +219,10 @@ def log_data_quality_issue(symbol: str, issue_type: str, description: str, sever
     """
     with get_connection() as conn:
         cursor = conn.cursor()
-        # Using DATE('now') to get current local date in YYYY-MM-DD format
-        cursor.execute("""
+        cursor.execute(_adapt_sql("""
             INSERT INTO data_quality_log (date, symbol, issue_type, description, severity)
-            VALUES (DATE('now'), ?, ?, ?, ?)
-        """, (symbol, issue_type, description, severity))
+            VALUES (CURRENT_DATE, ?, ?, ?, ?)
+        """), (symbol, issue_type, description, severity))
         logger.warning(f"⚠️  Data quality issue logged: {symbol} - {issue_type}")
 
 def log_system_run(script_name: str, status: str, message: str = None, execution_time: float = None):
@@ -209,10 +237,10 @@ def log_system_run(script_name: str, status: str, message: str = None, execution
     """
     with get_connection() as conn:
         cursor = conn.cursor()
-        cursor.execute("""
+        cursor.execute(_adapt_sql("""
             INSERT INTO system_log (script_name, status, message, execution_time_seconds)
             VALUES (?, ?, ?, ?)
-        """, (script_name, status, message, execution_time))
+        """), (script_name, status, message, execution_time))
 
 def get_latest_price_date(symbol: str) -> Optional[str]:
     """
@@ -231,12 +259,11 @@ def get_latest_price_date(symbol: str) -> Optional[str]:
     """
     with get_connection() as conn:
         cursor = conn.cursor()
-        # SQL MAX() function finds the most recent date string
-        cursor.execute("""
-            SELECT MAX(date) as latest_date 
-            FROM prices 
+        cursor.execute(_adapt_sql("""
+            SELECT MAX(date) as latest_date
+            FROM prices
             WHERE symbol = ?
-        """, (symbol,))
+        """), (symbol,))
         result = cursor.fetchone()
         return result['latest_date'] if result else None
 
@@ -261,13 +288,12 @@ def check_missing_data(symbol: str, start_date: str, end_date: str) -> List[str]
     """
     with get_connection() as conn:
         cursor = conn.cursor()
-        # Fetch all existing dates in range to compare against expected count
-        cursor.execute("""
-            SELECT date FROM prices 
+        cursor.execute(_adapt_sql("""
+            SELECT date FROM prices
             WHERE symbol = ? AND date BETWEEN ? AND ?
             ORDER BY date
-        """, (symbol, start_date, end_date))
-        
+        """), (symbol, start_date, end_date))
+
         dates = [row['date'] for row in cursor.fetchall()]
         
         # Simple check: count business days vs actual days
@@ -298,15 +324,13 @@ def get_recent_prices(symbol: str, days: int = 60) -> List[Dict[str, Any]]:
     """
     with get_connection() as conn:
         cursor = conn.cursor()
-        # ORDER BY date DESC ensures we get the most recent days first
-        cursor.execute("""
-            SELECT * FROM prices 
+        cursor.execute(_adapt_sql("""
+            SELECT * FROM prices
             WHERE symbol = ?
             ORDER BY date DESC
             LIMIT ?
-        """, (symbol, days))
-        
-        # Convert sqlite3.Row objects to standard dictionaries for easier usage
+        """), (symbol, days))
+
         return [dict(row) for row in cursor.fetchall()]
 
 def get_statistics() -> Dict[str, Any]:
@@ -346,10 +370,14 @@ def get_statistics() -> Dict[str, Any]:
         stats['latest_date'] = date_range['latest']
         
         # Recent data quality issues
-        cursor.execute("""
-            SELECT COUNT(*) as count 
-            FROM data_quality_log 
-            WHERE date >= DATE('now', '-7 days') AND resolved = 0
+        if DATABASE_URL:
+            date_expr = "CURRENT_DATE - INTERVAL '7 days'"
+        else:
+            date_expr = "DATE('now', '-7 days')"
+        cursor.execute(f"""
+            SELECT COUNT(*) as count
+            FROM data_quality_log
+            WHERE date >= {date_expr} AND resolved = 0
         """)
         stats['recent_issues'] = cursor.fetchone()['count']
         

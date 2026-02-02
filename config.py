@@ -20,14 +20,19 @@ from datetime import time
 # ============================================
 
 # US Stocks to track (Yahoo Finance format)
-# EGX Stocks (Top 5 by market cap)
+# EGX Stocks (Top 10 by market cap)
 # Note: EGX data may have liquidity gaps or delays compared to US markets.
 EGX_STOCKS = [
-    "COMI.CA",  # Commercial International Bank
-    "SWDY.CA",  # El Sewedy Electric
-    "TMGH.CA",  # Talaat Moustafa Group
-    "ETEL.CA",  # Telecom Egypt
+    "COMI.CA",  # Commercial International Bank (CIB)
+    "TMGH.CA",  # Talaat Moustafa Group Holding
     "EAST.CA",  # Eastern Company
+    "ETEL.CA",  # Telecom Egypt
+    "SWDY.CA",  # El Sewedy Electric
+    "ALCN.CA",  # Alexandria Container & Cargo Handling
+    "HRHO.CA",  # EFG Holding (Hermes)
+    "ORAS.CA",  # Orascom Construction
+    "FWRY.CA",  # Fawry for Banking Technology
+    "ABUK.CA",  # Abu Qir Fertilizers
 ]
 
 # US Stocks (Optional / Legacy)

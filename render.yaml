@@ -1,0 +1,17 @@
+services:
+  # Web Dashboard
+  - type: web
+    name: trading-dashboard
+    env: node
+    buildCommand: cd web-ui && npm install
+    startCommand: cd web-ui && npm start
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: trading-db
+          property: connectionString
+
+databases:
+  - name: trading-db
+    databaseName: trading_system
+    user: trading_user

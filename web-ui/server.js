@@ -1,5 +1,4 @@
 const express = require('express');
-const sqlite3 = require('sqlite3').verbose();
 const cors = require('cors');
 const path = require('path');
 
@@ -11,15 +10,53 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Database connection
-const dbPath = path.join(__dirname, '..', 'stocks.db');
-const db = new sqlite3.Database(dbPath, sqlite3.OPEN_READONLY, (err) => {
-  if (err) {
-    console.error('❌ Database connection failed:', err);
-  } else {
-    console.log('✅ Connected to database');
-  }
-});
+// ============================================
+// DATABASE CONNECTION (PostgreSQL or SQLite)
+// ============================================
+
+const DATABASE_URL = process.env.DATABASE_URL;
+
+let db;
+
+if (DATABASE_URL) {
+  // Production: PostgreSQL
+  const { Pool } = require('pg');
+  const pool = new Pool({ connectionString: DATABASE_URL, ssl: { rejectUnauthorized: false } });
+
+  db = {
+    all: (query, params, callback) => {
+      pool.query(query, params)
+        .then(result => callback(null, result.rows))
+        .catch(err => callback(err));
+    },
+    get: (query, params, callback) => {
+      pool.query(query, params)
+        .then(result => callback(null, result.rows[0] || null))
+        .catch(err => callback(err));
+    }
+  };
+
+  pool.query('SELECT 1')
+    .then(() => console.log('✅ Connected to PostgreSQL database'))
+    .catch(err => console.error('❌ PostgreSQL connection failed:', err));
+
+} else {
+  // Local: SQLite
+  const sqlite3 = require('sqlite3').verbose();
+  const dbPath = path.join(__dirname, '..', 'stocks.db');
+  const sqliteDb = new sqlite3.Database(dbPath, sqlite3.OPEN_READONLY, (err) => {
+    if (err) {
+      console.error('❌ Database connection failed:', err);
+    } else {
+      console.log('✅ Connected to SQLite database');
+    }
+  });
+
+  db = {
+    all: (query, params, callback) => sqliteDb.all(query, params, callback),
+    get: (query, params, callback) => sqliteDb.get(query, params, callback)
+  };
+}
 
 // ============================================
 // API ENDPOINTS
@@ -50,7 +87,7 @@ app.get('/api/predictions', (req, res) => {
 // 2. Get agent performance (accuracy)
 app.get('/api/performance', (req, res) => {
   const query = `
-    SELECT 
+    SELECT
       agent_name,
       COUNT(*) as total_predictions,
       SUM(CASE WHEN was_correct = 1 THEN 1 ELSE 0 END) as correct_predictions,
@@ -100,7 +137,7 @@ app.get('/api/stats', (req, res) => {
 
   Object.keys(queries).forEach(key => {
     db.get(queries[key], [], (err, row) => {
-      if (!err) {
+      if (!err && row) {
         stats[key] = row.count || row.date;
       }
       completed++;
