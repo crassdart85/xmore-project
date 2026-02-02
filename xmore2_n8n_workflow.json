@@ -1,0 +1,25 @@
+{
+  "nodes": [
+    {
+      "parameters": { "rule": { "interval": [{ "field": "hours" }] } },
+      "id": "trigger", "name": "Every Hour", "type": "n8n-nodes-base.scheduleTrigger", "typeVersion": 1.1, "position": [250, 300]
+    },
+    {
+      "parameters": { "command": "cd /d \"d:\\Moto\\Xmore\" && \".venv\\Scripts\\python.exe\" \"collect_data.py\"" },
+      "id": "c1", "name": "Collect Data", "type": "n8n-nodes-base.executeCommand", "typeVersion": 1, "position": [450, 300]
+    },
+    {
+      "parameters": { "command": "cd /d \"d:\\Moto\\Xmore\" && \".venv\\Scripts\\python.exe\" \"evaluate.py\"" },
+      "id": "c2", "name": "Evaluate", "type": "n8n-nodes-base.executeCommand", "typeVersion": 1, "position": [650, 300]
+    },
+    {
+      "parameters": { "command": "cd /d \"d:\\Moto\\Xmore\" && \".venv\\Scripts\\python.exe\" \"run_agents.py\"" },
+      "id": "c3", "name": "Run Agents", "type": "n8n-nodes-base.executeCommand", "typeVersion": 1, "position": [850, 300]
+    }
+  ],
+  "connections": {
+    "Every Hour": { "main": [[{ "node": "Collect Data", "type": "main", "index": 0 }]] },
+    "Collect Data": { "main": [[{ "node": "Evaluate", "type": "main", "index": 0 }]] },
+    "Evaluate": { "main": [[{ "node": "Run Agents", "type": "main", "index": 0 }]] }
+  }
+}

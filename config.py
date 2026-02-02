@@ -1,6 +1,15 @@
 """
-Configuration file for Trading System
-Store all settings, API keys, and constants here
+Configuration file for Xmore2 Trading System.
+
+Store all settings, API keys, and constants here.
+Sections:
+- Stock Selection: Which stocks to track
+- API Credentials: Keys for external services
+- Data Collection: Settings for fetching data
+- Database: Path and connection settings
+- Notifications: Email alerts
+- Prediction: Agent parameters
+- Evaluation: success metrics
 """
 
 import os
@@ -11,21 +20,24 @@ from datetime import time
 # ============================================
 
 # US Stocks to track (Yahoo Finance format)
-US_STOCKS = [
-    "AAPL",   # Apple
-    "MSFT",   # Microsoft
-    "GOOGL",  # Google
-    "JPM",    # JP Morgan
-    "XOM",    # Exxon Mobil
-]
-
-# Egyptian stocks (add when you have EGX data source)
+# EGX Stocks (Top 5 by market cap)
+# Note: EGX data may have liquidity gaps or delays compared to US markets.
 EGX_STOCKS = [
-    # "COMI.CA",  # Example - add when ready
+    "COMI.CA",  # Commercial International Bank
+    "SWDY.CA",  # El Sewedy Electric
+    "TMGH.CA",  # Talaat Moustafa Group
+    "ETEL.CA",  # Telecom Egypt
+    "EAST.CA",  # Eastern Company
 ]
 
-# Combined list
-ALL_STOCKS = US_STOCKS + EGX_STOCKS
+# US Stocks (Optional / Legacy)
+US_STOCKS = [
+    # "AAPL", 
+    # "MSFT",
+]
+
+# Combined list - defaulting to EGX for Xmore2
+ALL_STOCKS = EGX_STOCKS + US_STOCKS
 
 # ============================================
 # API CREDENTIALS
@@ -42,10 +54,11 @@ NEWS_API_KEY = '911bd9fe0dd0497c81632ee8af966bb4'
 # ============================================
 
 # How many days of historical data to fetch initially
+# 90 days is a balance between having enough history for indicators (like 50-day MA) and speed.
 INITIAL_LOOKBACK_DAYS = 90
 
 # How many days to fetch on daily updates
-DAILY_LOOKBACK_DAYS = 5  # Fetch last 5 days to catch any gaps
+DAILY_LOOKBACK_DAYS = 5  # Fetch last 5 days to catch any gaps from weekends/holidays
 
 # Retry settings (your B→D pattern)
 MAX_RETRIES = 3
@@ -81,18 +94,19 @@ ALERT_ON_PREDICTION_ERROR = True
 # ============================================
 
 # Technical indicator parameters
-RSI_PERIOD = 14
-RSI_OVERSOLD = 30
-RSI_OVERBOUGHT = 70
+RSI_PERIOD = 14     # Standard industry default for RSI
+RSI_OVERSOLD = 30   # Below this = Buy signal (undervalued)
+RSI_OVERBOUGHT = 70 # Above this = Sell signal (overvalued)
 
-MA_SHORT_PERIOD = 10
-MA_LONG_PERIOD = 30
+MA_SHORT_PERIOD = 10 # 2 weeks (approx) - fast moving trend
+MA_LONG_PERIOD = 30  # 1.5 months (approx) - slow moving trend
 
 # Prediction timeframe
-PREDICTION_HORIZON_DAYS = 7  # Predict next week
+PREDICTION_HORIZON_DAYS = 5  # Predict next 5 trading days (shortened for EGX volatility)
 
 # Confidence thresholds
-MIN_CONFIDENCE_TO_PREDICT = 0.3  # Don't predict if confidence < 30%
+# Confidence thresholds
+MIN_CONFIDENCE_TO_PREDICT = 0.3  # Don't predict if confidence < 30% (agents return 0-1)
 
 # ============================================
 # EVALUATION SETTINGS
@@ -125,7 +139,16 @@ FEATURES = {
 # ============================================
 
 def validate_config():
-    """Check that critical settings are configured"""
+    """
+    Check that critical settings are configured correctly.
+    
+    Returns:
+        List[str]: A list of configuration issues/warnings. Empty if config is valid.
+        
+    Example:
+        >>> issues = validate_config()
+        >>> if issues: print(f"Found {len(issues)} problems")
+    """
     issues = []
     
     if NEWS_API_KEY == 'YOUR_API_KEY_HERE':

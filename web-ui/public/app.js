@@ -22,7 +22,7 @@ async function loadStats() {
     try {
         const response = await fetch(`${API_URL}/stats`);
         const data = await response.json();
-        
+
         document.getElementById('stocksTracked').textContent = data.stocksTracked || '0';
         document.getElementById('totalPredictions').textContent = data.totalPredictions || '0';
         document.getElementById('totalPrices').textContent = data.totalPrices || '0';
@@ -37,23 +37,23 @@ async function loadPredictions() {
     try {
         const response = await fetch(`${API_URL}/predictions`);
         const data = await response.json();
-        
+
         const container = document.getElementById('predictions');
-        
+
         if (data.length === 0) {
             container.innerHTML = '<p class="loading">No predictions yet. Run python run_agents.py</p>';
             return;
         }
-        
+
         // Group by stock
         const grouped = {};
         data.forEach(pred => {
             if (!grouped[pred.symbol]) grouped[pred.symbol] = [];
             grouped[pred.symbol].push(pred);
         });
-        
+
         let html = '<table><thead><tr><th>Stock</th><th>Agent</th><th>Prediction</th><th>Date</th></tr></thead><tbody>';
-        
+
         Object.keys(grouped).forEach(symbol => {
             grouped[symbol].forEach((pred, idx) => {
                 html += `
@@ -66,7 +66,7 @@ async function loadPredictions() {
                 `;
             });
         });
-        
+
         html += '</tbody></table>';
         container.innerHTML = html;
     } catch (error) {
@@ -80,16 +80,16 @@ async function loadPerformance() {
     try {
         const response = await fetch(`${API_URL}/performance`);
         const data = await response.json();
-        
+
         const container = document.getElementById('performance');
-        
+
         if (data.length === 0) {
             container.innerHTML = '<p class="loading">No performance data yet. Predictions need to be evaluated.</p>';
             return;
         }
-        
+
         let html = '<table><thead><tr><th>Agent</th><th>Total Predictions</th><th>Correct</th><th>Accuracy</th></tr></thead><tbody>';
-        
+
         data.forEach(agent => {
             html += `
                 <tr>
@@ -106,7 +106,7 @@ async function loadPerformance() {
                 </tr>
             `;
         });
-        
+
         html += '</tbody></table>';
         container.innerHTML = html;
     } catch (error) {
@@ -120,27 +120,27 @@ async function loadPrices() {
     try {
         const response = await fetch(`${API_URL}/prices`);
         const data = await response.json();
-        
+
         const container = document.getElementById('prices');
-        
+
         if (data.length === 0) {
             container.innerHTML = '<p class="loading">No price data available</p>';
             return;
         }
-        
+
         let html = '<table><thead><tr><th>Symbol</th><th>Date</th><th>Close Price</th><th>Volume</th></tr></thead><tbody>';
-        
+
         data.forEach(stock => {
             html += `
                 <tr>
                     <td><strong>${stock.symbol}</strong></td>
                     <td>${stock.date}</td>
-                    <td>$${parseFloat(stock.close).toFixed(2)}</td>
+                    <td>${parseFloat(stock.close).toFixed(2)}</td>
                     <td>${parseInt(stock.volume).toLocaleString()}</td>
                 </tr>
             `;
         });
-        
+
         html += '</tbody></table>';
         container.innerHTML = html;
     } catch (error) {
