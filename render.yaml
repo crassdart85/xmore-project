@@ -3,7 +3,7 @@ services:
   - type: web
     name: trading-dashboard
     env: node
-    buildCommand: cd web-ui && npm install && node init-db.js
+    buildCommand: cd web-ui && npm install
     startCommand: cd web-ui && npm start
     envVars:
       - key: DATABASE_URL

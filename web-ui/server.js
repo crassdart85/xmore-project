@@ -42,20 +42,29 @@ if (DATABASE_URL) {
 
 } else {
   // Local: SQLite
-  const sqlite3 = require('sqlite3').verbose();
-  const dbPath = path.join(__dirname, '..', 'stocks.db');
-  const sqliteDb = new sqlite3.Database(dbPath, sqlite3.OPEN_READONLY, (err) => {
-    if (err) {
-      console.error('❌ Database connection failed:', err);
-    } else {
-      console.log('✅ Connected to SQLite database');
-    }
-  });
+  try {
+    const sqlite3 = require('sqlite3').verbose();
+    const dbPath = path.join(__dirname, '..', 'stocks.db');
+    const sqliteDb = new sqlite3.Database(dbPath, sqlite3.OPEN_READONLY, (err) => {
+      if (err) {
+        console.error('❌ Database connection failed:', err);
+      } else {
+        console.log('✅ Connected to SQLite database');
+      }
+    });
 
-  db = {
-    all: (query, params, callback) => sqliteDb.all(query, params, callback),
-    get: (query, params, callback) => sqliteDb.get(query, params, callback)
-  };
+    db = {
+      all: (query, params, callback) => sqliteDb.all(query, params, callback),
+      get: (query, params, callback) => sqliteDb.get(query, params, callback)
+    };
+  } catch (err) {
+    console.warn('⚠️  SQLite not available (this is normal on Render). Using PostgreSQL only.');
+    // Create a dummy db object that will fail gracefully
+    db = {
+      all: (query, params, callback) => callback(new Error('No database configured')),
+      get: (query, params, callback) => callback(new Error('No database configured'))
+    };
+  }
 }
 
 // ============================================
