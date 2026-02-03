@@ -60,11 +60,9 @@ def collect_prices():
             # Download data using yfinance
             ticker = yf.Ticker(symbol)
             
-            # Fetch 5 days. Why 5?
-            # 1. Ensures we catch up after a long weekend.
-            # 2. Provides enough context for calculating recent changes.
-            # 3. Small enough to be fast.
-            df = ticker.history(period="5d")
+            # Fetch 90 days to ensure enough data for technical indicators (50+ days needed)
+            # ON CONFLICT DO NOTHING prevents duplicates on subsequent runs
+            df = ticker.history(period="90d")
             
             with get_connection() as conn:
                 cursor = conn.cursor()
