@@ -70,12 +70,24 @@ def execute():
         print(f"📊 Processing {len(config.ALL_STOCKS)} stocks...")
 
         with get_connection() as conn:
+            cursor = conn.cursor()
             for stock in config.ALL_STOCKS:
                 print(f"\n--- {stock} ---")
 
                 # Fetch FULL price history for indicators (OHLCV)
-                query = f"SELECT * FROM prices WHERE symbol='{stock}' ORDER BY date"
-                df = pd.read_sql(query, conn)
+                if os.getenv('DATABASE_URL'):
+                    cursor.execute("SELECT date, open, high, low, close, volume FROM prices WHERE symbol=%s ORDER BY date", (stock,))
+                else:
+                    cursor.execute("SELECT date, open, high, low, close, volume FROM prices WHERE symbol=? ORDER BY date", (stock,))
+
+                rows = cursor.fetchall()
+                if os.getenv('DATABASE_URL'):
+                    # PostgreSQL with RealDictCursor returns dicts
+                    df = pd.DataFrame(rows)
+                else:
+                    # SQLite returns tuples
+                    df = pd.DataFrame(rows, columns=['date', 'open', 'high', 'low', 'close', 'volume'])
+
                 print(f"  Loaded {len(df)} price records")
                 
                 if len(df) < 50:
