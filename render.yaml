@@ -3,8 +3,9 @@ services:
   - type: web
     name: trading-dashboard
     env: node
-    buildCommand: cd web-ui && npm install
-    startCommand: cd web-ui && npm install && node init-db.js && node server.js
+    rootDir: web-ui
+    buildCommand: npm install
+    startCommand: node init-db.js && node server.js
     envVars:
       - key: DATABASE_URL
         fromDatabase:
