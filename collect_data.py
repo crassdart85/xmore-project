@@ -19,7 +19,21 @@ import time
 
 # Import your existing logic
 import config
-from database import get_connection, log_system_run, log_data_quality_issue
+from database import get_connection, log_system_run, log_data_quality_issue, create_tables
+
+# Check if using PostgreSQL
+import os
+DATABASE_URL = os.getenv('DATABASE_URL')
+
+def _adapt_sql(sql):
+    """Convert SQLite SQL to PostgreSQL when needed."""
+    if DATABASE_URL:
+        sql = sql.replace('?', '%s')
+        sql = sql.replace('INSERT OR IGNORE', 'INSERT')
+        # Add ON CONFLICT DO NOTHING for PostgreSQL
+        if 'INSERT' in sql and 'ON CONFLICT' not in sql:
+            sql = sql.rstrip().rstrip(')') + ') ON CONFLICT DO NOTHING'
+    return sql
 
 def collect_prices():
     """
@@ -53,17 +67,18 @@ def collect_prices():
             df = ticker.history(period="5d")
             
             with get_connection() as conn:
+                cursor = conn.cursor()
                 # Iterate over the dataframe rows (Date is index)
                 for date, row in df.iterrows():
-                    # Insert into DB. 'INSERT OR IGNORE' prevents duplicates if run multiple times/day
-                    conn.execute("""
-                        INSERT OR IGNORE INTO prices 
+                    # Insert into DB. ON CONFLICT DO NOTHING prevents duplicates if run multiple times/day
+                    cursor.execute(_adapt_sql("""
+                        INSERT OR IGNORE INTO prices
                         (symbol, date, open, high, low, close, volume, data_source)
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                    """, (
-                        symbol, 
+                    """), (
+                        symbol,
                         date.strftime('%Y-%m-%d'),
-                        row['Open'], row['High'], row['Low'], row['Close'], 
+                        row['Open'], row['High'], row['Low'], row['Close'],
                         int(row['Volume']), 'yahoo_finance'
                     ))
             success_count += 1
@@ -122,6 +137,7 @@ def collect_news():
             articles = newsapi.get_everything(q=query, from_param=from_date, language='en')
             
             with get_connection() as conn:
+                cursor = conn.cursor()
                 # Only take the top 10 most relevant articles to save space
                 for art in articles['articles'][:10]:
 
@@ -146,11 +162,11 @@ def collect_news():
                             print(f"Error analyzing sentiment for {symbol}: {e}")
 
 
-                    conn.execute("""
-                        INSERT OR IGNORE INTO news 
+                    cursor.execute(_adapt_sql("""
+                        INSERT OR IGNORE INTO news
                         (symbol, date, headline, source, url, sentiment_score, sentiment_label)
                         VALUES (?, ?, ?, ?, ?, ?, ?)
-                    """, (
+                    """), (
                         symbol,
                         art['publishedAt'][:10], # Extract YYYY-MM-DD from ISO timestamp
                         art['title'],
@@ -168,6 +184,10 @@ def collect_news():
 if __name__ == "__main__":
     start_time = time.time()
     print(f"🚀 Starting data collection at {datetime.now()}")
+
+    # Initialize database tables first
+    print("🔧 Initializing database tables...")
+    create_tables()
     
     try:
         p_count = collect_prices()
