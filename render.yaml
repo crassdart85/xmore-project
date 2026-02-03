@@ -12,18 +12,7 @@ services:
           name: trading-db
           property: connectionString
 
-  # Scheduled Agent Runner (runs daily at 5 PM UTC / after EGX market close)
-  - type: cron
-    name: trading-agents
-    env: python
-    schedule: "0 17 * * 1-5"
-    buildCommand: pip install -r requirements.txt
-    startCommand: python collect_data.py && python run_agents.py
-    envVars:
-      - key: DATABASE_URL
-        fromDatabase:
-          name: trading-db
-          property: connectionString
+  # Note: Scheduled tasks run via GitHub Actions (.github/workflows/scheduled-tasks.yml)
 
 databases:
   - name: trading-db
