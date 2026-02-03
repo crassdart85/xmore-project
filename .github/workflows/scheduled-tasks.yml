@@ -21,7 +21,15 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - name: Verify code version
+        run: |
+          echo "=== Checking collect_data.py lines 55-75 ==="
+          sed -n '55,75p' collect_data.py
 
       - name: Set up Python
         uses: actions/setup-python@v4
