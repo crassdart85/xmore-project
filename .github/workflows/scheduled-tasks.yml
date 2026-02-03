@@ -54,7 +54,15 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - name: Verify run_agents.py version
+        run: |
+          echo "=== Checking run_agents.py lines 75-90 ==="
+          sed -n '75,90p' run_agents.py
 
       - name: Set up Python
         uses: actions/setup-python@v4
