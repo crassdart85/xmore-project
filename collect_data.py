@@ -70,7 +70,11 @@ def collect_prices():
                 cursor = conn.cursor()
                 # Iterate over the dataframe rows (Date is index)
                 for date, row in df.iterrows():
+                    # Skip rows with NaN values
+                    if row.isnull().any():
+                        continue
                     # Insert into DB. ON CONFLICT DO NOTHING prevents duplicates if run multiple times/day
+                    # Convert numpy types to Python native types for PostgreSQL compatibility
                     cursor.execute(_adapt_sql("""
                         INSERT OR IGNORE INTO prices
                         (symbol, date, open, high, low, close, volume, data_source)
@@ -78,7 +82,7 @@ def collect_prices():
                     """), (
                         symbol,
                         date.strftime('%Y-%m-%d'),
-                        row['Open'], row['High'], row['Low'], row['Close'],
+                        float(row['Open']), float(row['High']), float(row['Low']), float(row['Close']),
                         int(row['Volume']), 'yahoo_finance'
                     ))
             success_count += 1
