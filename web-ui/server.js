@@ -1,3 +1,4 @@
+console.log('=== SERVER.JS STARTING ===');
 const express = require('express');
 const cors = require('cors');
 const path = require('path');

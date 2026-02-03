@@ -1,6 +1,8 @@
+console.log('=== INIT-DB.JS STARTING ===');
 const { Pool } = require('pg');
 
 const DATABASE_URL = process.env.DATABASE_URL;
+console.log('DATABASE_URL exists:', !!DATABASE_URL);
 
 if (!DATABASE_URL) {
     console.log('⚠️  No DATABASE_URL found. Skipping database initialization.');
