@@ -4,7 +4,6 @@
   "description": "Web UI for Stock Trading System",
   "main": "server.js",
   "scripts": {
-    "prestart": "node init-db.js",
     "start": "node server.js"
   },
   "dependencies": {
