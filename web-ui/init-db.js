@@ -7,9 +7,18 @@ if (!DATABASE_URL) {
     process.exit(0);
 }
 
+// Set a global timeout - exit after 30 seconds no matter what
+const TIMEOUT_MS = 30000;
+setTimeout(() => {
+    console.error('❌ Database initialization timed out after 30 seconds');
+    process.exit(1);
+}, TIMEOUT_MS);
+
 const pool = new Pool({
     connectionString: DATABASE_URL,
-    ssl: { rejectUnauthorized: false }
+    ssl: { rejectUnauthorized: false },
+    connectionTimeoutMillis: 10000,  // 10 second connection timeout
+    idleTimeoutMillis: 10000
 });
 
 async function initializeDatabase() {
