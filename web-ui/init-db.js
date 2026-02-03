@@ -9,10 +9,11 @@ if (!DATABASE_URL) {
 
 // Set a global timeout - exit after 30 seconds no matter what
 const TIMEOUT_MS = 30000;
-setTimeout(() => {
+const timeoutId = setTimeout(() => {
     console.error('❌ Database initialization timed out after 30 seconds');
     process.exit(1);
 }, TIMEOUT_MS);
+timeoutId.unref(); // Don't keep process alive just for timeout
 
 const pool = new Pool({
     connectionString: DATABASE_URL,
@@ -23,9 +24,11 @@ const pool = new Pool({
 
 async function initializeDatabase() {
     console.log('🔧 Initializing PostgreSQL database...');
+    console.log('📍 Connecting to:', DATABASE_URL.replace(/:[^:@]+@/, ':****@')); // Log URL without password
 
     try {
         // Test connection
+        console.log('⏳ Testing database connection...');
         await pool.query('SELECT 1');
         console.log('✅ Connected to PostgreSQL');
 
