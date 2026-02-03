@@ -4,6 +4,7 @@ Main Agent Execution Script
 This script instantiates all available agents and runs them against recent price data
 to generate predictions for the coming week.
 """
+import os
 import pandas as pd
 from datetime import datetime, timedelta
 import config
@@ -86,15 +87,26 @@ def execute():
                 print(f"  Recent Close: {recent['close'].values}")
                 
                 # Run agent
+                cursor = conn.cursor()
                 for agent in agents:
                     signal = agent.predict(df)
-                    
-                    conn.execute("""
-                        INSERT OR REPLACE INTO predictions 
-                        (symbol, prediction_date, target_date, agent_name, prediction)
-                        VALUES (?, ?, ?, ?, ?)
-                    """, (stock, today, target, agent.name, signal))
-                    
+
+                    # Use PostgreSQL-compatible upsert when DATABASE_URL is set
+                    if os.getenv('DATABASE_URL'):
+                        cursor.execute("""
+                            INSERT INTO predictions
+                            (symbol, prediction_date, target_date, agent_name, prediction)
+                            VALUES (%s, %s, %s, %s, %s)
+                            ON CONFLICT (symbol, prediction_date, target_date, agent_name)
+                            DO UPDATE SET prediction = EXCLUDED.prediction
+                        """, (stock, today, target, agent.name, signal))
+                    else:
+                        cursor.execute("""
+                            INSERT OR REPLACE INTO predictions
+                            (symbol, prediction_date, target_date, agent_name, prediction)
+                            VALUES (?, ?, ?, ?, ?)
+                        """, (stock, today, target, agent.name, signal))
+
                     print(f"  🔮 {agent.name}: {signal}")
         
         print("\n✅ All predictions saved!")
