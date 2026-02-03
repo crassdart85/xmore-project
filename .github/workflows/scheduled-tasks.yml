@@ -48,7 +48,8 @@ jobs:
           python collect_data.py
 
   weekly-predictions:
-    if: github.event.schedule == '0 23 * * 5'
+    if: github.event.schedule == '0 23 * * 5' || github.event_name == 'workflow_dispatch'
+    needs: daily-collection
     runs-on: ubuntu-latest
 
     steps:
