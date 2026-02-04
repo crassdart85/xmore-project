@@ -15,7 +15,7 @@ Supported Sources:
 
 import feedparser
 from datetime import datetime, timedelta
-from typing import List, Dict, Optional
+from typing import List, Dict
 import re
 import logging
 
@@ -54,18 +54,18 @@ EGYPTIAN_NEWS_FEEDS = [
         "reliability": "high"
     },
     {
-        "name": "Ahram Online Business",
-        "url": "https://english.ahram.org.eg/UI/Front/RSS.aspx?CatID=3",
+        "name": "Reuters Egypt",
+        "url": "https://www.reuters.com/news/archive/egypt?view=rss",
         "language": "en",
-        "focus": "business",
+        "focus": "general",
         "reliability": "high"
     },
     {
-        "name": "Mubasher Egypt",
-        "url": "https://www.mubasher.info/api/1/feed/stories-feed-egypt",
-        "language": "ar",
+        "name": "Google News Egypt Business",
+        "url": "https://news.google.com/rss/search?q=egypt+stock+market+OR+EGX+OR+egyptian+exchange&hl=en-US&gl=US&ceid=US:en",
+        "language": "en",
         "focus": "markets",
-        "reliability": "high"
+        "reliability": "medium"
     },
 ]
 
@@ -81,13 +81,12 @@ def _adapt_sql(sql: str) -> str:
     return sql
 
 
-def fetch_rss_feed(feed_url: str, timeout: int = 30) -> List[Dict]:
+def fetch_rss_feed(feed_url: str) -> List[Dict]:
     """
     Fetch and parse an RSS feed.
 
     Args:
         feed_url: URL of the RSS feed
-        timeout: Request timeout in seconds
 
     Returns:
         List of article dictionaries with title, link, published date, summary
@@ -135,6 +134,7 @@ def match_article_to_symbols(article: Dict) -> List[str]:
         List of matching stock symbols (Yahoo format)
     """
     text = f"{article.get('title', '')} {article.get('summary', '')}".upper()
+    text_lower = text.lower()
     matched_symbols = []
 
     for ticker, stock in EGX_SYMBOL_DATABASE.items():
@@ -145,16 +145,24 @@ def match_article_to_symbols(article: Dict) -> List[str]:
 
         # Check for company name (partial match)
         name_words = stock.name_en.upper().split()
-        # Match if at least 2 significant words match
-        significant_words = [w for w in name_words if len(w) > 3]
+        # Match if at least 1 significant word matches (more lenient)
+        significant_words = [w for w in name_words if len(w) > 4]
         matches = sum(1 for w in significant_words if w in text)
-        if matches >= 2:
+        if matches >= 1:
             matched_symbols.append(stock.yahoo)
             continue
 
         # Check Arabic name
         if stock.name_ar and stock.name_ar in article.get('title', ''):
             matched_symbols.append(stock.yahoo)
+
+    # Also match general market news to all EGX30 stocks
+    market_keywords = ['egx', 'egyptian exchange', 'cairo stock', 'egypt stock market',
+                       'البورصة المصرية', 'egx30', 'egx 30', 'egyptian bourse']
+    if any(kw in text_lower for kw in market_keywords):
+        # Add top 5 most liquid EGX stocks for general market news
+        top_stocks = ['COMI.CA', 'HRHO.CA', 'TMGH.CA', 'SWDY.CA', 'ETEL.CA']
+        matched_symbols.extend(top_stocks)
 
     return list(set(matched_symbols))
 
