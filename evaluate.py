@@ -4,11 +4,21 @@ Prediction Evaluation Module
 This script checks past predictions against actual market outcomes to determine agent performance.
 It populates the 'evaluations' table in the database.
 """
+import os
 import pandas as pd
 from datetime import datetime, timedelta
 import config
 from database import get_connection
 import argparse
+
+# Check if using PostgreSQL
+DATABASE_URL = os.getenv('DATABASE_URL')
+
+def _adapt_sql(sql):
+    """Convert SQLite SQL to PostgreSQL when needed."""
+    if DATABASE_URL:
+        sql = sql.replace('?', '%s')
+    return sql
 
 def evaluate_predictions():
     """
@@ -35,20 +45,28 @@ def evaluate_predictions():
     with get_connection() as conn:
         # 1. Get predictions that haven't been evaluated yet
         # We join with evaluations to ensure we don't re-evaluate (e.id IS NULL)
-        query = """
+        query = _adapt_sql("""
             SELECT p.* FROM predictions p
             LEFT JOIN evaluations e ON p.id = e.prediction_id
             WHERE p.target_date <= ? AND e.id IS NULL
-        """
-        predictions = pd.read_sql_query(query, conn, params=(today,))
+        """)
+
+        # Use cursor for PostgreSQL compatibility
+        cursor = conn.cursor()
+        cursor.execute(query, (today,))
+        columns = [desc[0] for desc in cursor.description] if cursor.description else []
+        rows = cursor.fetchall()
+        predictions = pd.DataFrame(rows, columns=columns) if rows else pd.DataFrame()
 
         for _, pred in predictions.iterrows():
             symbol = pred['symbol']
             
             # 2. Get the actual prices for the start and end dates
-            price_query = "SELECT close FROM prices WHERE symbol = ? AND date = ?"
-            start_price_row = conn.execute(price_query, (symbol, pred['prediction_date'])).fetchone()
-            end_price_row = conn.execute(price_query, (symbol, pred['target_date'])).fetchone()
+            price_query = _adapt_sql("SELECT close FROM prices WHERE symbol = ? AND date = ?")
+            cursor.execute(price_query, (symbol, pred['prediction_date']))
+            start_price_row = cursor.fetchone()
+            cursor.execute(price_query, (symbol, pred['target_date']))
+            end_price_row = cursor.fetchone()
             
             if not start_price_row:
                 print(f"⚠️ Missing price data to evaluate {symbol} for {pred['prediction_date']}")
@@ -83,11 +101,11 @@ def evaluate_predictions():
                 was_correct = (predicted == actual_outcome)
             
             # 6. Store evaluation
-            conn.execute("""
-                INSERT INTO evaluations 
+            cursor.execute(_adapt_sql("""
+                INSERT INTO evaluations
                 (prediction_id, symbol, agent_name, prediction, actual_outcome, was_correct, actual_change_pct)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (pred['id'], symbol, pred['agent_name'], predicted, actual_outcome, was_correct, pct_change))
+            """), (int(pred['id']), symbol, pred['agent_name'], predicted, actual_outcome, bool(was_correct), float(pct_change)))
             
             status_icon = "✅" if was_correct else "❌"
             print(f"{status_icon} Evaluated {symbol} ({pred['agent_name']}): Pred {predicted} vs Actual {actual_outcome} ({pct_change:.2f}%)")
@@ -105,13 +123,18 @@ def evaluate_lookback(days_ago=7):
     
     with get_connection() as conn:
         # Fetch evaluations that were aiming for this specific target date
-        query = """
+        query = _adapt_sql("""
             SELECT e.*, p.prediction_date
             FROM evaluations e
             JOIN predictions p ON e.prediction_id = p.id
             WHERE p.target_date = ?
-        """
-        evals = pd.read_sql_query(query, conn, params=(target_date,))
+        """)
+
+        cursor = conn.cursor()
+        cursor.execute(query, (target_date,))
+        columns = [desc[0] for desc in cursor.description] if cursor.description else []
+        rows = cursor.fetchall()
+        evals = pd.DataFrame(rows, columns=columns) if rows else pd.DataFrame()
         
         if len(evals) == 0:
             print(f"  No evaluations found targeting {target_date}")
