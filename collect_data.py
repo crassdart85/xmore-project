@@ -183,23 +183,55 @@ def collect_news():
             
     return success_count
 
+def collect_rss_news_wrapper():
+    """
+    Collect Egyptian financial news from RSS feeds.
+
+    This supplements NewsAPI with local Egyptian sources for better EGX coverage.
+    RSS feeds are particularly useful for Arabic-language financial news.
+
+    Returns:
+        dict: Collection statistics from RSS collector
+    """
+    print("📰 Fetching Egyptian RSS news feeds...")
+    try:
+        from rss_news_collector import collect_rss_news
+        stats = collect_rss_news(days_back=3, use_finbert=False)
+        print(f"  ✅ RSS: {stats['articles_saved']} articles from {stats['feeds_processed']} feeds")
+        return stats
+    except ImportError:
+        print("  ⚠️ RSS collector not available, skipping")
+        return {'articles_saved': 0}
+    except Exception as e:
+        print(f"  ❌ RSS collection error: {e}")
+        return {'articles_saved': 0, 'error': str(e)}
+
+
 if __name__ == "__main__":
     start_time = time.time()
     print(f"🚀 Starting data collection at {datetime.now()}")
+    print(f"📊 Collecting data for {len(config.ALL_STOCKS)} stocks")
 
     # Initialize database tables first
     print("🔧 Initializing database tables...")
     create_tables()
-    
+
     try:
+        # Collect price data
         p_count = collect_prices()
+
+        # Collect news from NewsAPI
         n_count = collect_news()
-        
+
+        # Collect Egyptian RSS news (supplementary)
+        rss_stats = collect_rss_news_wrapper()
+        rss_count = rss_stats.get('articles_saved', 0)
+
         duration = time.time() - start_time
-        msg = f"Collected prices for {p_count} stocks and news for {n_count} stocks."
+        msg = f"Collected prices for {p_count} stocks, NewsAPI for {n_count} stocks, RSS articles: {rss_count}."
         log_system_run("collect_data.py", "success", msg, duration)
         print(f"✅ Collection complete! {msg}")
-        
+
     except Exception as e:
         duration = time.time() - start_time
         log_system_run("collect_data.py", "failure", str(e), duration)

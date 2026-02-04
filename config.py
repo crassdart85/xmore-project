@@ -12,37 +12,49 @@ Sections:
 - Evaluation: success metrics
 """
 
-import os
 from datetime import time
 
 # ============================================
 # STOCK SELECTION
 # ============================================
 
-# US Stocks to track (Yahoo Finance format)
-# EGX Stocks (Top 10 by market cap)
+# Import EGX symbols from dedicated module
+from egx_symbols import get_egx30_symbols
+
+# EGX Stocks - Use EGX 30 index constituents by default
+# This provides the most liquid and actively traded Egyptian stocks
 # Note: EGX data may have liquidity gaps or delays compared to US markets.
-EGX_STOCKS = [
-    "COMI.CA",  # Commercial International Bank (CIB)
-    "TMGH.CA",  # Talaat Moustafa Group Holding
-    "EAST.CA",  # Eastern Company
-    "ETEL.CA",  # Telecom Egypt
-    "SWDY.CA",  # El Sewedy Electric
-    "ALCN.CA",  # Alexandria Container & Cargo Handling
-    "HRHO.CA",  # EFG Holding (Hermes)
-    "ORAS.CA",  # Orascom Construction
-    "FWRY.CA",  # Fawry for Banking Technology
-    "ABUK.CA",  # Abu Qir Fertilizers
-]
+EGX_STOCKS = get_egx30_symbols()
 
 # US Stocks (Optional / Legacy)
 US_STOCKS = [
-    # "AAPL", 
+    # "AAPL",
     # "MSFT",
 ]
 
 # Combined list - defaulting to EGX for Xmore2
 ALL_STOCKS = EGX_STOCKS + US_STOCKS
+
+# ============================================
+# EGYPTIAN MARKET SETTINGS
+# ============================================
+
+# EGX Market Configuration
+EGX_CONFIG = {
+    "market_name": "Egyptian Exchange",
+    "currency": "EGP",
+    "timezone": "Africa/Cairo",
+    "trading_days": ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday"],
+    "trading_hours": {
+        "pre_open": "09:30",
+        "open": "10:00",
+        "close": "14:30",
+    },
+    # EGX has higher volatility than US markets
+    "volatility_adjustment": 1.2,
+    # Use RSS feeds for better Egyptian news coverage
+    "use_rss_news": True,
+}
 
 # ============================================
 # API CREDENTIALS
@@ -70,7 +82,8 @@ MAX_RETRIES = 3
 RETRY_DELAY_SECONDS = 5  # Wait between retries
 
 # Data collection time (after market close)
-COLLECTION_TIME = time(16, 30)  # 4:30 PM EST (market closes 4 PM)
+# EGX closes at 14:30 Cairo time, collect at 15:00 Cairo / 13:00 UTC
+COLLECTION_TIME = time(15, 0)  # 3:00 PM Cairo time (EGX closes 2:30 PM)
 
 # ============================================
 # DATABASE SETTINGS
