@@ -78,7 +78,8 @@ jobs:
         run: python run_agents.py
 
   weekly-evaluation:
-    if: github.event.schedule == '0 14 * * 5'
+    if: github.event.schedule == '0 14 * * 5' || github.event_name == 'workflow_dispatch'
+    needs: weekly-predictions
     runs-on: ubuntu-latest
 
     steps:
