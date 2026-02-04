@@ -1,6 +1,37 @@
 // API Base URL
 const API_URL = '/api';
 
+// EGX Company Name Mapping for search
+const COMPANY_NAMES = {
+    'COMI.CA': 'Commercial International Bank CIB',
+    'HRHO.CA': 'EFG Holding Hermes',
+    'FWRY.CA': 'Fawry Banking Technology',
+    'TMGH.CA': 'Talaat Moustafa Group',
+    'ORAS.CA': 'Orascom Construction',
+    'PHDC.CA': 'Palm Hills Development',
+    'MNHD.CA': 'Madinet Nasr Housing',
+    'OCDI.CA': 'Orascom Development',
+    'SWDY.CA': 'El Sewedy Electric',
+    'EAST.CA': 'Eastern Company Tobacco',
+    'EFIH.CA': 'Egyptian Financial Industrial',
+    'ESRS.CA': 'Ezz Steel',
+    'ETEL.CA': 'Telecom Egypt',
+    'EMFD.CA': 'E-Finance Digital',
+    'ALCN.CA': 'Alexandria Container Cargo',
+    'ABUK.CA': 'Abu Qir Fertilizers',
+    'MFPC.CA': 'Misr Fertilizers MOPCO',
+    'SKPC.CA': 'Sidi Kerir Petrochemicals',
+    'JUFO.CA': 'Juhayna Food Industries',
+    'CCAP.CA': 'Cleopatra Hospital',
+    'ORWE.CA': 'Oriental Weavers',
+    'AMOC.CA': 'Alexandria Mineral Oils',
+};
+
+// Get company name for a symbol
+function getCompanyName(symbol) {
+    return COMPANY_NAMES[symbol] || symbol.replace('.CA', '');
+}
+
 // Format datetime to short format (YYYY-MM-DD HH:MM)
 function formatDate(dateStr) {
     if (!dateStr) return 'N/A';
@@ -71,9 +102,11 @@ async function loadPredictions() {
         let html = '<table id="predictionsTable"><thead><tr><th>Stock</th><th>Agent</th><th>Prediction</th><th>Date</th></tr></thead><tbody>';
 
         data.forEach(pred => {
+            const companyName = getCompanyName(pred.symbol);
+            const searchText = `${pred.symbol} ${companyName}`.toLowerCase();
             html += `
-                <tr data-symbol="${pred.symbol.toLowerCase()}" data-agent="${pred.agent_name.toLowerCase()}">
-                    <td><strong>${pred.symbol}</strong></td>
+                <tr data-search="${searchText}">
+                    <td><strong>${pred.symbol}</strong><br><small style="color:#666">${companyName}</small></td>
                     <td>${pred.agent_name}</td>
                     <td><span class="prediction-${pred.prediction.toLowerCase()}">${pred.prediction}</span></td>
                     <td>${formatDate(pred.prediction_date)}</td>
@@ -89,9 +122,9 @@ async function loadPredictions() {
     }
 }
 
-// Filter predictions based on search input
+// Filter predictions based on search input (by stock symbol or company name)
 function filterPredictions() {
-    const searchValue = document.getElementById('predictionsSearch').value.toLowerCase();
+    const searchValue = document.getElementById('predictionsSearch').value.toLowerCase().trim();
     const table = document.getElementById('predictionsTable');
 
     if (!table) return;
@@ -99,10 +132,9 @@ function filterPredictions() {
     const rows = table.querySelectorAll('tbody tr');
 
     rows.forEach(row => {
-        const symbol = row.getAttribute('data-symbol') || '';
-        const agent = row.getAttribute('data-agent') || '';
+        const searchText = row.getAttribute('data-search') || '';
 
-        if (symbol.includes(searchValue) || agent.includes(searchValue)) {
+        if (searchText.includes(searchValue)) {
             row.classList.remove('hidden-row');
         } else {
             row.classList.add('hidden-row');
