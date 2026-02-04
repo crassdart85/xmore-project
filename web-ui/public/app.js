@@ -68,26 +68,17 @@ async function loadPredictions() {
             return;
         }
 
-        // Group by stock
-        const grouped = {};
+        let html = '<table id="predictionsTable"><thead><tr><th>Stock</th><th>Agent</th><th>Prediction</th><th>Date</th></tr></thead><tbody>';
+
         data.forEach(pred => {
-            if (!grouped[pred.symbol]) grouped[pred.symbol] = [];
-            grouped[pred.symbol].push(pred);
-        });
-
-        let html = '<table><thead><tr><th>Stock</th><th>Agent</th><th>Prediction</th><th>Date</th></tr></thead><tbody>';
-
-        Object.keys(grouped).forEach(symbol => {
-            grouped[symbol].forEach((pred, idx) => {
-                html += `
-                    <tr>
-                        ${idx === 0 ? `<td rowspan="${grouped[symbol].length}"><strong>${symbol}</strong></td>` : ''}
-                        <td>${pred.agent_name}</td>
-                        <td><span class="prediction-${pred.prediction.toLowerCase()}">${pred.prediction}</span></td>
-                        <td>${formatDate(pred.prediction_date)}</td>
-                    </tr>
-                `;
-            });
+            html += `
+                <tr data-symbol="${pred.symbol.toLowerCase()}" data-agent="${pred.agent_name.toLowerCase()}">
+                    <td><strong>${pred.symbol}</strong></td>
+                    <td>${pred.agent_name}</td>
+                    <td><span class="prediction-${pred.prediction.toLowerCase()}">${pred.prediction}</span></td>
+                    <td>${formatDate(pred.prediction_date)}</td>
+                </tr>
+            `;
         });
 
         html += '</tbody></table>';
@@ -96,6 +87,27 @@ async function loadPredictions() {
         console.error('Error loading predictions:', error);
         document.getElementById('predictions').innerHTML = '<p class="loading">Error loading predictions</p>';
     }
+}
+
+// Filter predictions based on search input
+function filterPredictions() {
+    const searchValue = document.getElementById('predictionsSearch').value.toLowerCase();
+    const table = document.getElementById('predictionsTable');
+
+    if (!table) return;
+
+    const rows = table.querySelectorAll('tbody tr');
+
+    rows.forEach(row => {
+        const symbol = row.getAttribute('data-symbol') || '';
+        const agent = row.getAttribute('data-agent') || '';
+
+        if (symbol.includes(searchValue) || agent.includes(searchValue)) {
+            row.classList.remove('hidden-row');
+        } else {
+            row.classList.add('hidden-row');
+        }
+    });
 }
 
 // Load performance
