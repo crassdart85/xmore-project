@@ -225,7 +225,7 @@ def collect_rss_news(days_back: int = 3, use_finbert: bool = True) -> Dict[str, 
     Returns:
         Dictionary with collection statistics
     """
-    print("📰 Collecting Egyptian financial news from RSS feeds...")
+    print("[RSS] Collecting Egyptian financial news from RSS feeds...")
 
     # Initialize FinBERT if requested
     sentiment_pipeline = None
@@ -233,9 +233,9 @@ def collect_rss_news(days_back: int = 3, use_finbert: bool = True) -> Dict[str, 
         try:
             from transformers import pipeline
             sentiment_pipeline = pipeline("sentiment-analysis", model="ProsusAI/finbert")
-            print("🧠 Using FinBERT for sentiment analysis")
+            print("[AI] Using FinBERT for sentiment analysis")
         except Exception as e:
-            print(f"⚠️ FinBERT not available, using simple sentiment: {e}")
+            print(f"[WARN] FinBERT not available, using simple sentiment: {e}")
 
     cutoff_date = datetime.now() - timedelta(days=days_back)
     stats = {
@@ -360,13 +360,13 @@ if __name__ == "__main__":
     print("\nTesting RSS feed connectivity...")
     for feed in EGYPTIAN_NEWS_FEEDS:
         articles = fetch_rss_feed(feed['url'])
-        status = "✅" if articles else "❌"
+        status = "[OK]" if articles else "[FAIL]"
         print(f"  {status} {feed['name']}: {len(articles)} articles")
 
     # Run collection
     print("\nRunning news collection...")
     stats = collect_rss_news(days_back=3, use_finbert=False)
 
-    print("\n📊 Collection Statistics:")
+    print("\nCollection Statistics:")
     for key, value in stats.items():
         print(f"  {key}: {value}")
