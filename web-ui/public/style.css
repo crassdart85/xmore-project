@@ -190,6 +190,30 @@ footer {
     padding: 20px;
 }
 
+/* No data message */
+.no-data {
+    text-align: center;
+    color: #6b7280;
+    padding: 30px 20px;
+    background: #f9fafb;
+    border-radius: 10px;
+    border: 1px dashed #d1d5db;
+}
+
+.no-data::after {
+    display: none;
+}
+
+/* Error message */
+.error-message {
+    text-align: center;
+    color: #dc2626;
+    padding: 20px;
+    background: #fef2f2;
+    border-radius: 10px;
+    border: 1px solid #fecaca;
+}
+
 /* Search Box */
 .search-box {
     margin-bottom: 15px;
@@ -244,4 +268,188 @@ footer {
 /* Hidden row for filtering */
 .hidden-row {
     display: none;
+}
+
+/* Grouped rows styling */
+.stock-cell {
+    vertical-align: middle;
+    background: #fafbfc;
+    border-right: 3px solid #667eea;
+}
+
+.group-start {
+    border-top: 2px solid #e5e7eb;
+}
+
+.group-row td {
+    border-top: 1px dashed #e5e7eb;
+}
+
+/* Company name styling */
+.company-name {
+    color: #6b7280;
+    font-size: 0.85em;
+}
+
+/* Agent name with tooltip */
+.agent-name {
+    cursor: help;
+    border-bottom: 1px dotted #9ca3af;
+    transition: color 0.2s;
+}
+
+.agent-name:hover {
+    color: #667eea;
+}
+
+/* Price and volume cell styling */
+.price-cell {
+    font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+    font-weight: 600;
+    color: #059669;
+}
+
+.volume-cell {
+    font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+    color: #6b7280;
+}
+
+/* Accuracy bar color variations */
+.accuracy-fill.accuracy-high {
+    background: linear-gradient(90deg, #10b981 0%, #059669 100%);
+}
+
+.accuracy-fill.accuracy-medium {
+    background: linear-gradient(90deg, #f59e0b 0%, #d97706 100%);
+}
+
+.accuracy-fill.accuracy-low {
+    background: linear-gradient(90deg, #ef4444 0%, #dc2626 100%);
+}
+
+/* Enhanced table row hover effect */
+tbody tr {
+    transition: background-color 0.2s, transform 0.1s;
+}
+
+tbody tr:hover {
+    background: linear-gradient(90deg, #f8f9fa 0%, #f3f4f6 100%);
+    transform: scale(1.002);
+}
+
+/* Stat card hover effect */
+.stat-card {
+    transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.stat-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+}
+
+/* Loading animation */
+.loading {
+    position: relative;
+}
+
+.loading::after {
+    content: '';
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    margin-left: 10px;
+    border: 2px solid #e5e7eb;
+    border-top-color: #667eea;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    vertical-align: middle;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Fade-in animation for loaded content */
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+table {
+    animation: fadeIn 0.4s ease-out;
+}
+
+/* Section header enhancement */
+.section h2 {
+    position: relative;
+    display: inline-block;
+}
+
+.section h2::after {
+    content: '';
+    position: absolute;
+    bottom: -13px;
+    left: 0;
+    width: 50px;
+    height: 3px;
+    background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+    border-radius: 2px;
+}
+
+/* Refresh button active state */
+.refresh-btn:active {
+    transform: translateY(1px);
+}
+
+/* Loading button state */
+.refresh-btn.loading-btn {
+    opacity: 0.7;
+    cursor: wait;
+}
+
+.refresh-btn:disabled {
+    pointer-events: none;
+}
+
+/* Custom tooltip styling */
+[title] {
+    position: relative;
+}
+
+/* Responsive improvements */
+@media (max-width: 768px) {
+    .container {
+        padding: 20px;
+        border-radius: 10px;
+    }
+
+    header {
+        padding: 40px 15px;
+    }
+
+    h1 {
+        font-size: 2em;
+    }
+
+    .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+    }
+
+    .stat-card {
+        padding: 20px;
+    }
+
+    .stat-value {
+        font-size: 1.8em;
+    }
+
+    th, td {
+        padding: 10px 8px;
+        font-size: 0.9em;
+    }
+
+    .search-box input {
+        max-width: 100%;
+    }
 }
