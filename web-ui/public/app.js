@@ -1,6 +1,29 @@
 // API Base URL
 const API_URL = '/api';
 
+// Format datetime to short format (YYYY-MM-DD HH:MM)
+function formatDate(dateStr) {
+    if (!dateStr) return 'N/A';
+    try {
+        const date = new Date(dateStr);
+        if (isNaN(date.getTime())) return dateStr;
+
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+
+        // If time is 00:00, just show date
+        if (hours === '00' && minutes === '00') {
+            return `${year}-${month}-${day}`;
+        }
+        return `${year}-${month}-${day} ${hours}:${minutes}`;
+    } catch (e) {
+        return dateStr;
+    }
+}
+
 // Load all data on page load
 window.addEventListener('load', () => {
     loadStats();
@@ -26,7 +49,7 @@ async function loadStats() {
         document.getElementById('stocksTracked').textContent = data.stocksTracked || '0';
         document.getElementById('totalPredictions').textContent = data.totalPredictions || '0';
         document.getElementById('totalPrices').textContent = data.totalPrices || '0';
-        document.getElementById('latestDate').textContent = data.latestDate || 'N/A';
+        document.getElementById('latestDate').textContent = formatDate(data.latestDate);
     } catch (error) {
         console.error('Error loading stats:', error);
     }
@@ -61,7 +84,7 @@ async function loadPredictions() {
                         ${idx === 0 ? `<td rowspan="${grouped[symbol].length}"><strong>${symbol}</strong></td>` : ''}
                         <td>${pred.agent_name}</td>
                         <td><span class="prediction-${pred.prediction.toLowerCase()}">${pred.prediction}</span></td>
-                        <td>${pred.prediction_date}</td>
+                        <td>${formatDate(pred.prediction_date)}</td>
                     </tr>
                 `;
             });
@@ -134,7 +157,7 @@ async function loadPrices() {
             html += `
                 <tr>
                     <td><strong>${stock.symbol}</strong></td>
-                    <td>${stock.date}</td>
+                    <td>${formatDate(stock.date)}</td>
                     <td>${parseFloat(stock.close).toFixed(2)}</td>
                     <td>${parseInt(stock.volume).toLocaleString()}</td>
                 </tr>
