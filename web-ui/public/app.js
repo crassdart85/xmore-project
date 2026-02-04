@@ -1,34 +1,215 @@
 // API Base URL
 const API_URL = '/api';
 
-// Agent Name Mapping for display with descriptions
+// ============================================
+// BILINGUAL SUPPORT (English / Arabic)
+// ============================================
+
+// Current language (default: English)
+let currentLang = localStorage.getItem('lang') || 'en';
+
+// Translations
+const TRANSLATIONS = {
+    en: {
+        // Header
+        title: 'Stock Trading System',
+        subtitle: 'Automated Prediction Dashboard',
+
+        // Stats
+        stocksTracked: 'Stocks Tracked',
+        totalPredictions: 'Total Predictions',
+        priceRecords: 'Price Records',
+        latestData: 'Latest Data',
+
+        // Section titles
+        latestPredictions: 'Latest Predictions',
+        agentPerformance: 'Agent Performance',
+        latestPrices: 'Latest Stock Prices',
+
+        // Table headers
+        stock: 'Stock',
+        agent: 'Agent',
+        prediction: 'Prediction',
+        date: 'Date',
+        totalPreds: 'Total Predictions',
+        correct: 'Correct',
+        accuracy: 'Accuracy',
+        closePrice: 'Close Price',
+        volume: 'Volume',
+
+        // Predictions
+        up: 'UP',
+        down: 'DOWN',
+        hold: 'HOLD',
+
+        // Messages
+        noPredictions: 'No predictions yet. Run python run_agents.py to generate predictions.',
+        noPerformance: 'No performance data yet. Run evaluate.py after predictions are made to see agent accuracy.',
+        noPrices: 'No price data available yet.',
+        errorPredictions: 'Could not load predictions. Check if the server is running.',
+        errorPerformance: 'Could not load performance data. Check if the server is running.',
+        errorPrices: 'Could not load price data. Check if the server is running.',
+
+        // Buttons
+        refreshData: 'Refresh Data',
+        refreshing: 'Refreshing...',
+
+        // Footer
+        disclaimer: 'Not financial advice. For research purposes only.',
+
+        // Search
+        searchPlaceholder: 'Search by stock symbol or company name...',
+
+        // Language
+        switchLang: 'عربي'
+    },
+    ar: {
+        // Header
+        title: 'نظام تداول الأسهم',
+        subtitle: 'لوحة التنبؤات الآلية',
+
+        // Stats
+        stocksTracked: 'الأسهم المتابعة',
+        totalPredictions: 'إجمالي التنبؤات',
+        priceRecords: 'سجلات الأسعار',
+        latestData: 'آخر تحديث',
+
+        // Section titles
+        latestPredictions: 'أحدث التنبؤات',
+        agentPerformance: 'أداء الوكلاء',
+        latestPrices: 'أحدث أسعار الأسهم',
+
+        // Table headers
+        stock: 'السهم',
+        agent: 'الوكيل',
+        prediction: 'التنبؤ',
+        date: 'التاريخ',
+        totalPreds: 'إجمالي التنبؤات',
+        correct: 'الصحيحة',
+        accuracy: 'الدقة',
+        closePrice: 'سعر الإغلاق',
+        volume: 'الحجم',
+
+        // Predictions
+        up: 'صعود',
+        down: 'هبوط',
+        hold: 'احتفاظ',
+
+        // Messages
+        noPredictions: 'لا توجد تنبؤات بعد. قم بتشغيل run_agents.py لإنشاء التنبؤات.',
+        noPerformance: 'لا توجد بيانات أداء بعد. قم بتشغيل evaluate.py بعد إنشاء التنبؤات.',
+        noPrices: 'لا توجد بيانات أسعار متاحة بعد.',
+        errorPredictions: 'تعذر تحميل التنبؤات. تأكد من تشغيل الخادم.',
+        errorPerformance: 'تعذر تحميل بيانات الأداء. تأكد من تشغيل الخادم.',
+        errorPrices: 'تعذر تحميل بيانات الأسعار. تأكد من تشغيل الخادم.',
+
+        // Buttons
+        refreshData: 'تحديث البيانات',
+        refreshing: 'جاري التحديث...',
+
+        // Footer
+        disclaimer: 'ليست نصيحة مالية. لأغراض البحث فقط.',
+
+        // Search
+        searchPlaceholder: 'البحث برمز السهم أو اسم الشركة...',
+
+        // Language
+        switchLang: 'English'
+    }
+};
+
+// Agent info with bilingual support
 const AGENT_INFO = {
     'MA_Crossover_Agent': {
-        name: 'Moving Average Trend',
-        description: 'Analyzes short and long-term moving average crossovers to identify trend changes'
+        en: { name: 'Moving Average Trend', description: 'Analyzes short and long-term moving average crossovers to identify trend changes' },
+        ar: { name: 'اتجاه المتوسط المتحرك', description: 'يحلل تقاطعات المتوسطات المتحركة قصيرة وطويلة المدى لتحديد تغيرات الاتجاه' }
     },
     'ML_RandomForest': {
-        name: 'AI Price Predictor',
-        description: 'Machine learning model using historical patterns to predict price movements'
+        en: { name: 'AI Price Predictor', description: 'Machine learning model using historical patterns to predict price movements' },
+        ar: { name: 'متنبئ الأسعار الذكي', description: 'نموذج تعلم آلي يستخدم الأنماط التاريخية للتنبؤ بحركات الأسعار' }
     },
     'RSI_Agent': {
-        name: 'Momentum Indicator',
-        description: 'Uses Relative Strength Index to detect overbought/oversold conditions'
+        en: { name: 'Momentum Indicator', description: 'Uses Relative Strength Index to detect overbought/oversold conditions' },
+        ar: { name: 'مؤشر الزخم', description: 'يستخدم مؤشر القوة النسبية لاكتشاف حالات الشراء/البيع المفرط' }
     },
     'Volume_Spike_Agent': {
-        name: 'Volume Analysis',
-        description: 'Monitors unusual volume activity to predict potential price movements'
+        en: { name: 'Volume Analysis', description: 'Monitors unusual volume activity to predict potential price movements' },
+        ar: { name: 'تحليل الحجم', description: 'يراقب نشاط الحجم غير المعتاد للتنبؤ بتحركات الأسعار المحتملة' }
     },
 };
 
+// Get translation
+function t(key) {
+    return TRANSLATIONS[currentLang][key] || TRANSLATIONS['en'][key] || key;
+}
+
 // Get display name for an agent
 function getAgentDisplayName(agentName) {
-    return AGENT_INFO[agentName]?.name || agentName;
+    return AGENT_INFO[agentName]?.[currentLang]?.name || AGENT_INFO[agentName]?.en?.name || agentName;
 }
 
 // Get agent description for tooltips
 function getAgentDescription(agentName) {
-    return AGENT_INFO[agentName]?.description || '';
+    return AGENT_INFO[agentName]?.[currentLang]?.description || AGENT_INFO[agentName]?.en?.description || '';
+}
+
+// Switch language
+function switchLanguage() {
+    currentLang = currentLang === 'en' ? 'ar' : 'en';
+    localStorage.setItem('lang', currentLang);
+    applyLanguage();
+    // Reload all data to update dynamic content
+    loadStats();
+    loadPredictions();
+    loadPerformance();
+    loadPrices();
+}
+
+// Apply language to static elements
+function applyLanguage() {
+    const isArabic = currentLang === 'ar';
+
+    // Set document direction
+    document.documentElement.dir = isArabic ? 'rtl' : 'ltr';
+    document.documentElement.lang = currentLang;
+    document.body.classList.toggle('rtl', isArabic);
+
+    // Update static text elements
+    const title = document.querySelector('header h1');
+    const subtitle = document.querySelector('.subtitle');
+    if (title) title.textContent = t('title');
+    if (subtitle) subtitle.textContent = t('subtitle');
+
+    // Update stat labels
+    document.querySelectorAll('.stat-label').forEach((el, index) => {
+        const labels = ['stocksTracked', 'totalPredictions', 'priceRecords', 'latestData'];
+        if (labels[index]) el.textContent = t(labels[index]);
+    });
+
+    // Update section titles
+    const sectionTitles = document.querySelectorAll('.section h2');
+    const titleKeys = ['latestPredictions', 'agentPerformance', 'latestPrices'];
+    sectionTitles.forEach((el, index) => {
+        if (titleKeys[index]) el.textContent = t(titleKeys[index]);
+    });
+
+    // Update search placeholder
+    const searchInput = document.getElementById('predictionsSearch');
+    if (searchInput) searchInput.placeholder = t('searchPlaceholder');
+
+    // Update refresh button
+    const refreshBtn = document.getElementById('refreshBtn');
+    if (refreshBtn && !refreshBtn.disabled) {
+        refreshBtn.textContent = t('refreshData');
+    }
+
+    // Update disclaimer
+    const disclaimer = document.querySelector('.disclaimer');
+    if (disclaimer) disclaimer.textContent = t('disclaimer');
+
+    // Update language switch button
+    const langBtn = document.getElementById('langBtn');
+    if (langBtn) langBtn.textContent = t('switchLang');
 }
 
 // Company Name Mapping for search (EGX and US stocks)
@@ -104,18 +285,22 @@ function formatDate(dateStr) {
 
 // Load all data on page load
 window.addEventListener('load', () => {
+    applyLanguage();
     loadStats();
     loadPredictions();
     loadPerformance();
     loadPrices();
 });
 
+// Initialize language switch button
+document.getElementById('langBtn')?.addEventListener('click', switchLanguage);
+
 // Refresh all data with loading state
 async function refreshData() {
     const btn = document.getElementById('refreshBtn');
     if (btn) {
         btn.disabled = true;
-        btn.textContent = 'Refreshing...';
+        btn.textContent = t('refreshing');
         btn.classList.add('loading-btn');
     }
 
@@ -129,7 +314,7 @@ async function refreshData() {
     } finally {
         if (btn) {
             btn.disabled = false;
-            btn.textContent = 'Refresh Data';
+            btn.textContent = t('refreshData');
             btn.classList.remove('loading-btn');
         }
     }
@@ -164,7 +349,7 @@ async function loadPredictions() {
         const data = await response.json();
 
         if (!data || data.length === 0) {
-            container.innerHTML = '<p class="no-data">No predictions yet. Run python run_agents.py to generate predictions.</p>';
+            container.innerHTML = `<p class="no-data">${t('noPredictions')}</p>`;
             return;
         }
 
@@ -177,7 +362,7 @@ async function loadPredictions() {
             grouped[pred.symbol].push(pred);
         });
 
-        let html = '<table id="predictionsTable"><thead><tr><th>Stock</th><th>Agent</th><th>Prediction</th><th>Date</th></tr></thead><tbody>';
+        let html = `<table id="predictionsTable"><thead><tr><th>${t('stock')}</th><th>${t('agent')}</th><th>${t('prediction')}</th><th>${t('date')}</th></tr></thead><tbody>`;
 
         Object.keys(grouped).forEach(symbol => {
             const predictions = grouped[symbol];
@@ -195,9 +380,10 @@ async function loadPredictions() {
                     html += `<td rowspan="${predictions.length}" class="stock-cell"><strong>${symbol}</strong><br><small class="company-name">${companyName}</small></td>`;
                 }
 
+                const predictionText = t(pred.prediction.toLowerCase());
                 html += `
                     <td><span class="agent-name" title="${agentDescription}">${agentDisplayName}</span></td>
-                    <td><span class="prediction-${pred.prediction.toLowerCase()}">${pred.prediction}</span></td>
+                    <td><span class="prediction-${pred.prediction.toLowerCase()}">${predictionText}</span></td>
                     <td>${formatDate(pred.prediction_date)}</td>
                 </tr>`;
             });
@@ -207,7 +393,7 @@ async function loadPredictions() {
         container.innerHTML = html;
     } catch (error) {
         console.error('Error loading predictions:', error);
-        document.getElementById('predictions').innerHTML = '<p class="error-message">Could not load predictions. Check if the server is running.</p>';
+        document.getElementById('predictions').innerHTML = `<p class="error-message">${t('errorPredictions')}</p>`;
     }
 }
 
@@ -253,11 +439,11 @@ async function loadPerformance() {
         const data = await response.json();
 
         if (!data || data.length === 0) {
-            container.innerHTML = '<p class="no-data">No performance data yet. Run evaluate.py after predictions are made to see agent accuracy.</p>';
+            container.innerHTML = `<p class="no-data">${t('noPerformance')}</p>`;
             return;
         }
 
-        let html = '<table><thead><tr><th>Agent</th><th>Total Predictions</th><th>Correct</th><th>Accuracy</th></tr></thead><tbody>';
+        let html = `<table><thead><tr><th>${t('agent')}</th><th>${t('totalPreds')}</th><th>${t('correct')}</th><th>${t('accuracy')}</th></tr></thead><tbody>`;
 
         data.forEach(agent => {
             const agentDisplayName = getAgentDisplayName(agent.agent_name);
@@ -283,7 +469,7 @@ async function loadPerformance() {
         container.innerHTML = html;
     } catch (error) {
         console.error('Error loading performance:', error);
-        container.innerHTML = '<p class="error-message">Could not load performance data. Check if the server is running.</p>';
+        container.innerHTML = `<p class="error-message">${t('errorPerformance')}</p>`;
     }
 }
 
@@ -304,11 +490,11 @@ async function loadPrices() {
         const data = await response.json();
 
         if (!data || data.length === 0) {
-            container.innerHTML = '<p class="no-data">No price data available yet.</p>';
+            container.innerHTML = `<p class="no-data">${t('noPrices')}</p>`;
             return;
         }
 
-        let html = '<table><thead><tr><th>Stock</th><th>Date</th><th>Close Price</th><th>Volume</th></tr></thead><tbody>';
+        let html = `<table><thead><tr><th>${t('stock')}</th><th>${t('date')}</th><th>${t('closePrice')}</th><th>${t('volume')}</th></tr></thead><tbody>`;
 
         data.forEach(stock => {
             const companyName = getCompanyName(stock.symbol);
@@ -326,6 +512,6 @@ async function loadPrices() {
         container.innerHTML = html;
     } catch (error) {
         console.error('Error loading prices:', error);
-        container.innerHTML = '<p class="error-message">Could not load price data. Check if the server is running.</p>';
+        container.innerHTML = `<p class="error-message">${t('errorPrices')}</p>`;
     }
 }
