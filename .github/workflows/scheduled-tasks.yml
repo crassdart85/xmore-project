@@ -47,6 +47,13 @@ jobs:
         run: |
           python collect_data.py
 
+      - name: Collect sentiment
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
+        run: |
+          python sentiment.py
+
   weekly-predictions:
     if: github.event.schedule == '0 23 * * 5' || github.event_name == 'workflow_dispatch'
     needs: daily-collection

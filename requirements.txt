@@ -10,3 +10,4 @@ psycopg2-binary>=2.9.0
 requests>=2.31.0
 textblob>=0.18.0
 feedparser>=6.0.0
+finnhub-python>=2.4.0

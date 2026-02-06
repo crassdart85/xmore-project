@@ -134,7 +134,37 @@ app.get('/api/prices', (req, res) => {
   });
 });
 
-// 4. Get system stats
+// 4. Get latest sentiment scores
+app.get('/api/sentiment', (req, res) => {
+  // Get the most recent sentiment for each stock
+  const query = DATABASE_URL
+    ? `SELECT DISTINCT ON (symbol) symbol, date, avg_sentiment, sentiment_label, article_count
+       FROM sentiment_scores
+       ORDER BY symbol, date DESC`
+    : `SELECT s.symbol, s.date, s.avg_sentiment, s.sentiment_label, s.article_count
+       FROM sentiment_scores s
+       INNER JOIN (
+         SELECT symbol, MAX(date) as max_date
+         FROM sentiment_scores
+         GROUP BY symbol
+       ) latest ON s.symbol = latest.symbol AND s.date = latest.max_date
+       ORDER BY s.symbol`;
+
+  db.all(query, [], (err, rows) => {
+    if (err) {
+      // Table might not exist yet
+      if (err.message && err.message.includes('no such table')) {
+        res.json([]);
+      } else {
+        res.status(500).json({ error: err.message });
+      }
+    } else {
+      res.json(rows || []);
+    }
+  });
+});
+
+// 5. Get system stats
 app.get('/api/stats', (req, res) => {
   const queries = {
     totalPrices: 'SELECT COUNT(*) as count FROM prices',

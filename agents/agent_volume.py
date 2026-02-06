@@ -1,4 +1,5 @@
 import pandas as pd
+from typing import Optional, Dict, Any
 from agents.agent_base import BaseAgent
 import config
 
@@ -25,21 +26,16 @@ class VolumeAgent(BaseAgent):
         self.volume_multiplier = volume_multiplier
         self.avg_period = avg_period
 
-    def predict(self, data: pd.DataFrame):
+    def predict(self, data: pd.DataFrame, sentiment: Optional[Dict[str, Any]] = None):
         """
         Analyze volume patterns to generate trading signals.
-        
+
         Args:
             data (pd.DataFrame): DataFrame containing 'close' and 'volume'.
-            
+            sentiment: Optional dict with sentiment data (not used by this agent).
+
         Returns:
             str: "UP", "DOWN", or "HOLD".
-            
-        Example:
-            >>> df = pd.DataFrame({'volume': [100, 100, ... 500], 'close': [10, ..., 11]})
-            >>> signal = agent.predict(df)
-            >>> print(signal)
-            'UP'
         """
         # Need enough data for average calculation + 1 current day
         if len(data) < self.avg_period + 1:

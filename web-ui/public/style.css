@@ -134,6 +134,42 @@ tr:hover {
     font-weight: bold;
 }
 
+/* Sentiment Badges */
+.sentiment-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 15px;
+    font-size: 0.85em;
+    font-weight: 600;
+    cursor: help;
+}
+
+.sentiment-bullish {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+}
+
+.sentiment-neutral {
+    background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+    color: white;
+}
+
+.sentiment-bearish {
+    background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+    color: white;
+}
+
+.sentiment-none {
+    background: #e5e7eb;
+    color: #6b7280;
+    font-style: italic;
+}
+
+.sentiment-cell {
+    vertical-align: middle;
+    background: #fafbfc;
+}
+
 /* Performance Bars */
 .accuracy-bar {
     background: #e5e7eb;

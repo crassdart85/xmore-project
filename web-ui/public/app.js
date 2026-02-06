@@ -42,6 +42,13 @@ const TRANSLATIONS = {
         down: 'DOWN',
         hold: 'HOLD',
 
+        // Sentiment
+        sentiment: 'Sentiment',
+        bullish: 'Bullish',
+        neutral: 'Neutral',
+        bearish: 'Bearish',
+        noSentiment: 'N/A',
+
         // Messages
         noPredictions: 'No predictions yet. Run python run_agents.py to generate predictions.',
         noPerformance: 'No performance data yet. Run evaluate.py after predictions are made to see agent accuracy.',
@@ -94,6 +101,13 @@ const TRANSLATIONS = {
         up: 'صعود',
         down: 'هبوط',
         hold: 'احتفاظ',
+
+        // Sentiment
+        sentiment: 'المشاعر',
+        bullish: 'إيجابي',
+        neutral: 'محايد',
+        bearish: 'سلبي',
+        noSentiment: 'غ/م',
 
         // Messages
         noPredictions: 'لا توجد تنبؤات بعد. قم بتشغيل run_agents.py لإنشاء التنبؤات.',
@@ -154,11 +168,12 @@ function getAgentDescription(agentName) {
 }
 
 // Switch language
-function switchLanguage() {
+async function switchLanguage() {
     currentLang = currentLang === 'en' ? 'ar' : 'en';
     localStorage.setItem('lang', currentLang);
     applyLanguage();
     // Reload all data to update dynamic content
+    await loadSentiment();
     loadStats();
     loadPredictions();
     loadPerformance();
@@ -283,9 +298,44 @@ function formatDate(dateStr) {
     }
 }
 
+// Store sentiment data globally for use in predictions display
+let sentimentData = {};
+
+// Load sentiment data
+async function loadSentiment() {
+    try {
+        const response = await fetch(`${API_URL}/sentiment`);
+        if (response.ok) {
+            const data = await response.json();
+            // Index by symbol for quick lookup
+            sentimentData = {};
+            data.forEach(item => {
+                sentimentData[item.symbol] = item;
+            });
+        }
+    } catch (error) {
+        console.error('Error loading sentiment:', error);
+    }
+}
+
+// Get sentiment badge HTML for a symbol
+function getSentimentBadge(symbol) {
+    const sentiment = sentimentData[symbol];
+    if (!sentiment || !sentiment.sentiment_label) {
+        return `<span class="sentiment-badge sentiment-none">${t('noSentiment')}</span>`;
+    }
+
+    const label = sentiment.sentiment_label.toLowerCase();
+    const displayLabel = t(label) || sentiment.sentiment_label;
+    const score = sentiment.avg_sentiment ? sentiment.avg_sentiment.toFixed(2) : '0.00';
+
+    return `<span class="sentiment-badge sentiment-${label}" title="Score: ${score}">${displayLabel}</span>`;
+}
+
 // Load all data on page load
-window.addEventListener('load', () => {
+window.addEventListener('load', async () => {
     applyLanguage();
+    await loadSentiment(); // Load sentiment first
     loadStats();
     loadPredictions();
     loadPerformance();
@@ -305,6 +355,7 @@ async function refreshData() {
     }
 
     try {
+        await loadSentiment(); // Load sentiment first
         await Promise.all([
             loadStats(),
             loadPredictions(),
@@ -362,7 +413,7 @@ async function loadPredictions() {
             grouped[pred.symbol].push(pred);
         });
 
-        let html = `<table id="predictionsTable"><thead><tr><th>${t('stock')}</th><th>${t('agent')}</th><th>${t('prediction')}</th><th>${t('date')}</th></tr></thead><tbody>`;
+        let html = `<table id="predictionsTable"><thead><tr><th>${t('stock')}</th><th>${t('sentiment')}</th><th>${t('agent')}</th><th>${t('prediction')}</th><th>${t('date')}</th></tr></thead><tbody>`;
 
         Object.keys(grouped).forEach(symbol => {
             const predictions = grouped[symbol];
@@ -375,9 +426,10 @@ async function loadPredictions() {
 
                 html += `<tr data-search="${searchText}" class="${index === 0 ? 'group-start' : 'group-row'}">`;
 
-                // Only show stock cell on first row of group
+                // Only show stock and sentiment cells on first row of group
                 if (index === 0) {
                     html += `<td rowspan="${predictions.length}" class="stock-cell"><strong>${symbol}</strong><br><small class="company-name">${companyName}</small></td>`;
+                    html += `<td rowspan="${predictions.length}" class="sentiment-cell">${getSentimentBadge(symbol)}</td>`;
                 }
 
                 const predictionText = t(pred.prediction.toLowerCase());

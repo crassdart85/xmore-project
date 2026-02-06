@@ -9,6 +9,7 @@ import pandas as pd
 from datetime import datetime, timedelta
 import config
 from database import get_connection
+from sentiment import get_latest_sentiment
 import sys
 import traceback
 
@@ -97,11 +98,18 @@ def execute():
                 # Show recent prices
                 recent = df.tail(3)
                 print(f"  Recent Close: {recent['close'].values}")
-                
-                # Run agent
+
+                # Fetch sentiment data for this stock
+                sentiment = get_latest_sentiment(stock)
+                if sentiment:
+                    print(f"  Sentiment: {sentiment.get('sentiment_label', 'N/A')} ({sentiment.get('avg_sentiment', 0):.2f})")
+                else:
+                    print(f"  Sentiment: No data")
+
+                # Run agents with sentiment
                 cursor = conn.cursor()
                 for agent in agents:
-                    signal = agent.predict(df)
+                    signal = agent.predict(df, sentiment=sentiment)
 
                     # Use PostgreSQL-compatible upsert when DATABASE_URL is set
                     if os.getenv('DATABASE_URL'):

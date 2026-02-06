@@ -1,4 +1,5 @@
 import pandas as pd
+from typing import Optional, Dict, Any
 from agents.agent_base import BaseAgent
 import config
 
@@ -24,21 +25,16 @@ class MAAgent(BaseAgent):
         self.short_window = short_window
         self.long_window = long_window
 
-    def predict(self, data: pd.DataFrame):
+    def predict(self, data: pd.DataFrame, sentiment: Optional[Dict[str, Any]] = None):
         """
         Analyze price data and generate a trading signal.
-        
+
         Args:
             data (pd.DataFrame): DataFrame containing 'close' price column.
-            
+            sentiment: Optional dict with sentiment data (not used by this agent).
+
         Returns:
             str: "UP", "DOWN", or "HOLD".
-            
-        Example:
-            >>> df = pd.DataFrame({'close': [100, 102, 104, ...]})
-            >>> signal = agent.predict(df)
-            >>> print(signal)
-            'UP'
         """
         if len(data) < self.long_window:
             return "HOLD"

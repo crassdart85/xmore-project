@@ -1,6 +1,7 @@
 import pandas as pd
 import joblib
 import os
+from typing import Optional, Dict, Any
 from agents.agent_base import BaseAgent
 from features import add_technical_indicators, add_sentiment_features
 from database import get_connection
@@ -22,11 +23,11 @@ class MLAgent(BaseAgent):
         else:
             print(f"Warning: Model not found at {MODEL_PATH}. Prediction will fail.")
 
-    def predict(self, price_df):
+    def predict(self, price_df, sentiment: Optional[Dict[str, Any]] = None):
         """
         Predict using the pre-trained Random Forest model.
         Expects price_df to have full history for indicator calculation.
-        Example Usage: agent.predict(historical_df)
+        Note: This agent fetches its own sentiment from the news table.
         """
         if self.model is None:
             return "HOLD"
