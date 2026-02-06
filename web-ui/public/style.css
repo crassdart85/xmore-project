@@ -417,19 +417,49 @@ table {
     position: relative;
 }
 
-/* Responsive improvements */
-@media (max-width: 768px) {
-    .container {
-        padding: 20px;
-        border-radius: 10px;
-    }
+/* ============================================
+   RESPONSIVE DESIGN
+   ============================================ */
 
-    header {
-        padding: 40px 15px;
+/* Large tablets and small desktops */
+@media (max-width: 1024px) {
+    .container {
+        padding: 30px;
+        margin: 0 10px;
     }
 
     h1 {
-        font-size: 2em;
+        font-size: 2.5em;
+    }
+
+    .stat-value {
+        font-size: 2.2em;
+    }
+}
+
+/* Tablets */
+@media (max-width: 768px) {
+    body {
+        padding: 10px;
+    }
+
+    .container {
+        padding: 20px;
+        border-radius: 15px;
+    }
+
+    header {
+        padding: 50px 15px;
+        padding-top: 60px;
+    }
+
+    h1 {
+        font-size: 1.8em;
+        line-height: 1.2;
+    }
+
+    .subtitle {
+        font-size: 1em;
     }
 
     .stats-grid {
@@ -438,20 +468,276 @@ table {
     }
 
     .stat-card {
-        padding: 20px;
+        padding: 20px 15px;
     }
 
     .stat-value {
         font-size: 1.8em;
     }
 
+    .stat-label {
+        font-size: 0.8em;
+    }
+
+    .section {
+        margin-bottom: 30px;
+    }
+
+    .section h2 {
+        font-size: 1.3em;
+        margin-bottom: 15px;
+    }
+
+    /* Make tables horizontally scrollable */
+    .scrollable-container {
+        max-height: none;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    table {
+        min-width: 500px;
+    }
+
     th, td {
-        padding: 10px 8px;
+        padding: 12px 10px;
         font-size: 0.9em;
+        white-space: nowrap;
+    }
+
+    .company-name {
+        display: block;
+        max-width: 120px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .prediction-up,
+    .prediction-down,
+    .prediction-hold {
+        padding: 4px 10px;
+        font-size: 0.85em;
+    }
+
+    .accuracy-bar {
+        height: 25px;
+        min-width: 80px;
     }
 
     .search-box input {
         max-width: 100%;
+        padding: 10px 15px;
+    }
+
+    .refresh-btn {
+        padding: 12px 30px;
+        font-size: 1em;
+        width: 100%;
+        max-width: 300px;
+    }
+
+    footer {
+        margin-top: 30px;
+    }
+
+    .disclaimer {
+        font-size: 0.8em;
+        padding: 0 10px;
+    }
+}
+
+/* Small phones */
+@media (max-width: 480px) {
+    body {
+        padding: 5px;
+    }
+
+    .container {
+        padding: 15px;
+        border-radius: 12px;
+    }
+
+    header {
+        padding: 40px 10px;
+        padding-top: 55px;
+        border-radius: 10px;
+    }
+
+    h1 {
+        font-size: 1.5em;
+    }
+
+    .subtitle {
+        font-size: 0.9em;
+    }
+
+    .stats-grid {
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+    }
+
+    .stat-card {
+        padding: 15px 10px;
+        border-radius: 10px;
+    }
+
+    .stat-value {
+        font-size: 1.5em;
+    }
+
+    .stat-label {
+        font-size: 0.75em;
+    }
+
+    .section h2 {
+        font-size: 1.2em;
+    }
+
+    table {
+        min-width: 450px;
+    }
+
+    th, td {
+        padding: 10px 8px;
+        font-size: 0.85em;
+    }
+
+    .stock-cell {
+        min-width: 100px;
+    }
+
+    .company-name {
+        max-width: 90px;
+        font-size: 0.75em;
+    }
+
+    .agent-name {
+        font-size: 0.9em;
+    }
+
+    .price-cell,
+    .volume-cell {
+        font-size: 0.85em;
+    }
+
+    .search-box {
+        margin-bottom: 10px;
+    }
+
+    .search-box input {
+        padding: 10px 12px;
+        font-size: 0.9em;
+        border-radius: 20px;
+    }
+
+    .refresh-btn {
+        padding: 12px 25px;
+        font-size: 0.95em;
+        border-radius: 20px;
+    }
+
+    .no-data,
+    .error-message {
+        padding: 20px 15px;
+        font-size: 0.9em;
+    }
+}
+
+/* Extra small phones */
+@media (max-width: 360px) {
+    .container {
+        padding: 12px;
+    }
+
+    header {
+        padding: 35px 10px;
+        padding-top: 50px;
+    }
+
+    h1 {
+        font-size: 1.3em;
+    }
+
+    .stats-grid {
+        gap: 6px;
+    }
+
+    .stat-card {
+        padding: 12px 8px;
+    }
+
+    .stat-value {
+        font-size: 1.3em;
+    }
+
+    .stat-label {
+        font-size: 0.7em;
+    }
+
+    table {
+        min-width: 400px;
+    }
+
+    th, td {
+        padding: 8px 6px;
+        font-size: 0.8em;
+    }
+}
+
+/* Landscape phones */
+@media (max-width: 768px) and (orientation: landscape) {
+    header {
+        padding: 30px 15px;
+        padding-top: 50px;
+    }
+
+    .stats-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+
+    .scrollable-container {
+        max-height: 250px;
+    }
+}
+
+/* Touch device improvements */
+@media (hover: none) and (pointer: coarse) {
+    .stat-card:hover {
+        transform: none;
+    }
+
+    tbody tr:hover {
+        transform: none;
+    }
+
+    .refresh-btn:hover {
+        transform: none;
+    }
+
+    .lang-btn:hover {
+        transform: none;
+    }
+
+    /* Larger touch targets */
+    .lang-btn {
+        padding: 10px 20px;
+        min-height: 44px;
+    }
+
+    .refresh-btn {
+        min-height: 48px;
+    }
+
+    .search-box input {
+        min-height: 44px;
+    }
+}
+
+/* High DPI screens */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+    .container {
+        box-shadow: 0 10px 40px rgba(0,0,0,0.25);
     }
 }
 
@@ -525,16 +811,75 @@ table {
     font-family: 'Segoe UI', Tahoma, 'Arial', sans-serif;
 }
 
+/* RTL responsive adjustments */
 @media (max-width: 768px) {
     .lang-btn {
         top: 10px;
         right: 10px;
-        padding: 6px 15px;
-        font-size: 0.8em;
+        padding: 8px 16px;
+        font-size: 0.85em;
     }
 
     .rtl .lang-btn {
         right: auto;
         left: 10px;
+    }
+
+    .rtl .company-name {
+        text-align: right;
+    }
+}
+
+@media (max-width: 480px) {
+    .lang-btn {
+        top: 8px;
+        right: 8px;
+        padding: 6px 12px;
+        font-size: 0.8em;
+    }
+
+    .rtl .lang-btn {
+        right: auto;
+        left: 8px;
+    }
+}
+
+/* Print styles */
+@media print {
+    body {
+        background: white;
+        padding: 0;
+    }
+
+    .container {
+        box-shadow: none;
+        max-width: 100%;
+        padding: 20px;
+    }
+
+    header {
+        background: #667eea !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    .lang-btn,
+    .refresh-btn,
+    .search-box {
+        display: none;
+    }
+
+    .scrollable-container {
+        max-height: none;
+        overflow: visible;
+    }
+
+    table {
+        min-width: auto;
+    }
+
+    .stat-card {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
     }
 }
