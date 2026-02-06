@@ -52,6 +52,7 @@ Stock trading prediction system with web dashboard. Uses multiple AI agents to p
 7. **Touch Optimized** - 44px+ touch targets, no hover on touch devices
 8. **Print Styles** - Clean printing without buttons
 9. **Sentiment Badges** - Bullish/Neutral/Bearish badges per stock (color-coded)
+10. **User-Friendly Messages** - Friendly status messages instead of technical errors
 
 ## Sentiment Analysis (Feb 2025)
 - **Source**: Finnhub API for company news
@@ -75,14 +76,21 @@ Stock trading prediction system with web dashboard. Uses multiple AI agents to p
 - Database: trading-db PostgreSQL
 
 ## Troubleshooting
-- **"No performance data"** - Evaluations run hourly. Check GitHub Actions logs
+- **"Performance tracking will begin..."** - Normal message when no evaluations exist yet. Wait for hourly GitHub Action
 - **"N/A" sentiment badges** - Run `python sentiment.py` or check FINNHUB_API_KEY secret
 - **Server errors** - Run `npm install` in web-ui folder, then restart server
 - **Browser cache** - Hard refresh (Ctrl+Shift+R) after code changes
 - **GitHub Actions failing** - Check secrets: DATABASE_URL, NEWS_API_KEY, FINNHUB_API_KEY
+- **Render not updating** - Wait 2-3 minutes after push for auto-deploy
+
+## Database Compatibility
+- **Boolean handling**: PostgreSQL uses `true/false`, SQLite uses `1/0`
+- **Missing tables**: API returns empty array `[]` instead of 500 error
+- **DISTINCT ON**: PostgreSQL-specific syntax for latest records per symbol
 
 ## Notes
 - EGX stocks use `.CA` suffix (e.g., `COMI.CA`)
 - Language preference stored in localStorage
 - Server runs on port 3000 locally
 - Production uses Render's DATABASE_URL for PostgreSQL
+- Dashboard auto-refreshes data on language switch
