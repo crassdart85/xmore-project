@@ -50,12 +50,12 @@ const TRANSLATIONS = {
         noSentiment: 'N/A',
 
         // Messages
-        noPredictions: 'No predictions yet. Run python run_agents.py to generate predictions.',
-        noPerformance: 'No performance data yet. Run evaluate.py after predictions are made to see agent accuracy.',
-        noPrices: 'No price data available yet.',
-        errorPredictions: 'Could not load predictions. Check if the server is running.',
-        errorPerformance: 'Could not load performance data. Check if the server is running.',
-        errorPrices: 'Could not load price data. Check if the server is running.',
+        noPredictions: 'No predictions available yet. New predictions are generated every Friday.',
+        noPerformance: 'Performance tracking will begin once predictions have been evaluated. Check back soon!',
+        noPrices: 'Price data is being collected. Please check back later.',
+        errorPredictions: 'Unable to load predictions. Please try refreshing the page.',
+        errorPerformance: 'Unable to load performance data. Please try refreshing the page.',
+        errorPrices: 'Unable to load price data. Please try refreshing the page.',
 
         // Buttons
         refreshData: 'Refresh Data',
@@ -110,12 +110,12 @@ const TRANSLATIONS = {
         noSentiment: 'غ/م',
 
         // Messages
-        noPredictions: 'لا توجد تنبؤات بعد. قم بتشغيل run_agents.py لإنشاء التنبؤات.',
-        noPerformance: 'لا توجد بيانات أداء بعد. قم بتشغيل evaluate.py بعد إنشاء التنبؤات.',
-        noPrices: 'لا توجد بيانات أسعار متاحة بعد.',
-        errorPredictions: 'تعذر تحميل التنبؤات. تأكد من تشغيل الخادم.',
-        errorPerformance: 'تعذر تحميل بيانات الأداء. تأكد من تشغيل الخادم.',
-        errorPrices: 'تعذر تحميل بيانات الأسعار. تأكد من تشغيل الخادم.',
+        noPredictions: 'لا توجد تنبؤات متاحة حالياً. يتم إنشاء تنبؤات جديدة كل يوم جمعة.',
+        noPerformance: 'سيبدأ تتبع الأداء بمجرد تقييم التنبؤات. يرجى المراجعة لاحقاً!',
+        noPrices: 'جاري جمع بيانات الأسعار. يرجى المراجعة لاحقاً.',
+        errorPredictions: 'تعذر تحميل التنبؤات. يرجى تحديث الصفحة.',
+        errorPerformance: 'تعذر تحميل بيانات الأداء. يرجى تحديث الصفحة.',
+        errorPrices: 'تعذر تحميل بيانات الأسعار. يرجى تحديث الصفحة.',
 
         // Buttons
         refreshData: 'تحديث البيانات',
