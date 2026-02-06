@@ -97,19 +97,26 @@ app.get('/api/predictions', (req, res) => {
 
 // 2. Get agent performance (accuracy)
 app.get('/api/performance', (req, res) => {
+  // Use different boolean syntax for PostgreSQL vs SQLite
+  const boolTrue = DATABASE_URL ? 'true' : '1';
   const query = `
     SELECT
       agent_name,
       COUNT(*) as total_predictions,
-      SUM(CASE WHEN was_correct = 1 THEN 1 ELSE 0 END) as correct_predictions,
-      ROUND(AVG(CASE WHEN was_correct = 1 THEN 1.0 ELSE 0.0 END) * 100, 1) as accuracy
+      SUM(CASE WHEN was_correct = ${boolTrue} THEN 1 ELSE 0 END) as correct_predictions,
+      ROUND(AVG(CASE WHEN was_correct = ${boolTrue} THEN 1.0 ELSE 0.0 END) * 100, 1) as accuracy
     FROM evaluations
     GROUP BY agent_name
   `;
 
   db.all(query, [], (err, rows) => {
     if (err) {
-      res.status(500).json({ error: err.message });
+      // Table might not exist yet
+      if (err.message && err.message.includes('does not exist')) {
+        res.json([]);
+      } else {
+        res.status(500).json({ error: err.message });
+      }
     } else {
       res.json(rows || []);
     }
