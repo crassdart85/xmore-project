@@ -8,8 +8,8 @@ on:
     # Weekly predictions: Friday 6 PM EST = 23:00 UTC
     - cron: '0 23 * * 5'
 
-    # Weekly evaluation: Friday 9 AM EST = 14:00 UTC
-    - cron: '0 14 * * 5'
+    # Hourly evaluation: Every hour
+    - cron: '0 * * * *'
 
   # Allow manual trigger
   workflow_dispatch:
@@ -84,9 +84,8 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: python run_agents.py
 
-  weekly-evaluation:
-    if: github.event.schedule == '0 14 * * 5' || github.event_name == 'workflow_dispatch'
-    needs: weekly-predictions
+  hourly-evaluation:
+    if: github.event.schedule == '0 * * * *' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
 
     steps:
