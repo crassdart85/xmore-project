@@ -24,6 +24,7 @@ const TRANSLATIONS = {
         // Section titles
         latestPredictions: 'Latest Predictions',
         agentPerformance: 'Agent Performance',
+        predictionResults: 'Prediction Results',
         latestPrices: 'Latest Stock Prices',
 
         // Table headers
@@ -36,6 +37,10 @@ const TRANSLATIONS = {
         accuracy: 'Accuracy',
         closePrice: 'Close Price',
         volume: 'Volume',
+        actualOutcome: 'Actual',
+        priceChange: 'Change %',
+        result: 'Result',
+        targetDate: 'Target Date',
 
         // Predictions
         up: 'UP',
@@ -52,9 +57,11 @@ const TRANSLATIONS = {
         // Messages
         noPredictions: 'No predictions available yet. New predictions are generated every Friday.',
         noPerformance: 'Performance tracking will begin once predictions have been evaluated. Check back soon!',
+        noEvaluations: 'No prediction results yet. Results will appear after predictions are evaluated against actual prices.',
         noPrices: 'Price data is being collected. Please check back later.',
         errorPredictions: 'Unable to load predictions. Please try refreshing the page.',
         errorPerformance: 'Unable to load performance data. Please try refreshing the page.',
+        errorEvaluations: 'Unable to load prediction results. Please try refreshing the page.',
         errorPrices: 'Unable to load price data. Please try refreshing the page.',
 
         // Buttons
@@ -84,6 +91,7 @@ const TRANSLATIONS = {
         // Section titles
         latestPredictions: 'أحدث التنبؤات',
         agentPerformance: 'أداء الوكلاء',
+        predictionResults: 'نتائج التنبؤات',
         latestPrices: 'أحدث أسعار الأسهم',
 
         // Table headers
@@ -96,6 +104,10 @@ const TRANSLATIONS = {
         accuracy: 'الدقة',
         closePrice: 'سعر الإغلاق',
         volume: 'الحجم',
+        actualOutcome: 'الفعلي',
+        priceChange: 'التغير %',
+        result: 'النتيجة',
+        targetDate: 'تاريخ الهدف',
 
         // Predictions
         up: 'صعود',
@@ -112,9 +124,11 @@ const TRANSLATIONS = {
         // Messages
         noPredictions: 'لا توجد تنبؤات متاحة حالياً. يتم إنشاء تنبؤات جديدة كل يوم جمعة.',
         noPerformance: 'سيبدأ تتبع الأداء بمجرد تقييم التنبؤات. يرجى المراجعة لاحقاً!',
+        noEvaluations: 'لا توجد نتائج تنبؤات بعد. ستظهر النتائج بعد مقارنة التنبؤات بالأسعار الفعلية.',
         noPrices: 'جاري جمع بيانات الأسعار. يرجى المراجعة لاحقاً.',
         errorPredictions: 'تعذر تحميل التنبؤات. يرجى تحديث الصفحة.',
         errorPerformance: 'تعذر تحميل بيانات الأداء. يرجى تحديث الصفحة.',
+        errorEvaluations: 'تعذر تحميل نتائج التنبؤات. يرجى تحديث الصفحة.',
         errorPrices: 'تعذر تحميل بيانات الأسعار. يرجى تحديث الصفحة.',
 
         // Buttons
@@ -177,6 +191,7 @@ async function switchLanguage() {
     loadStats();
     loadPredictions();
     loadPerformance();
+    loadEvaluations();
     loadPrices();
 }
 
@@ -343,6 +358,7 @@ window.addEventListener('load', async () => {
     loadStats();
     loadPredictions();
     loadPerformance();
+    loadEvaluations();
     loadPrices();
 });
 
@@ -364,6 +380,7 @@ async function refreshData() {
             loadStats(),
             loadPredictions(),
             loadPerformance(),
+            loadEvaluations(),
             loadPrices()
         ]);
     } finally {
@@ -526,6 +543,65 @@ async function loadPerformance() {
     } catch (error) {
         console.error('Error loading performance:', error);
         container.innerHTML = `<p class="error-message">${t('errorPerformance')}</p>`;
+    }
+}
+
+// Load prediction evaluations (actual vs predicted)
+async function loadEvaluations() {
+    const container = document.getElementById('evaluations');
+
+    try {
+        const response = await fetch(`${API_URL}/evaluations`);
+
+        if (!response.ok) {
+            throw new Error(`HTTP error: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        if (!data || data.length === 0) {
+            container.innerHTML = `<p class="no-data">${t('noEvaluations')}</p>`;
+            return;
+        }
+
+        let html = `<table><thead><tr>
+            <th>${t('stock')}</th>
+            <th>${t('agent')}</th>
+            <th>${t('prediction')}</th>
+            <th>${t('actualOutcome')}</th>
+            <th>${t('priceChange')}</th>
+            <th>${t('result')}</th>
+            <th>${t('targetDate')}</th>
+        </tr></thead><tbody>`;
+
+        data.forEach(item => {
+            const companyName = getCompanyName(item.symbol);
+            const agentDisplayName = getAgentDisplayName(item.agent_name);
+            const predictionText = t(item.prediction.toLowerCase());
+            const actualText = t(item.actual_outcome.toLowerCase());
+            const changePercent = item.actual_change_pct ? item.actual_change_pct.toFixed(2) : '0.00';
+            const changeClass = parseFloat(changePercent) >= 0 ? 'positive-change' : 'negative-change';
+            const resultClass = item.was_correct ? 'result-correct' : 'result-wrong';
+            const resultIcon = item.was_correct ? '✓' : '✗';
+
+            html += `
+                <tr>
+                    <td><strong>${item.symbol}</strong><br><small class="company-name">${companyName}</small></td>
+                    <td>${agentDisplayName}</td>
+                    <td><span class="prediction-${item.prediction.toLowerCase()}">${predictionText}</span></td>
+                    <td><span class="prediction-${item.actual_outcome.toLowerCase()}">${actualText}</span></td>
+                    <td class="${changeClass}">${changePercent}%</td>
+                    <td><span class="${resultClass}">${resultIcon}</span></td>
+                    <td>${formatDate(item.target_date)}</td>
+                </tr>
+            `;
+        });
+
+        html += '</tbody></table>';
+        container.innerHTML = html;
+    } catch (error) {
+        console.error('Error loading evaluations:', error);
+        container.innerHTML = `<p class="error-message">${t('errorEvaluations')}</p>`;
     }
 }
 

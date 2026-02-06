@@ -196,6 +196,38 @@ app.get('/api/stats', (req, res) => {
   });
 });
 
+// 6. Get prediction evaluations (for results comparison)
+app.get('/api/evaluations', (req, res) => {
+  const boolTrue = DATABASE_URL ? 'true' : '1';
+  const query = `
+    SELECT
+      e.symbol,
+      e.agent_name,
+      e.prediction,
+      e.actual_outcome,
+      e.was_correct,
+      e.actual_change_pct,
+      p.prediction_date,
+      p.target_date
+    FROM evaluations e
+    JOIN predictions p ON e.prediction_id = p.id
+    ORDER BY p.target_date DESC, e.symbol, e.agent_name
+    LIMIT 100
+  `;
+
+  db.all(query, [], (err, rows) => {
+    if (err) {
+      if (err.message && (err.message.includes('does not exist') || err.message.includes('no such table'))) {
+        res.json([]);
+      } else {
+        res.status(500).json({ error: err.message });
+      }
+    } else {
+      res.json(rows || []);
+    }
+  });
+});
+
 // ============================================
 // FRONTEND ROUTE
 // ============================================

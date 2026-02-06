@@ -53,6 +53,7 @@ Stock trading prediction system with web dashboard. Uses multiple AI agents to p
 8. **Print Styles** - Clean printing without buttons
 9. **Sentiment Badges** - Bullish/Neutral/Bearish badges per stock (color-coded)
 10. **User-Friendly Messages** - Friendly status messages instead of technical errors
+11. **Prediction Results Tab** - Compare agent predictions vs actual price movements
 
 ## Sentiment Analysis (Feb 2025)
 - **Source**: Finnhub API for company news
@@ -61,6 +62,14 @@ Stock trading prediction system with web dashboard. Uses multiple AI agents to p
 - **Integration**: Agents receive sentiment data to confirm/adjust signals
 - **Display**: Color-coded badges (green=Bullish, gray=Neutral, red=Bearish)
 - **API**: `/api/sentiment` endpoint returns latest sentiment per stock
+
+## API Endpoints
+- `/api/predictions` - Latest predictions from all agents
+- `/api/performance` - Agent accuracy statistics
+- `/api/evaluations` - Prediction results (predicted vs actual)
+- `/api/sentiment` - Latest sentiment scores per stock
+- `/api/prices` - Latest stock prices
+- `/api/stats` - System statistics
 
 ## Common Tasks
 **Local Development:**
