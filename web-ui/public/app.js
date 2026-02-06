@@ -227,52 +227,56 @@ function applyLanguage() {
     if (langBtn) langBtn.textContent = t('switchLang');
 }
 
-// Company Name Mapping for search (EGX and US stocks)
+// Company Name Mapping with bilingual support (EGX and US stocks)
 const COMPANY_NAMES = {
     // US Stocks
-    'AAPL': 'Apple Inc.',
-    'GOOGL': 'Alphabet Inc. (Google)',
-    'MSFT': 'Microsoft Corporation',
-    'AMZN': 'Amazon.com Inc.',
-    'META': 'Meta Platforms Inc.',
-    'TSLA': 'Tesla Inc.',
-    'NVDA': 'NVIDIA Corporation',
-    'JPM': 'JPMorgan Chase & Co.',
-    'V': 'Visa Inc.',
-    'JNJ': 'Johnson & Johnson',
-    'WMT': 'Walmart Inc.',
-    'XOM': 'Exxon Mobil Corporation',
-    'BAC': 'Bank of America Corp.',
-    'PG': 'Procter & Gamble Co.',
-    'HD': 'The Home Depot Inc.',
+    'AAPL': { en: 'Apple Inc.', ar: 'شركة أبل' },
+    'GOOGL': { en: 'Alphabet Inc. (Google)', ar: 'ألفابت (جوجل)' },
+    'MSFT': { en: 'Microsoft Corporation', ar: 'شركة مايكروسوفت' },
+    'AMZN': { en: 'Amazon.com Inc.', ar: 'شركة أمازون' },
+    'META': { en: 'Meta Platforms Inc.', ar: 'شركة ميتا' },
+    'TSLA': { en: 'Tesla Inc.', ar: 'شركة تسلا' },
+    'NVDA': { en: 'NVIDIA Corporation', ar: 'شركة إنفيديا' },
+    'JPM': { en: 'JPMorgan Chase & Co.', ar: 'جي بي مورغان' },
+    'V': { en: 'Visa Inc.', ar: 'شركة فيزا' },
+    'JNJ': { en: 'Johnson & Johnson', ar: 'جونسون آند جونسون' },
+    'WMT': { en: 'Walmart Inc.', ar: 'شركة وولمارت' },
+    'XOM': { en: 'Exxon Mobil Corporation', ar: 'إكسون موبيل' },
+    'BAC': { en: 'Bank of America Corp.', ar: 'بنك أوف أمريكا' },
+    'PG': { en: 'Procter & Gamble Co.', ar: 'بروكتر آند غامبل' },
+    'HD': { en: 'The Home Depot Inc.', ar: 'هوم ديبوت' },
     // EGX Stocks (Egyptian Exchange)
-    'COMI.CA': 'Commercial International Bank CIB',
-    'HRHO.CA': 'EFG Holding Hermes',
-    'FWRY.CA': 'Fawry Banking Technology',
-    'TMGH.CA': 'Talaat Moustafa Group',
-    'ORAS.CA': 'Orascom Construction',
-    'PHDC.CA': 'Palm Hills Development',
-    'MNHD.CA': 'Madinet Nasr Housing',
-    'OCDI.CA': 'Orascom Development',
-    'SWDY.CA': 'El Sewedy Electric',
-    'EAST.CA': 'Eastern Company Tobacco',
-    'EFIH.CA': 'Egyptian Financial Industrial',
-    'ESRS.CA': 'Ezz Steel',
-    'ETEL.CA': 'Telecom Egypt',
-    'EMFD.CA': 'E-Finance Digital',
-    'ALCN.CA': 'Alexandria Container Cargo',
-    'ABUK.CA': 'Abu Qir Fertilizers',
-    'MFPC.CA': 'Misr Fertilizers MOPCO',
-    'SKPC.CA': 'Sidi Kerir Petrochemicals',
-    'JUFO.CA': 'Juhayna Food Industries',
-    'CCAP.CA': 'Cleopatra Hospital',
-    'ORWE.CA': 'Oriental Weavers',
-    'AMOC.CA': 'Alexandria Mineral Oils',
+    'COMI.CA': { en: 'Commercial International Bank CIB', ar: 'البنك التجاري الدولي' },
+    'HRHO.CA': { en: 'EFG Holding Hermes', ar: 'هيرميس القابضة' },
+    'FWRY.CA': { en: 'Fawry Banking Technology', ar: 'فوري لتكنولوجيا البنوك' },
+    'TMGH.CA': { en: 'Talaat Moustafa Group', ar: 'مجموعة طلعت مصطفى' },
+    'ORAS.CA': { en: 'Orascom Construction', ar: 'أوراسكوم للإنشاءات' },
+    'PHDC.CA': { en: 'Palm Hills Development', ar: 'بالم هيلز للتعمير' },
+    'MNHD.CA': { en: 'Madinet Nasr Housing', ar: 'مدينة نصر للإسكان' },
+    'OCDI.CA': { en: 'Orascom Development', ar: 'أوراسكوم للتنمية' },
+    'SWDY.CA': { en: 'El Sewedy Electric', ar: 'السويدي إليكتريك' },
+    'EAST.CA': { en: 'Eastern Company Tobacco', ar: 'الشرقية للدخان' },
+    'EFIH.CA': { en: 'Egyptian Financial Industrial', ar: 'المصرية المالية الصناعية' },
+    'ESRS.CA': { en: 'Ezz Steel', ar: 'حديد عز' },
+    'ETEL.CA': { en: 'Telecom Egypt', ar: 'المصرية للاتصالات' },
+    'EMFD.CA': { en: 'E-Finance Digital', ar: 'إي فاينانس' },
+    'ALCN.CA': { en: 'Alexandria Container Cargo', ar: 'الإسكندرية للحاويات' },
+    'ABUK.CA': { en: 'Abu Qir Fertilizers', ar: 'أبو قير للأسمدة' },
+    'MFPC.CA': { en: 'Misr Fertilizers MOPCO', ar: 'موبكو للأسمدة' },
+    'SKPC.CA': { en: 'Sidi Kerir Petrochemicals', ar: 'سيدي كرير للبتروكيماويات' },
+    'JUFO.CA': { en: 'Juhayna Food Industries', ar: 'جهينة للصناعات الغذائية' },
+    'CCAP.CA': { en: 'Cleopatra Hospital', ar: 'مستشفى كليوباترا' },
+    'ORWE.CA': { en: 'Oriental Weavers', ar: 'السجاد الشرقي' },
+    'AMOC.CA': { en: 'Alexandria Mineral Oils', ar: 'أموك للزيوت المعدنية' },
 };
 
-// Get company name for a symbol
+// Get company name for a symbol (bilingual)
 function getCompanyName(symbol) {
-    return COMPANY_NAMES[symbol] || symbol.replace('.CA', '');
+    const company = COMPANY_NAMES[symbol];
+    if (company) {
+        return company[currentLang] || company.en;
+    }
+    return symbol.replace('.CA', '');
 }
 
 // Format datetime to short format (YYYY-MM-DD HH:MM)
