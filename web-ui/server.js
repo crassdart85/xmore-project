@@ -111,8 +111,8 @@ app.get('/api/performance', (req, res) => {
 
   db.all(query, [], (err, rows) => {
     if (err) {
-      // Table might not exist yet
-      if (err.message && err.message.includes('does not exist')) {
+      // Table might not exist yet (PostgreSQL: "does not exist", SQLite: "no such table")
+      if (err.message && (err.message.includes('does not exist') || err.message.includes('no such table'))) {
         res.json([]);
       } else {
         res.status(500).json({ error: err.message });
