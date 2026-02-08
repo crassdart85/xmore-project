@@ -65,7 +65,7 @@ def execute():
         
         # Define prediction windows
         today = datetime.now().strftime('%Y-%m-%d')
-        target = (datetime.now() + timedelta(days=7)).strftime('%Y-%m-%d') # 1 week horizon
+        target = (datetime.now() + timedelta(days=1)).strftime('%Y-%m-%d') # 1 day horizon for faster evaluation
         print(f"📅 Prediction date: {today}")
         print(f"🎯 Target date: {target}")
         print(f"📊 Processing {len(config.ALL_STOCKS)} stocks...")

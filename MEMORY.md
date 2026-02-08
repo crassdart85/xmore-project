@@ -22,7 +22,7 @@ Stock trading prediction system with web dashboard. Uses multiple AI agents to p
 | Task | Schedule | Script |
 |------|----------|--------|
 | Data Collection + Sentiment | Mon-Fri 4:30 PM EST | `collect_data.py` + `sentiment.py` |
-| Predictions | Friday 6 PM EST | `run_agents.py` |
+| Predictions | Mon-Fri 5:00 PM EST (daily) | `run_agents.py` |
 | Evaluation | Every hour | `evaluate.py` |
 
 ## Environment Variables (Secrets)
