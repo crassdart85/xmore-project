@@ -2,6 +2,42 @@
 const API_URL = '/api';
 
 // ============================================
+// DARK MODE SUPPORT
+// ============================================
+
+// Current theme (default: light, or system preference)
+let currentTheme = localStorage.getItem('theme') ||
+    (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+
+// Apply theme on load
+function applyTheme() {
+    document.documentElement.setAttribute('data-theme', currentTheme);
+    updateThemeButton();
+}
+
+// Update theme button tooltip (called after language loads)
+function updateThemeButton() {
+    const themeBtn = document.getElementById('themeBtn');
+    if (themeBtn) {
+        const tooltipKey = currentTheme === 'dark' ? 'lightMode' : 'darkMode';
+        // Use translation if available, fallback to English
+        const tooltip = (typeof t === 'function') ? t(tooltipKey) :
+            (currentTheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode');
+        themeBtn.title = tooltip;
+    }
+}
+
+// Toggle theme
+function toggleTheme() {
+    currentTheme = currentTheme === 'light' ? 'dark' : 'light';
+    localStorage.setItem('theme', currentTheme);
+    applyTheme();
+}
+
+// Apply theme immediately (before DOM loads to prevent flash)
+applyTheme();
+
+// ============================================
 // BILINGUAL SUPPORT (English / Arabic)
 // ============================================
 
@@ -75,7 +111,11 @@ const TRANSLATIONS = {
         searchPlaceholder: 'Search by stock symbol or company name...',
 
         // Language
-        switchLang: 'عربي'
+        switchLang: 'عربي',
+
+        // Theme
+        lightMode: 'Switch to light mode',
+        darkMode: 'Switch to dark mode'
     },
     ar: {
         // Header
@@ -142,7 +182,11 @@ const TRANSLATIONS = {
         searchPlaceholder: 'البحث برمز السهم أو اسم الشركة...',
 
         // Language
-        switchLang: 'English'
+        switchLang: 'English',
+
+        // Theme
+        lightMode: 'التبديل إلى الوضع الفاتح',
+        darkMode: 'التبديل إلى الوضع الداكن'
     }
 };
 
@@ -240,6 +284,9 @@ function applyLanguage() {
     // Update language switch button
     const langBtn = document.getElementById('langBtn');
     if (langBtn) langBtn.textContent = t('switchLang');
+
+    // Update theme button tooltip
+    updateThemeButton();
 }
 
 // Company Name Mapping with bilingual support (EGX and US stocks)
@@ -364,6 +411,9 @@ window.addEventListener('load', async () => {
 
 // Initialize language switch button
 document.getElementById('langBtn')?.addEventListener('click', switchLanguage);
+
+// Initialize theme toggle button
+document.getElementById('themeBtn')?.addEventListener('click', toggleTheme);
 
 // Refresh all data with loading state
 async function refreshData() {

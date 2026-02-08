@@ -1,3 +1,50 @@
+/* ============================================
+   CSS VARIABLES (Light/Dark Mode)
+   ============================================ */
+:root {
+    /* Light mode colors */
+    --bg-gradient-start: #667eea;
+    --bg-gradient-end: #764ba2;
+    --container-bg: #ffffff;
+    --text-primary: #333333;
+    --text-secondary: #666666;
+    --text-muted: #6b7280;
+    --border-color: #e5e7eb;
+    --border-light: #eee;
+    --table-bg: #ffffff;
+    --table-header-bg: #f8f9fa;
+    --table-hover-bg: #f8f9fa;
+    --card-bg: #fafbfc;
+    --input-bg: #ffffff;
+    --input-border: #e5e7eb;
+    --no-data-bg: #f9fafb;
+    --error-bg: #fef2f2;
+    --shadow-color: rgba(0,0,0,0.3);
+    --scrollbar-track: #f1f1f1;
+}
+
+/* Dark mode colors */
+[data-theme="dark"] {
+    --bg-gradient-start: #1a1a2e;
+    --bg-gradient-end: #16213e;
+    --container-bg: #1e1e2e;
+    --text-primary: #e4e4e7;
+    --text-secondary: #a1a1aa;
+    --text-muted: #71717a;
+    --border-color: #3f3f46;
+    --border-light: #27272a;
+    --table-bg: #1e1e2e;
+    --table-header-bg: #27272a;
+    --table-hover-bg: #27272a;
+    --card-bg: #27272a;
+    --input-bg: #27272a;
+    --input-border: #3f3f46;
+    --no-data-bg: #27272a;
+    --error-bg: #3b1a1a;
+    --shadow-color: rgba(0,0,0,0.5);
+    --scrollbar-track: #27272a;
+}
+
 * {
     margin: 0;
     padding: 0;
@@ -6,18 +53,20 @@
 
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: linear-gradient(135deg, var(--bg-gradient-start) 0%, var(--bg-gradient-end) 100%);
     min-height: 100vh;
     padding: 20px;
+    transition: background 0.3s ease;
 }
 
 .container {
     max-width: 1200px;
     margin: 0 auto;
-    background: white;
+    background: var(--container-bg);
     border-radius: 20px;
     padding: 40px;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    box-shadow: 0 20px 60px var(--shadow-color);
+    transition: background 0.3s ease, box-shadow 0.3s ease;
 }
 
 header {
@@ -80,33 +129,38 @@ h1 {
 }
 
 .section h2 {
-    color: #333;
+    color: var(--text-primary);
     margin-bottom: 20px;
     padding-bottom: 10px;
     border-bottom: 3px solid #667eea;
+    transition: color 0.3s ease;
 }
 
 /* Tables */
 table {
     width: 100%;
     border-collapse: collapse;
-    background: white;
+    background: var(--table-bg);
+    transition: background 0.3s ease;
 }
 
 th, td {
     padding: 15px;
     text-align: left;
-    border-bottom: 1px solid #eee;
+    border-bottom: 1px solid var(--border-light);
+    color: var(--text-primary);
+    transition: border-color 0.3s ease, color 0.3s ease;
 }
 
 th {
-    background: #f8f9fa;
-    color: #333;
+    background: var(--table-header-bg);
+    color: var(--text-primary);
     font-weight: 600;
+    transition: background 0.3s ease;
 }
 
 tr:hover {
-    background: #f8f9fa;
+    background: var(--table-hover-bg);
 }
 
 /* Prediction Badges */
@@ -160,23 +214,25 @@ tr:hover {
 }
 
 .sentiment-none {
-    background: #e5e7eb;
-    color: #6b7280;
+    background: var(--border-color);
+    color: var(--text-muted);
     font-style: italic;
 }
 
 .sentiment-cell {
     vertical-align: middle;
-    background: #fafbfc;
+    background: var(--card-bg);
+    transition: background 0.3s ease;
 }
 
 /* Performance Bars */
 .accuracy-bar {
-    background: #e5e7eb;
+    background: var(--border-color);
     height: 30px;
     border-radius: 15px;
     overflow: hidden;
     position: relative;
+    transition: background 0.3s ease;
 }
 
 .accuracy-fill {
@@ -230,7 +286,8 @@ footer {
     text-align: center;
     margin-top: 40px;
     padding-top: 20px;
-    border-top: 2px solid #eee;
+    border-top: 2px solid var(--border-light);
+    transition: border-color 0.3s ease;
 }
 
 .refresh-btn {
@@ -252,24 +309,27 @@ footer {
 
 .disclaimer {
     margin-top: 20px;
-    color: #666;
+    color: var(--text-secondary);
     font-size: 0.9em;
+    transition: color 0.3s ease;
 }
 
 .loading {
     text-align: center;
-    color: #666;
+    color: var(--text-secondary);
     padding: 20px;
+    transition: color 0.3s ease;
 }
 
 /* No data message */
 .no-data {
     text-align: center;
-    color: #6b7280;
+    color: var(--text-muted);
     padding: 30px 20px;
-    background: #f9fafb;
+    background: var(--no-data-bg);
     border-radius: 10px;
-    border: 1px dashed #d1d5db;
+    border: 1px dashed var(--border-color);
+    transition: background 0.3s ease, color 0.3s ease, border-color 0.3s ease;
 }
 
 .no-data::after {
@@ -281,9 +341,14 @@ footer {
     text-align: center;
     color: #dc2626;
     padding: 20px;
-    background: #fef2f2;
+    background: var(--error-bg);
     border-radius: 10px;
     border: 1px solid #fecaca;
+    transition: background 0.3s ease;
+}
+
+[data-theme="dark"] .error-message {
+    border-color: #7f1d1d;
 }
 
 /* Search Box */
@@ -295,11 +360,13 @@ footer {
     width: 100%;
     max-width: 400px;
     padding: 12px 20px;
-    border: 2px solid #e5e7eb;
+    border: 2px solid var(--input-border);
     border-radius: 25px;
     font-size: 1em;
     outline: none;
-    transition: border-color 0.3s, box-shadow 0.3s;
+    background: var(--input-bg);
+    color: var(--text-primary);
+    transition: border-color 0.3s, box-shadow 0.3s, background 0.3s;
 }
 
 .search-box input:focus {
@@ -308,15 +375,16 @@ footer {
 }
 
 .search-box input::placeholder {
-    color: #9ca3af;
+    color: var(--text-muted);
 }
 
 /* Scrollable Container */
 .scrollable-container {
     max-height: 400px;
     overflow-y: auto;
-    border: 1px solid #e5e7eb;
+    border: 1px solid var(--border-color);
     border-radius: 10px;
+    transition: border-color 0.3s ease;
 }
 
 .scrollable-container::-webkit-scrollbar {
@@ -324,7 +392,7 @@ footer {
 }
 
 .scrollable-container::-webkit-scrollbar-track {
-    background: #f1f1f1;
+    background: var(--scrollbar-track);
     border-radius: 10px;
 }
 
@@ -345,28 +413,30 @@ footer {
 /* Grouped rows styling */
 .stock-cell {
     vertical-align: middle;
-    background: #fafbfc;
+    background: var(--card-bg);
     border-right: 3px solid #667eea;
+    transition: background 0.3s ease;
 }
 
 .group-start {
-    border-top: 2px solid #e5e7eb;
+    border-top: 2px solid var(--border-color);
 }
 
 .group-row td {
-    border-top: 1px dashed #e5e7eb;
+    border-top: 1px dashed var(--border-color);
 }
 
 /* Company name styling */
 .company-name {
-    color: #6b7280;
+    color: var(--text-muted);
     font-size: 0.85em;
+    transition: color 0.3s ease;
 }
 
 /* Agent name with tooltip */
 .agent-name {
     cursor: help;
-    border-bottom: 1px dotted #9ca3af;
+    border-bottom: 1px dotted var(--text-muted);
     transition: color 0.2s;
 }
 
@@ -381,9 +451,14 @@ footer {
     color: #059669;
 }
 
+[data-theme="dark"] .price-cell {
+    color: #34d399;
+}
+
 .volume-cell {
     font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
-    color: #6b7280;
+    color: var(--text-muted);
+    transition: color 0.3s ease;
 }
 
 /* Accuracy bar color variations */
@@ -405,7 +480,7 @@ tbody tr {
 }
 
 tbody tr:hover {
-    background: linear-gradient(90deg, #f8f9fa 0%, #f3f4f6 100%);
+    background: linear-gradient(90deg, var(--table-hover-bg) 0%, var(--card-bg) 100%);
     transform: scale(1.002);
 }
 
@@ -430,7 +505,7 @@ tbody tr:hover {
     width: 16px;
     height: 16px;
     margin-left: 10px;
-    border: 2px solid #e5e7eb;
+    border: 2px solid var(--border-color);
     border-top-color: #667eea;
     border-radius: 50%;
     animation: spin 1s linear infinite;
@@ -813,14 +888,21 @@ table {
 }
 
 /* ============================================
-   LANGUAGE SWITCHER & RTL SUPPORT
+   HEADER BUTTONS (Language & Dark Mode)
    ============================================ */
 
-/* Language switch button */
-.lang-btn {
+/* Header buttons container */
+.header-buttons {
     position: absolute;
     top: 20px;
     right: 20px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+/* Language switch button */
+.lang-btn {
     background: rgba(255, 255, 255, 0.2);
     color: white;
     border: 2px solid rgba(255, 255, 255, 0.5);
@@ -839,6 +921,47 @@ table {
     transform: scale(1.05);
 }
 
+/* Dark mode toggle button */
+.theme-btn {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    border: 2px solid rgba(255, 255, 255, 0.5);
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    font-size: 1.2em;
+    cursor: pointer;
+    transition: all 0.3s;
+    backdrop-filter: blur(5px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.theme-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+    border-color: white;
+    transform: scale(1.1);
+}
+
+/* Icon states */
+.theme-btn .icon-sun,
+.theme-btn .icon-moon {
+    transition: opacity 0.3s, transform 0.3s;
+}
+
+.theme-btn .icon-moon {
+    display: none;
+}
+
+[data-theme="dark"] .theme-btn .icon-sun {
+    display: none;
+}
+
+[data-theme="dark"] .theme-btn .icon-moon {
+    display: inline;
+}
+
 /* RTL Support for Arabic */
 .rtl {
     direction: rtl;
@@ -849,7 +972,7 @@ table {
     position: relative;
 }
 
-.rtl .lang-btn {
+.rtl .header-buttons {
     right: auto;
     left: 20px;
 }
@@ -884,14 +1007,24 @@ table {
 
 /* RTL responsive adjustments */
 @media (max-width: 768px) {
-    .lang-btn {
+    .header-buttons {
         top: 10px;
         right: 10px;
+        gap: 8px;
+    }
+
+    .lang-btn {
         padding: 8px 16px;
         font-size: 0.85em;
     }
 
-    .rtl .lang-btn {
+    .theme-btn {
+        width: 38px;
+        height: 38px;
+        font-size: 1em;
+    }
+
+    .rtl .header-buttons {
         right: auto;
         left: 10px;
     }
@@ -902,14 +1035,24 @@ table {
 }
 
 @media (max-width: 480px) {
-    .lang-btn {
+    .header-buttons {
         top: 8px;
         right: 8px;
+        gap: 6px;
+    }
+
+    .lang-btn {
         padding: 6px 12px;
         font-size: 0.8em;
     }
 
-    .rtl .lang-btn {
+    .theme-btn {
+        width: 34px;
+        height: 34px;
+        font-size: 0.9em;
+    }
+
+    .rtl .header-buttons {
         right: auto;
         left: 8px;
     }
@@ -934,7 +1077,7 @@ table {
         print-color-adjust: exact;
     }
 
-    .lang-btn,
+    .header-buttons,
     .refresh-btn,
     .search-box {
         display: none;

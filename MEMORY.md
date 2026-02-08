@@ -43,8 +43,9 @@ Stock trading prediction system with web dashboard. Uses multiple AI agents to p
 - `Volume_Spike_Agent` - Volume analysis
 
 ## UI Features (Feb 2025)
-1. **Bilingual Support (EN/AR)** - Language switcher with RTL support
-2. **Grouped Predictions** - Stock shown once with rowspan for multiple agents
+1. **Dark Mode** - Toggle between light/dark themes, respects system preference, persists in localStorage
+2. **Bilingual Support (EN/AR)** - Language switcher with RTL support
+3. **Grouped Predictions** - Stock shown once with rowspan for multiple agents
 3. **Agent Tooltips** - Hover descriptions explaining each agent (bilingual)
 4. **Company Name Mapping** - US and EGX stocks with full names (bilingual)
 5. **Color-coded Accuracy** - Green (60%+), Yellow (40-60%), Red (<40%)
