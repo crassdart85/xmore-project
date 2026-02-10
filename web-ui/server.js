@@ -251,12 +251,19 @@ app.get('/api/performance/detailed', (req, res) => {
 
 // 3. Get latest stock prices
 app.get('/api/prices', (req, res) => {
-  const query = `
-    SELECT symbol, date, close, volume
-    FROM prices
-    WHERE date = (SELECT MAX(date) FROM prices WHERE symbol = prices.symbol)
-    ORDER BY symbol
-  `;
+  // Use JOIN instead of correlated subquery for better performance
+  const query = DATABASE_URL
+    ? `SELECT DISTINCT ON (p.symbol) p.symbol, p.date, p.close, p.volume
+       FROM prices p
+       ORDER BY p.symbol, p.date DESC`
+    : `SELECT p.symbol, p.date, p.close, p.volume
+       FROM prices p
+       INNER JOIN (
+         SELECT symbol, MAX(date) as max_date
+         FROM prices
+         GROUP BY symbol
+       ) latest ON p.symbol = latest.symbol AND p.date = latest.max_date
+       ORDER BY p.symbol`;
 
   db.all(query, [], (err, rows) => {
     if (err) {

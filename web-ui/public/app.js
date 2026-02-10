@@ -556,17 +556,20 @@ let agentPerformanceData = {};
 // LOAD DATA ON PAGE LOAD
 // ============================================
 
-window.addEventListener('load', async () => {
+window.addEventListener('load', () => {
     applyLanguage();
     initTabs();
-    await loadSentiment();
+    loadTradingViewTicker();
+
+    // Load all independent data in parallel
     loadStats();
-    loadPredictions();
     loadPerformance();
     loadPerformanceDetailed();
     loadEvaluations();
     loadPrices();
-    loadTradingViewTicker();
+
+    // Predictions need sentiment data for badges, so chain them
+    loadSentiment().then(() => loadPredictions());
 });
 
 document.getElementById('langBtn')?.addEventListener('click', switchLanguage);
@@ -617,16 +620,6 @@ async function loadStats() {
         document.getElementById('stocksTracked').textContent = data.stocksTracked || '0';
         document.getElementById('totalPredictions').textContent = data.totalPredictions || '0';
         document.getElementById('latestDate').textContent = formatDate(data.latestDate);
-
-        // Overall accuracy from performance/detailed
-        try {
-            const perfResponse = await fetch(`${API_URL}/performance/detailed`);
-            const perfData = await perfResponse.json();
-            const acc = perfData?.overall?.directional_accuracy;
-            document.getElementById('overallAccuracy').textContent = acc ? `${acc}%` : '-';
-        } catch (e) {
-            document.getElementById('overallAccuracy').textContent = '-';
-        }
     } catch (error) {
         console.error('Error loading stats:', error);
     }
@@ -792,6 +785,11 @@ async function loadPerformanceDetailed() {
         if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
 
         const data = await response.json();
+
+        // Update overall accuracy in stats bar (avoids duplicate API call)
+        const acc = data?.overall?.directional_accuracy;
+        const accEl = document.getElementById('overallAccuracy');
+        if (accEl) accEl.textContent = acc ? `${acc}%` : '-';
 
         // Render overall stats
         renderOverallStats(data.overall);

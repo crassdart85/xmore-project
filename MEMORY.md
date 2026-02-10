@@ -71,6 +71,8 @@ Stock trading prediction system with web dashboard. Uses multiple AI agents to p
 15. **Responsive Design** - Breakpoints: 1024px, 768px, 480px, 360px
 16. **Sentiment Badges** - Bullish/Neutral/Bearish badges per stock
 17. **Print Styles** - Clean printing without TradingView/tabs/buttons
+18. **Skeleton Loader** - Animated placeholder rows while predictions load
+19. **Parallel Data Loading** - All API calls fire simultaneously on page load
 
 ## Sentiment Analysis (Phase 1 Upgrade)
 - **Dual Engine**: VADER (fast, 1000+ headlines/sec) + FinBERT (deep accuracy)
@@ -115,7 +117,8 @@ Stock trading prediction system with web dashboard. Uses multiple AI agents to p
 ## Database Compatibility
 - **Boolean handling**: PostgreSQL uses `true/false`, SQLite uses `1/0`
 - **Missing tables**: API returns empty array `[]` instead of 500 error
-- **DISTINCT ON**: PostgreSQL-specific syntax for latest records per symbol
+- **DISTINCT ON**: PostgreSQL-specific syntax for latest records per symbol (used in `/api/prices` and `/api/sentiment`)
+- **Prices query**: PostgreSQL uses `DISTINCT ON`, SQLite uses `JOIN + GROUP BY MAX(date)`
 
 ## Notes
 - EGX stocks use `.CA` suffix (e.g., `COMI.CA`)
@@ -127,6 +130,7 @@ Stock trading prediction system with web dashboard. Uses multiple AI agents to p
 - Prediction horizon: 1 day (changed from 7 days for faster evaluation)
 
 ## Recent Changes (Feb 2026)
+- **Dashboard Load Performance**: Parallelized API calls, eliminated duplicate fetch, optimized SQL, skeleton loader
 - **Dark Mode Toggle**: Added `.theme-btn` with sun/moon icons, CSS custom properties, system preference detection
 - **Daily Predictions**: 1-day horizon for faster evaluation turnaround
 - **GitHub Actions Upgraded**: All jobs now use `actions/checkout@v4`

@@ -175,12 +175,12 @@ To provide retail and institutional investors with an intelligent, data-driven d
 
 ### 5.1 Performance
 
-| ID | Requirement | Target |
-|----|-------------|--------|
-| **NFR-P-001** | Dashboard page load time | < 3 seconds |
-| **NFR-P-002** | API response time | < 500ms |
-| **NFR-P-003** | Data collection cycle completion | < 15 minutes |
-| **NFR-P-004** | Prediction generation per stock | < 5 seconds |
+| ID | Requirement | Target | Status |
+|----|-------------|--------|--------|
+| **NFR-P-001** | Dashboard page load time | < 3 seconds | Optimized: parallel API calls, skeleton loader |
+| **NFR-P-002** | API response time | < 500ms | Optimized: eliminated duplicate calls, SQL query tuning |
+| **NFR-P-003** | Data collection cycle completion | < 15 minutes | |
+| **NFR-P-004** | Prediction generation per stock | < 5 seconds | |
 
 ### 5.2 Availability & Reliability
 
