@@ -98,7 +98,6 @@ jobs:
 
   daily-predictions:
     if: github.event.schedule == '0 22 * * 1-5' || github.event_name == 'workflow_dispatch'
-    needs: daily-collection
     runs-on: ubuntu-latest
 
     steps:
