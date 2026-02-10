@@ -1,0 +1,588 @@
+/* ============================================
+   AUTH MODAL & USER UI
+   ============================================ */
+
+/* Auth Modal Overlay */
+.auth-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: authFadeIn 0.25s ease-out;
+}
+
+@keyframes authFadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+.auth-modal {
+    background: var(--container-bg);
+    border-radius: 20px;
+    padding: 40px 36px 36px;
+    width: 90%;
+    max-width: 420px;
+    position: relative;
+    box-shadow: 0 24px 64px rgba(0, 0, 0, 0.35);
+    animation: authSlideUp 0.3s ease-out;
+    border: 1px solid var(--border-color);
+}
+
+@keyframes authSlideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.auth-close-btn {
+    position: absolute;
+    top: 14px;
+    right: 16px;
+    background: none;
+    border: none;
+    font-size: 1.6em;
+    color: var(--text-muted);
+    cursor: pointer;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s, color 0.2s;
+}
+
+[dir="rtl"] .auth-close-btn {
+    right: auto;
+    left: 16px;
+}
+
+.auth-close-btn:hover {
+    background: var(--border-color);
+    color: var(--text-primary);
+}
+
+/* Welcome Title */
+.auth-welcome {
+    text-align: center;
+    color: var(--text-primary);
+    font-size: 1.4em;
+    margin-bottom: 24px;
+    font-weight: 700;
+}
+
+/* Auth Tabs */
+.auth-tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 24px;
+    background: var(--card-bg);
+    border-radius: 10px;
+    padding: 4px;
+    border: 1px solid var(--border-color);
+}
+
+.auth-tab {
+    flex: 1;
+    padding: 10px 16px;
+    border: none;
+    border-radius: 8px;
+    font-size: 0.95em;
+    font-weight: 600;
+    cursor: pointer;
+    background: transparent;
+    color: var(--text-muted);
+    transition: all 0.2s ease;
+}
+
+.auth-tab:hover {
+    color: var(--text-primary);
+    background: var(--border-color);
+}
+
+.auth-tab.active {
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%);
+    color: white;
+    box-shadow: 0 2px 6px rgba(102, 126, 234, 0.3);
+}
+
+/* Auth Form */
+.auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.auth-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.auth-field label {
+    font-size: 0.88em;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.auth-field input {
+    padding: 12px 16px;
+    border: 2px solid var(--input-border);
+    border-radius: 10px;
+    font-size: 1em;
+    outline: none;
+    background: var(--input-bg);
+    color: var(--text-primary);
+    transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.auth-field input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+}
+
+.auth-field input::placeholder {
+    color: var(--text-muted);
+}
+
+/* Submit Button */
+.auth-submit-btn {
+    padding: 14px;
+    border: none;
+    border-radius: 12px;
+    font-size: 1.05em;
+    font-weight: 700;
+    cursor: pointer;
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%);
+    color: white;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.35);
+    transition: transform 0.2s, box-shadow 0.2s, opacity 0.2s;
+    letter-spacing: 0.3px;
+}
+
+.auth-submit-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.5);
+}
+
+.auth-submit-btn:active {
+    transform: translateY(0);
+}
+
+.auth-submit-btn:disabled {
+    opacity: 0.6;
+    cursor: wait;
+    transform: none;
+}
+
+/* Error Message */
+.auth-error {
+    padding: 10px 14px;
+    background: var(--error-bg);
+    border: 1px solid #fecaca;
+    border-radius: 8px;
+    color: #dc2626;
+    font-size: 0.88em;
+    text-align: center;
+    animation: authFadeIn 0.2s ease-out;
+}
+
+[data-theme="dark"] .auth-error {
+    border-color: #7f1d1d;
+}
+
+/* ============================================
+   HEADER — User Info Bar
+   ============================================ */
+
+.user-info-bar {
+    position: absolute;
+    top: 12px;
+    left: 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    z-index: 10;
+}
+
+[dir="rtl"] .user-info-bar {
+    left: auto;
+    right: 16px;
+}
+
+.user-email {
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 0.82em;
+    font-weight: 500;
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.logout-btn {
+    padding: 5px 14px;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    font-size: 0.78em;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s;
+}
+
+.logout-btn:hover {
+    background: rgba(255, 255, 255, 0.25);
+    border-color: rgba(255, 255, 255, 0.6);
+}
+
+/* Login Prompt in Header */
+.login-prompt {
+    position: absolute;
+    top: 12px;
+    left: 16px;
+    z-index: 10;
+}
+
+[dir="rtl"] .login-prompt {
+    left: auto;
+    right: 16px;
+}
+
+.auth-trigger-btn {
+    padding: 6px 16px;
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.12);
+    color: white;
+    font-size: 0.82em;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s, transform 0.2s;
+}
+
+.auth-trigger-btn:hover {
+    background: rgba(255, 255, 255, 0.25);
+    border-color: rgba(255, 255, 255, 0.6);
+    transform: translateY(-1px);
+}
+
+/* ============================================
+   WATCHLIST TAB
+   ============================================ */
+
+.watchlist-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.watchlist-header h2 {
+    color: var(--text-primary);
+    font-size: 1.3em;
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+.watchlist-header h2::after {
+    display: none;
+}
+
+.wl-add-btn {
+    padding: 8px 20px;
+    border: none;
+    border-radius: 20px;
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%);
+    color: white;
+    font-size: 0.9em;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 2px 10px rgba(102, 126, 234, 0.3);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.wl-add-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba(102, 126, 234, 0.5);
+}
+
+/* Stock Search */
+.wl-search-box {
+    margin-bottom: 20px;
+    position: relative;
+}
+
+.wl-search-box input {
+    width: 100%;
+    padding: 12px 20px;
+    border: 2px solid var(--input-border);
+    border-radius: 14px;
+    font-size: 1em;
+    outline: none;
+    background: var(--input-bg);
+    color: var(--text-primary);
+    transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.wl-search-box input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+}
+
+.wl-search-results {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: var(--container-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    max-height: 320px;
+    overflow-y: auto;
+    z-index: 50;
+    margin-top: 4px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    display: none;
+}
+
+.wl-search-results.active {
+    display: block;
+}
+
+.wl-search-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    transition: background 0.15s;
+    cursor: default;
+    border-bottom: 1px solid var(--border-light);
+}
+
+.wl-search-item:last-child {
+    border-bottom: none;
+}
+
+.wl-search-item:hover {
+    background: var(--table-hover-bg);
+}
+
+.wl-search-item-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1;
+    min-width: 0;
+}
+
+.wl-search-symbol {
+    font-weight: 700;
+    font-size: 0.92em;
+    color: var(--accent);
+}
+
+.wl-search-name {
+    font-size: 0.82em;
+    color: var(--text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.wl-search-sector {
+    font-size: 0.75em;
+    color: var(--text-muted);
+}
+
+.wl-follow-btn {
+    padding: 5px 14px;
+    border: none;
+    border-radius: 14px;
+    font-size: 0.78em;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+    margin-left: 10px;
+}
+
+[dir="rtl"] .wl-follow-btn {
+    margin-left: 0;
+    margin-right: 10px;
+}
+
+.wl-follow-btn.follow {
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%);
+    color: white;
+}
+
+.wl-follow-btn.follow:hover {
+    transform: scale(1.05);
+}
+
+.wl-follow-btn.following {
+    background: #dcfce7;
+    color: #166534;
+    cursor: default;
+}
+
+[data-theme="dark"] .wl-follow-btn.following {
+    background: #064e3b;
+    color: #6ee7b7;
+}
+
+/* Watchlist Cards Grid */
+.watchlist-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 14px;
+}
+
+.wl-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    padding: 16px;
+    position: relative;
+    transition: transform 0.2s, box-shadow 0.25s, background 0.3s;
+    animation: fadeIn 0.3s ease-out;
+}
+
+.wl-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+}
+
+.wl-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 10px;
+}
+
+.wl-card-stock {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.wl-card-stock strong {
+    font-size: 1.1em;
+    color: var(--accent);
+}
+
+.wl-card-stock .company-name {
+    color: var(--text-muted);
+    font-size: 0.78em;
+}
+
+.wl-card-sector {
+    font-size: 0.72em;
+    color: var(--text-muted);
+    background: var(--no-data-bg);
+    padding: 2px 8px;
+    border-radius: 8px;
+}
+
+.wl-remove-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 1.1em;
+    padding: 4px;
+    border-radius: 50%;
+    transition: color 0.2s, background 0.2s;
+    position: absolute;
+    top: 10px;
+    right: 10px;
+}
+
+[dir="rtl"] .wl-remove-btn {
+    right: auto;
+    left: 10px;
+}
+
+.wl-remove-btn:hover {
+    color: #ef4444;
+    background: var(--error-bg);
+}
+
+.wl-card-signal {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.wl-signal-badge {
+    padding: 4px 12px;
+    border-radius: 14px;
+    font-weight: 700;
+    font-size: 0.82em;
+    text-transform: uppercase;
+}
+
+.wl-confidence {
+    font-size: 0.82em;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.wl-no-data {
+    font-size: 0.8em;
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+/* ============================================
+   RESPONSIVE
+   ============================================ */
+
+@media (max-width: 480px) {
+    .auth-modal {
+        padding: 28px 20px;
+        width: 95%;
+    }
+
+    .watchlist-cards-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .user-info-bar {
+        position: static;
+        justify-content: center;
+        margin-bottom: 8px;
+    }
+
+    .login-prompt {
+        position: static;
+        text-align: center;
+        margin-bottom: 8px;
+    }
+
+    .watchlist-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}

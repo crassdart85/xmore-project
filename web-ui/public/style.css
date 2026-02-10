@@ -1362,6 +1362,383 @@ footer {
     }
 }
 
+/* ============================================
+   CONSENSUS TAB — 3-Layer Pipeline
+   ============================================ */
+
+/* Risk Overview Summary Bar */
+.consensus-overview {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.risk-stat-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 16px;
+    text-align: center;
+    transition: transform 0.2s, box-shadow 0.2s, background 0.3s, border-color 0.3s;
+}
+
+.risk-stat-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+.risk-stat-value {
+    font-size: 2em;
+    font-weight: 700;
+    color: var(--accent);
+    margin-bottom: 4px;
+}
+
+.risk-stat-label {
+    font-size: 0.8em;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+.risk-stat-card.risk-passed .risk-stat-value { color: #10b981; }
+.risk-stat-card.risk-flagged .risk-stat-value { color: #f59e0b; }
+.risk-stat-card.risk-blocked .risk-stat-value { color: #ef4444; }
+
+.risk-stat-card.risk-passed { border-bottom: 3px solid #10b981; }
+.risk-stat-card.risk-flagged { border-bottom: 3px solid #f59e0b; }
+.risk-stat-card.risk-blocked { border-bottom: 3px solid #ef4444; }
+
+/* Consensus Cards Grid */
+.consensus-cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 16px;
+}
+
+.consensus-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    overflow: hidden;
+    transition: transform 0.2s, box-shadow 0.25s, background 0.3s, border-color 0.3s;
+    animation: fadeIn 0.4s ease-out;
+}
+
+.consensus-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+}
+
+.consensus-card-blocked {
+    border-color: #ef4444;
+    opacity: 0.75;
+}
+
+.consensus-card-blocked:hover {
+    opacity: 1;
+}
+
+/* Card Header */
+.consensus-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 18px;
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%);
+    color: white;
+}
+
+.consensus-card-stock {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.consensus-card-stock strong {
+    font-size: 1.15em;
+    letter-spacing: 0.5px;
+}
+
+.consensus-card-stock .company-name {
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 0.78em;
+}
+
+.consensus-card-signal {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.consensus-signal-badge {
+    padding: 6px 16px;
+    border-radius: 20px;
+    font-weight: 700;
+    font-size: 0.95em;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.consensus-signal-badge.signal-up {
+    background: rgba(16, 185, 129, 0.9);
+    color: white;
+}
+
+.consensus-signal-badge.signal-down {
+    background: rgba(239, 68, 68, 0.9);
+    color: white;
+}
+
+.consensus-signal-badge.signal-hold,
+.consensus-signal-badge.signal-flat {
+    background: rgba(107, 114, 128, 0.85);
+    color: white;
+}
+
+.risk-adjusted-badge {
+    font-size: 1.2em;
+    cursor: help;
+}
+
+/* Card Body */
+.consensus-card-body {
+    padding: 14px 18px 18px;
+}
+
+/* Meta Row (Conviction + Agreement) */
+.consensus-meta-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.consensus-meta-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.meta-label {
+    font-size: 0.82em;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+.agreement-text {
+    font-size: 0.88em;
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+/* Conviction Badges */
+.conviction-badge {
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 0.8em;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.conviction-very-high {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: white;
+}
+
+.conviction-high {
+    background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+    color: white;
+}
+
+.conviction-moderate {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    color: white;
+}
+
+.conviction-low {
+    background: linear-gradient(135deg, #6b7280 0%, #4b5563 100%);
+    color: white;
+}
+
+.conviction-blocked {
+    background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
+    color: white;
+}
+
+/* Bull/Bear Score Bars */
+.bull-bear-section {
+    margin-bottom: 12px;
+}
+
+.bull-bear-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+}
+
+.bb-label {
+    font-size: 0.78em;
+    font-weight: 600;
+    color: var(--text-secondary);
+    min-width: 90px;
+    white-space: nowrap;
+}
+
+.bb-bar-container {
+    flex: 1;
+    height: 10px;
+    background: var(--border-color);
+    border-radius: 5px;
+    overflow: hidden;
+    transition: background 0.3s;
+}
+
+.bb-bar {
+    height: 100%;
+    border-radius: 5px;
+    transition: width 0.6s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.bb-bull {
+    background: linear-gradient(90deg, #10b981 0%, #059669 100%);
+}
+
+.bb-bear {
+    background: linear-gradient(90deg, #ef4444 0%, #dc2626 100%);
+}
+
+.bb-score {
+    font-size: 0.82em;
+    font-weight: 700;
+    color: var(--text-primary);
+    min-width: 28px;
+    text-align: right;
+}
+
+/* Risk Badge Row */
+.consensus-risk-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+    padding: 6px 0;
+}
+
+.risk-badge-pass,
+.risk-badge-flag,
+.risk-badge-downgrade,
+.risk-badge-block {
+    padding: 4px 12px;
+    border-radius: 16px;
+    font-size: 0.78em;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+}
+
+.risk-badge-pass {
+    background: #dcfce7;
+    color: #166534;
+}
+
+.risk-badge-flag {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.risk-badge-downgrade {
+    background: #fed7aa;
+    color: #9a3412;
+}
+
+.risk-badge-block {
+    background: #fecaca;
+    color: #991b1b;
+}
+
+[data-theme="dark"] .risk-badge-pass { background: #064e3b; color: #6ee7b7; }
+[data-theme="dark"] .risk-badge-flag { background: #451a03; color: #fbbf24; }
+[data-theme="dark"] .risk-badge-downgrade { background: #431407; color: #fb923c; }
+[data-theme="dark"] .risk-badge-block { background: #450a0a; color: #fca5a5; }
+
+.risk-score-text {
+    font-size: 0.78em;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+/* Consensus Summary Text */
+.consensus-summary {
+    font-size: 0.85em;
+    color: var(--text-secondary);
+    line-height: 1.5;
+    margin-bottom: 8px;
+    transition: color 0.3s;
+}
+
+/* Risk Warning Details (collapsible) */
+.risk-warnings-details {
+    margin-top: 8px;
+    border-top: 1px solid var(--border-color);
+    padding-top: 8px;
+}
+
+.risk-warnings-details summary {
+    font-size: 0.8em;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-weight: 600;
+    padding: 4px 0;
+    transition: color 0.2s;
+}
+
+.risk-warnings-details summary:hover {
+    color: var(--text-primary);
+}
+
+.risk-warnings-list {
+    list-style: none;
+    padding: 0;
+    margin-top: 6px;
+}
+
+.risk-warnings-list li {
+    font-size: 0.78em;
+    color: var(--text-secondary);
+    padding: 3px 0 3px 16px;
+    position: relative;
+    line-height: 1.4;
+}
+
+.risk-warnings-list li::before {
+    content: '⚠';
+    position: absolute;
+    left: 0;
+    font-size: 0.9em;
+}
+
+/* Consensus responsive adjustments */
+@media (max-width: 480px) {
+    .consensus-cards-grid {
+        grid-template-columns: 1fr;
+    }
+    .consensus-overview {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    .consensus-meta-row {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    .bb-label {
+        min-width: 70px;
+        font-size: 0.72em;
+    }
+}
+
 /* Print styles */
 @media print {
     body {

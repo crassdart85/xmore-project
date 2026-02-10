@@ -131,6 +131,11 @@ Stock trading prediction system with web dashboard. Uses multiple AI agents to p
 - Prediction horizon: 1 day (changed from 7 days for faster evaluation)
 
 ## Recent Changes (Feb 2026)
+- **Bug Fixes (Critical)**:
+  - Fixed `init-db.js` missing `sentiment_scores` table creation (sync with `database.py`)
+  - Fixed `agents/agent_ma.py` off-by-one error and "fresh crossover" logic flaw
+  - Fixed `lxml` dependency for EGX live scraper
+  - Added `finnhub-python` dependency for sentiment analysis
 - **TDZ Fix**: `applyTheme()` crashed accessing `const TRANSLATIONS` before init; wrapped in try/catch
 - **Predictions Workflow Fix**: Removed broken `needs: daily-collection` dependency that prevented `daily-predictions` from ever running on schedule
 - **Dashboard Load Performance**: Parallelized API calls, eliminated duplicate fetch, optimized SQL, skeleton loader

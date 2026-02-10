@@ -135,6 +135,41 @@ MIN_CONFIDENCE_TO_PREDICT = 0.3  # Don't predict if confidence < 30% (agents ret
 MIN_MOVE_THRESHOLD = 0.5  # 0.5% minimum move to count
 
 # ============================================
+# RISK AGENT CONFIGURATION (Layer 3)
+# ============================================
+# These thresholds control how aggressively the Risk Agent gates signals.
+# Adjust for market conditions — tighter for volatile periods, looser for calm.
+
+RISK_CONFIG = {
+    # Stock-level risk
+    "min_avg_volume_20d": 50000,       # Minimum 20-day avg volume for liquidity
+    "max_bid_ask_spread_pct": 3.0,     # Max bid-ask spread as % of price
+    "max_volatility_20d": 0.06,        # Max 20-day daily volatility (std of returns)
+    "min_price": 1.0,                  # Minimum stock price (EGP)
+
+    # Portfolio-level risk
+    "max_sector_concentration": 0.40,  # Max 40% of signals in one sector
+    "max_correlated_signals": 3,       # Max same-direction signals in correlated group
+
+    # Signal quality risk
+    "min_bull_bear_gap": 10,           # Min gap between bull and bear scores
+    "min_agent_agreement": 0.5,        # At least 50% of agents must agree
+    "max_bear_score": 75,              # If bear score exceeds this, block
+
+    # Drawdown risk
+    "max_5d_drawdown_pct": -0.15,      # Block if stock dropped >15% in 5 days
+    "max_20d_drawdown_pct": -0.25,     # Block if stock dropped >25% in 20 days
+}
+
+# Consensus engine agent weights (sum should be ~1.0)
+AGENT_WEIGHTS = {
+    "ML_RandomForest":     0.35,
+    "MA_Crossover_Agent":  0.25,
+    "RSI_Agent":           0.20,
+    "Volume_Spike_Agent":  0.20,
+}
+
+# ============================================
 # LOGGING
 # ============================================
 

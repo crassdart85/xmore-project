@@ -1,7 +1,8 @@
 import pandas as pd
 from typing import Optional, Dict, Any
-from agents.agent_base import BaseAgent
+from agents.agent_base import BaseAgent, AgentSignal
 import config
+
 
 class MAAgent(BaseAgent):
     """
@@ -36,10 +37,11 @@ class MAAgent(BaseAgent):
         Returns:
             str: "UP", "DOWN", or "HOLD".
         """
-        if len(data) < self.long_window:
+        if len(data) < self.long_window + 1:
             return "HOLD"
         
         # Calculate moving averages
+        data = data.copy()
         data['ma_short'] = data['close'].rolling(window=self.short_window).mean()
         data['ma_long'] = data['close'].rolling(window=self.long_window).mean()
         
@@ -48,16 +50,116 @@ class MAAgent(BaseAgent):
         previous = data.iloc[-2]
         
         # Check for crossover
-        # Condition 1: Golden Cross (Short crosses above Long) -> BUY (UP)
         if current['ma_short'] > current['ma_long'] and previous['ma_short'] <= previous['ma_long']:
-            return "UP"  # Bullish crossover
-            
-        # Condition 2: Death Cross (Short crosses below Long) -> SELL (DOWN)
+            return "UP"
         elif current['ma_short'] < current['ma_long'] and previous['ma_short'] >= previous['ma_long']:
-            return "DOWN"  # Bearish crossover
-            
-        # Condition 3: Trend Continuation
+            return "DOWN"
         elif current['ma_short'] > current['ma_long']:
-            return "UP"  # Still in uptrend
+            return "UP"
         else:
-            return "DOWN"  # Still in downtrend
+            return "DOWN"
+
+    def predict_signal(self, data: pd.DataFrame, symbol: str = "",
+                       sentiment: Optional[Dict[str, Any]] = None) -> dict:
+        """
+        Generate structured prediction with reasoning data.
+        
+        Returns dict with crossover details, MA values, and trend strength.
+        """
+        if len(data) < self.long_window + 1:
+            return AgentSignal(
+                agent_name=self.name, symbol=symbol,
+                prediction="HOLD", confidence=0.0,
+                reasoning={"error": "insufficient_data", "rows": len(data), "required": self.long_window + 1}
+            ).to_dict()
+        
+        df = data.copy()
+        df['ma_short'] = df['close'].rolling(window=self.short_window).mean()
+        df['ma_long'] = df['close'].rolling(window=self.long_window).mean()
+        
+        current = df.iloc[-1]
+        previous = df.iloc[-2]
+        
+        # Use unrounded values for logic
+        sma_short = current['ma_short']
+        sma_long = current['ma_long']
+        price = current['close']
+        
+        # Determine crossover type and prediction
+        crossover_type = "none"
+        crossover_days_ago = None
+        prediction = "HOLD"
+        
+        if current['ma_short'] > current['ma_long'] and previous['ma_short'] <= previous['ma_long']:
+            crossover_type = "golden_cross"
+            prediction = "UP"
+            crossover_days_ago = 0
+        elif current['ma_short'] < current['ma_long'] and previous['ma_short'] >= previous['ma_long']:
+            crossover_type = "death_cross"
+            prediction = "DOWN"
+            crossover_days_ago = 0
+        elif current['ma_short'] > current['ma_long']:
+            crossover_type = "bullish_trend"
+            prediction = "UP"
+            # Find how many days ago the crossover happened
+            for i in range(2, min(len(df), 30)):
+                row = df.iloc[-i]
+                if pd.notna(row['ma_short']) and pd.notna(row['ma_long']):
+                    if row['ma_short'] <= row['ma_long']:
+                        crossover_days_ago = i - 1
+                        break
+        else:
+            crossover_type = "bearish_trend"
+            prediction = "DOWN"
+            for i in range(2, min(len(df), 30)):
+                row = df.iloc[-i]
+                if pd.notna(row['ma_short']) and pd.notna(row['ma_long']):
+                    if row['ma_short'] >= row['ma_long']:
+                        crossover_days_ago = i - 1
+                        break
+        
+        # Calculate trend strength based on MA gap
+        ma_gap_pct = abs(sma_short - sma_long) / sma_long * 100 if sma_long > 0 else 0
+        if ma_gap_pct > 5:
+            trend_strength = "strong"
+        elif ma_gap_pct > 2:
+            trend_strength = "moderate"
+        else:
+            trend_strength = "weak"
+        
+        # Confidence: based on freshness of crossover and gap strength
+        confidence = 50.0
+        
+        if crossover_days_ago is not None:
+            if crossover_days_ago <= 3:
+                confidence += 20  # Fresh crossover = high confidence
+            elif crossover_days_ago <= 7:
+                confidence += 10
+        
+        if trend_strength == "strong":
+            confidence += 15
+        elif trend_strength == "moderate":
+            confidence += 8
+        
+        price_above_short = bool(price > sma_short)
+        if (prediction == "UP" and price_above_short) or (prediction == "DOWN" and not price_above_short):
+            confidence += 7  # Price confirms direction
+        
+        confidence = min(95, max(20, confidence))
+        
+        reasoning = {
+            "sma_10": round(sma_short, 2),
+            "sma_30": round(sma_long, 2),
+            "current_price": round(price, 2),
+            "crossover_type": crossover_type,
+            "crossover_days_ago": crossover_days_ago if crossover_days_ago is not None else ">30",
+            "price_above_sma10": price_above_short,
+            "trend_strength": trend_strength,
+            "ma_gap_pct": round(ma_gap_pct, 2)
+        }
+        
+        return AgentSignal(
+            agent_name=self.name, symbol=symbol,
+            prediction=prediction, confidence=round(confidence, 1),
+            reasoning=reasoning
+        ).to_dict()

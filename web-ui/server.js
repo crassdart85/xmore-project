@@ -2,13 +2,20 @@ console.log('=== SERVER.JS STARTING ===');
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const cookieParser = require('cookie-parser');
+
+// Route modules
+const { router: authRouter, attachDb: attachAuthDb } = require('./routes/auth');
+const { router: stocksRouter, attachDb: attachStocksDb } = require('./routes/stocks');
+const { router: watchlistRouter, attachDb: attachWatchlistDb } = require('./routes/watchlist');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Middleware
-app.use(cors());
+app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
+app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ============================================
@@ -25,6 +32,7 @@ if (DATABASE_URL) {
   const pool = new Pool({ connectionString: DATABASE_URL, ssl: { rejectUnauthorized: false } });
 
   db = {
+    _isPostgres: true,
     all: (query, params, callback) => {
       pool.query(query, params)
         .then(result => callback(null, result.rows))
@@ -46,17 +54,23 @@ if (DATABASE_URL) {
   try {
     const sqlite3 = require('sqlite3').verbose();
     const dbPath = path.join(__dirname, '..', 'stocks.db');
-    const sqliteDb = new sqlite3.Database(dbPath, sqlite3.OPEN_READONLY, (err) => {
+    // OPEN_READWRITE for auth writes; OPEN_CREATE if db doesn't exist yet
+    const sqliteDb = new sqlite3.Database(dbPath, sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE, (err) => {
       if (err) {
         console.error('❌ Database connection failed:', err);
       } else {
-        console.log('✅ Connected to SQLite database');
+        console.log('✅ Connected to SQLite database (read/write)');
+        // Enable WAL mode for better concurrent reads/writes
+        sqliteDb.run('PRAGMA journal_mode=WAL');
+        sqliteDb.run('PRAGMA foreign_keys=ON');
       }
     });
 
     db = {
+      _isPostgres: false,
       all: (query, params, callback) => sqliteDb.all(query, params, callback),
-      get: (query, params, callback) => sqliteDb.get(query, params, callback)
+      get: (query, params, callback) => sqliteDb.get(query, params, callback),
+      run: (query, params, callback) => sqliteDb.run(query, params, callback)
     };
   } catch (err) {
     console.warn('⚠️  SQLite not available (this is normal on Render). Using PostgreSQL only.');
@@ -362,9 +376,187 @@ app.get('/api/evaluations', (req, res) => {
 });
 
 // ============================================
+// CONSENSUS API ENDPOINTS (3-Layer Pipeline)
+// ============================================
+
+// 7. Get latest consensus results for all stocks
+app.get('/api/consensus', (req, res) => {
+  const query = DATABASE_URL
+    ? `SELECT DISTINCT ON (symbol)
+         symbol, prediction_date, final_signal, conviction, confidence,
+         risk_adjusted, agent_agreement, agents_agreeing, agents_total,
+         majority_direction, bull_score, bear_score, risk_action, risk_score,
+         display_json, risk_assessment_json
+       FROM consensus_results
+       ORDER BY symbol, prediction_date DESC`
+    : `SELECT c.symbol, c.prediction_date, c.final_signal, c.conviction, c.confidence,
+         c.risk_adjusted, c.agent_agreement, c.agents_agreeing, c.agents_total,
+         c.majority_direction, c.bull_score, c.bear_score, c.risk_action, c.risk_score,
+         c.display_json, c.risk_assessment_json
+       FROM consensus_results c
+       INNER JOIN (
+         SELECT symbol, MAX(prediction_date) as max_date
+         FROM consensus_results
+         GROUP BY symbol
+       ) latest ON c.symbol = latest.symbol AND c.prediction_date = latest.max_date
+       ORDER BY c.symbol`;
+
+  db.all(query, [], (err, rows) => {
+    if (err) {
+      if (err.message && (err.message.includes('does not exist') || err.message.includes('no such table'))) {
+        res.json([]);
+      } else {
+        res.status(500).json({ error: err.message });
+      }
+    } else {
+      // Parse JSON fields
+      const parsed = (rows || []).map(row => {
+        try {
+          row.display = row.display_json ? JSON.parse(row.display_json) : {};
+          row.risk_assessment = row.risk_assessment_json ? JSON.parse(row.risk_assessment_json) : {};
+        } catch (e) {
+          row.display = {};
+          row.risk_assessment = {};
+        }
+        delete row.display_json;
+        delete row.risk_assessment_json;
+        return row;
+      });
+      res.json(parsed);
+    }
+  });
+});
+
+// 8. Get detailed consensus for a specific stock
+app.get('/api/consensus/:symbol', (req, res) => {
+  const { symbol } = req.params;
+  const placeholder = DATABASE_URL ? '$1' : '?';
+
+  const query = `
+    SELECT *
+    FROM consensus_results
+    WHERE symbol = ${placeholder}
+    ORDER BY prediction_date DESC
+    LIMIT 1
+  `;
+
+  db.get(query, [symbol], (err, row) => {
+    if (err) {
+      if (err.message && (err.message.includes('does not exist') || err.message.includes('no such table'))) {
+        res.json(null);
+      } else {
+        res.status(500).json({ error: err.message });
+      }
+    } else if (!row) {
+      res.json(null);
+    } else {
+      // Parse all JSON fields
+      try {
+        row.bull_case = row.bull_case_json ? JSON.parse(row.bull_case_json) : {};
+        row.bear_case = row.bear_case_json ? JSON.parse(row.bear_case_json) : {};
+        row.risk_assessment = row.risk_assessment_json ? JSON.parse(row.risk_assessment_json) : {};
+        row.agent_signals = row.agent_signals_json ? JSON.parse(row.agent_signals_json) : [];
+        row.reasoning_chain = row.reasoning_chain_json ? JSON.parse(row.reasoning_chain_json) : [];
+        row.display = row.display_json ? JSON.parse(row.display_json) : {};
+      } catch (e) {
+        console.error('Error parsing consensus JSON:', e);
+      }
+      // Remove raw JSON fields
+      delete row.bull_case_json;
+      delete row.bear_case_json;
+      delete row.risk_assessment_json;
+      delete row.agent_signals_json;
+      delete row.reasoning_chain_json;
+      delete row.display_json;
+      res.json(row);
+    }
+  });
+});
+
+// 9. Get portfolio risk overview
+app.get('/api/risk/overview', (req, res) => {
+  // Get latest consensus for all stocks and compute portfolio-level risk
+  const query = DATABASE_URL
+    ? `SELECT DISTINCT ON (symbol)
+         symbol, final_signal, conviction, risk_action, risk_score,
+         bull_score, bear_score, risk_assessment_json
+       FROM consensus_results
+       ORDER BY symbol, prediction_date DESC`
+    : `SELECT c.symbol, c.final_signal, c.conviction, c.risk_action, c.risk_score,
+         c.bull_score, c.bear_score, c.risk_assessment_json
+       FROM consensus_results c
+       INNER JOIN (
+         SELECT symbol, MAX(prediction_date) as max_date
+         FROM consensus_results
+         GROUP BY symbol
+       ) latest ON c.symbol = latest.symbol AND c.prediction_date = latest.max_date
+       ORDER BY c.symbol`;
+
+  db.all(query, [], (err, rows) => {
+    if (err) {
+      if (err.message && (err.message.includes('does not exist') || err.message.includes('no such table'))) {
+        res.json({ stocks: [], summary: { total: 0, blocked: 0, flagged: 0, passed: 0, avg_risk: 0 } });
+      } else {
+        res.status(500).json({ error: err.message });
+      }
+    } else {
+      const stocks = (rows || []).map(r => {
+        let riskFlags = [];
+        try {
+          const ra = r.risk_assessment_json ? JSON.parse(r.risk_assessment_json) : {};
+          riskFlags = ra.risk_flags || [];
+        } catch (e) { /* ignore */ }
+
+        return {
+          symbol: r.symbol,
+          signal: r.final_signal,
+          conviction: r.conviction,
+          risk_action: r.risk_action,
+          risk_score: r.risk_score,
+          bull_score: r.bull_score,
+          bear_score: r.bear_score,
+          risk_flags: riskFlags
+        };
+      });
+
+      const summary = {
+        total: stocks.length,
+        blocked: stocks.filter(s => s.risk_action === 'BLOCK').length,
+        flagged: stocks.filter(s => s.risk_action === 'FLAG').length,
+        downgraded: stocks.filter(s => s.risk_action === 'DOWNGRADE').length,
+        passed: stocks.filter(s => s.risk_action === 'PASS').length,
+        avg_risk: stocks.length > 0
+          ? Math.round(stocks.reduce((sum, s) => sum + (s.risk_score || 0), 0) / stocks.length)
+          : 0
+      };
+
+      res.json({ stocks, summary });
+    }
+  });
+});
+
+// ============================================
+// AUTH, STOCKS & WATCHLIST ROUTES
+// ============================================
+
+// Attach DB to route modules
+const isPostgres = !!DATABASE_URL;
+attachAuthDb(db, isPostgres);
+attachStocksDb(db);
+attachWatchlistDb(db, isPostgres);
+
+app.use('/api', authRouter);
+app.use('/api', stocksRouter);
+app.use('/api', watchlistRouter);
+
+// ============================================
 // FRONTEND ROUTE
 // ============================================
 app.get('*', (req, res) => {
+  // Don't serve index.html for /api routes that weren't matched
+  if (req.path.startsWith('/api/')) {
+    return res.status(404).json({ error: 'Not found' });
+  }
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 

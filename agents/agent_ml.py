@@ -16,7 +16,7 @@ from typing import Optional, Dict, Any
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import TimeSeriesSplit
 
-from agents.agent_base import BaseAgent
+from agents.agent_base import BaseAgent, AgentSignal
 from features import add_technical_indicators, add_sentiment_features, get_feature_columns, log_feature_importance
 from database import get_connection
 
@@ -35,6 +35,10 @@ class MLAgent(BaseAgent):
         super().__init__("ML_RandomForest")
         self.model = None
         self.feature_names = None
+        self._last_probs = None
+        self._last_top_features = None
+        self._last_training_accuracy = None
+        self._last_samples_used = None
         self.load_model()
         
     def load_model(self):
@@ -71,10 +75,8 @@ class MLAgent(BaseAgent):
         """
         symbol = price_df.iloc[0]['symbol'] if 'symbol' in price_df.columns else 'UNKNOWN'
         
-        # 1. Feature Engineering
         df = price_df.copy()
         
-        # Get news sentiment if available
         news_df = pd.DataFrame()
         if symbol and symbol != 'UNKNOWN':
             try:
@@ -89,7 +91,6 @@ class MLAgent(BaseAgent):
         df = add_technical_indicators(df)
         df = add_sentiment_features(df, news_df)
         
-        # 2. Determine available features (handle missing columns gracefully)
         all_features = get_feature_columns()
         available_features = [f for f in all_features if f in df.columns and not df[f].isna().all()]
         
@@ -97,14 +98,12 @@ class MLAgent(BaseAgent):
             logger.warning(f"[{symbol}] Only {len(available_features)} features available, using HOLD")
             return "HOLD"
         
-        # 3. If no model, try to train one
         if self.model is None:
             self.model, self.feature_names = self._train_model(df, available_features, symbol)
         
         if self.model is None:
-            return "HOLD"  # Not enough data to train
+            return "HOLD"
         
-        # 4. Use matched features (model was trained on specific features)
         features = [f for f in self.feature_names if f in df.columns]
         if len(features) < len(self.feature_names) * 0.5:
             logger.warning(f"[{symbol}] Too many features missing, retraining...")
@@ -114,10 +113,8 @@ class MLAgent(BaseAgent):
         if self.model is None:
             return "HOLD"
         
-        # 5. Predict on last row
         last_row = df.iloc[[-1]].copy()
         
-        # Fill NaNs with 0 for the last row
         for feat in features:
             if feat in last_row.columns and last_row[feat].isna().any():
                 last_row[feat] = 0
@@ -126,11 +123,33 @@ class MLAgent(BaseAgent):
             X = last_row[features]
             prediction = self.model.predict(X)[0]
             
-            # Get probability
             probs = self.model.predict_proba(X)[0]
             confidence = max(probs)
             
-            # Map to strings: 0=DOWN, 1=FLAT, 2=UP
+            # Store for predict_signal
+            classes = self.model.classes_
+            self._last_probs = {}
+            mapping_inv = {0: "DOWN", 1: "FLAT", 2: "UP"}
+            for i, cls in enumerate(classes):
+                label = mapping_inv.get(cls, str(cls))
+                self._last_probs[label] = round(float(probs[i]), 3)
+            
+            # Get top features
+            if hasattr(self.model, 'feature_importances_'):
+                importances = self.model.feature_importances_
+                feat_importance = sorted(
+                    zip(features, importances),
+                    key=lambda x: x[1], reverse=True
+                )[:5]
+                self._last_top_features = []
+                for fname, fimp in feat_importance:
+                    val = float(last_row[fname].iloc[0]) if fname in last_row.columns else 0
+                    self._last_top_features.append({
+                        "name": fname,
+                        "importance": round(float(fimp), 4),
+                        "value": round(val, 4)
+                    })
+            
             mapping = {0: "DOWN", 1: "FLAT", 2: "UP"}
             result = mapping.get(prediction, "HOLD")
             
@@ -141,26 +160,46 @@ class MLAgent(BaseAgent):
             logger.error(f"[{symbol}] Prediction error: {e}")
             return "HOLD"
 
+    def predict_signal(self, data: pd.DataFrame, symbol: str = "",
+                       sentiment: Optional[Dict[str, Any]] = None) -> dict:
+        """
+        Generate structured prediction with ML reasoning data.
+        
+        Returns dict with class probabilities, top features, and training accuracy.
+        """
+        # Run predict first to populate internal state
+        prediction = self.predict(data, sentiment)
+        
+        # Build probabilities dict
+        class_probs = self._last_probs or {"UP": 0.33, "DOWN": 0.33, "FLAT": 0.34}
+        top_features = self._last_top_features or []
+        
+        # Confidence from max probability
+        confidence = max(class_probs.values()) * 100 if class_probs else 50.0
+        
+        reasoning = {
+            "class_probabilities": class_probs,
+            "top_features": top_features,
+            "training_accuracy": round(self._last_training_accuracy or 0, 3),
+            "samples_used": self._last_samples_used or 0
+        }
+        
+        return AgentSignal(
+            agent_name=self.name, symbol=symbol,
+            prediction=prediction, confidence=round(confidence, 1),
+            reasoning=reasoning
+        ).to_dict()
+
     def _train_model(self, df, features, symbol=''):
         """
         Train Random Forest with walk-forward validation (TimeSeriesSplit).
-        
-        Args:
-            df: DataFrame with technical indicators already added
-            features: List of feature column names to use
-            symbol: Stock symbol for logging
-            
-        Returns:
-            tuple: (trained_model, feature_names) or (None, None) if not enough data
         """
-        # Create target: 5-day forward return classification
         df = df.copy()
         df['future_return'] = df['close'].shift(-5) / df['close'] - 1
         df['target'] = df['future_return'].apply(
             lambda x: 2 if x > UP_THRESHOLD else (0 if x < DOWN_THRESHOLD else 1)
         )
         
-        # Drop rows with NaN target (last 5 rows) or NaN features
         train_df = df.dropna(subset=['target'] + features).copy()
         
         if len(train_df) < 30:
@@ -170,7 +209,6 @@ class MLAgent(BaseAgent):
         X = train_df[features]
         y = train_df['target'].astype(int)
         
-        # Walk-forward validation using TimeSeriesSplit
         n_splits = min(5, len(X) // 10)
         if n_splits < 2:
             n_splits = 2
@@ -202,12 +240,12 @@ class MLAgent(BaseAgent):
                 best_model = model
         
         avg_score = np.mean(scores)
+        self._last_training_accuracy = avg_score
+        self._last_samples_used = len(train_df)
         logger.info(f"[{symbol}] Walk-forward validation: avg accuracy = {avg_score:.3f} (splits={n_splits})")
         
-        # Log feature importance
         if best_model:
             log_feature_importance(best_model, features, symbol=symbol, top_n=10)
-            # Save the model
             self.save_model(best_model, features)
         
         return best_model, features

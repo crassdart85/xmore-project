@@ -1,12 +1,16 @@
 <!DOCTYPE html>
 <html lang="en" dir="ltr">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Xmore — AI Stock Prediction Dashboard</title>
-    <meta name="description" content="Xmore is an AI-powered stock prediction system for the Egyptian Exchange (EGX) and US markets. Live performance tracking, multi-agent consensus signals.">
-    <link rel="stylesheet" href="style.css?v=20260210c">
+    <meta name="description"
+        content="Xmore is an AI-powered stock prediction system for the Egyptian Exchange (EGX) and US markets. Live performance tracking, multi-agent consensus signals.">
+    <link rel="stylesheet" href="style.css?v=20260211a">
+    <link rel="stylesheet" href="auth.css?v=20260211a">
 </head>
+
 <body>
     <div class="container">
         <!-- TradingView Ticker Tape (EGX30 index) -->
@@ -19,6 +23,14 @@
                     <span class="icon-moon">🌙</span>
                 </button>
                 <button id="langBtn" class="lang-btn">عربي</button>
+            </div>
+            <!-- User auth area -->
+            <div id="userInfoBar" class="user-info-bar" style="display:none;">
+                <span id="userEmail" class="user-email"></span>
+                <button id="logoutBtn" class="logout-btn">Logout</button>
+            </div>
+            <div id="loginPrompt" class="login-prompt">
+                <button id="showAuthBtn" class="auth-trigger-btn">🔐 Login / Sign Up</button>
             </div>
             <h1>Xmore</h1>
             <p class="subtitle">AI Stock Prediction Dashboard</p>
@@ -47,23 +59,71 @@
         <!-- Tab Navigation -->
         <nav class="tab-nav" id="tabNav">
             <button class="tab-btn active" data-tab="predictions" id="tabPredictions">Predictions</button>
+            <button class="tab-btn" data-tab="watchlist" id="tabWatchlist" style="display:none;">Watchlist</button>
+            <button class="tab-btn" data-tab="consensus" id="tabConsensus">Consensus</button>
             <button class="tab-btn" data-tab="performance" id="tabPerformance">Performance</button>
             <button class="tab-btn" data-tab="results" id="tabResults">Results</button>
             <button class="tab-btn" data-tab="prices" id="tabPrices">Prices</button>
         </nav>
 
+        <!-- Tab: Watchlist (requires login) -->
+        <section class="tab-content" id="tab-watchlist">
+            <div id="watchlistSection">
+                <div class="watchlist-header">
+                    <h2 id="wlTitle">⭐ My Watchlist</h2>
+                    <button id="wlAddBtn" class="wl-add-btn">+ Add Stock</button>
+                </div>
+                <!-- Stock Search -->
+                <div id="wlSearchBox" class="wl-search-box" style="display:none;">
+                    <input type="text" id="wlSearchInput" placeholder="Search by name, symbol, or sector..."
+                        autocomplete="off">
+                    <div id="wlSearchResults" class="wl-search-results"></div>
+                </div>
+                <!-- Watchlist Cards -->
+                <div id="watchlistCards" class="watchlist-cards-grid">
+                    <p class="no-data" id="wlEmptyMsg">Login to create your watchlist</p>
+                </div>
+            </div>
+        </section>
+
         <!-- Tab: Predictions -->
         <section class="tab-content active" id="tab-predictions">
             <div class="search-box">
-                <input type="text" id="predictionsSearch" placeholder="Search by stock symbol or company name..." onkeyup="filterPredictions()">
+                <input type="text" id="predictionsSearch" placeholder="Search by stock symbol or company name..."
+                    onkeyup="filterPredictions()">
             </div>
             <div id="predictions" class="scrollable-container">
                 <div class="skeleton-loader">
-                    <div class="skeleton-row"><div class="skeleton-block w-md h-lg"></div><div class="skeleton-block w-sm"></div><div class="skeleton-block w-lg"></div><div class="skeleton-block w-sm"></div></div>
-                    <div class="skeleton-row"><div class="skeleton-block w-md h-lg"></div><div class="skeleton-block w-sm"></div><div class="skeleton-block w-lg"></div><div class="skeleton-block w-sm"></div></div>
-                    <div class="skeleton-row"><div class="skeleton-block w-md h-lg"></div><div class="skeleton-block w-sm"></div><div class="skeleton-block w-lg"></div><div class="skeleton-block w-sm"></div></div>
-                    <div class="skeleton-row"><div class="skeleton-block w-md h-lg"></div><div class="skeleton-block w-sm"></div><div class="skeleton-block w-lg"></div><div class="skeleton-block w-sm"></div></div>
-                    <div class="skeleton-row"><div class="skeleton-block w-md h-lg"></div><div class="skeleton-block w-sm"></div><div class="skeleton-block w-lg"></div><div class="skeleton-block w-sm"></div></div>
+                    <div class="skeleton-row">
+                        <div class="skeleton-block w-md h-lg"></div>
+                        <div class="skeleton-block w-sm"></div>
+                        <div class="skeleton-block w-lg"></div>
+                        <div class="skeleton-block w-sm"></div>
+                    </div>
+                    <div class="skeleton-row">
+                        <div class="skeleton-block w-md h-lg"></div>
+                        <div class="skeleton-block w-sm"></div>
+                        <div class="skeleton-block w-lg"></div>
+                        <div class="skeleton-block w-sm"></div>
+                    </div>
+                    <div class="skeleton-row">
+                        <div class="skeleton-block w-md h-lg"></div>
+                        <div class="skeleton-block w-sm"></div>
+                        <div class="skeleton-block w-lg"></div>
+                        <div class="skeleton-block w-sm"></div>
+                    </div>
+                    <div class="skeleton-row">
+                        <div class="skeleton-block w-md h-lg"></div>
+                        <div class="skeleton-block w-sm"></div>
+                        <div class="skeleton-block w-lg"></div>
+                        <div class="skeleton-block w-sm"></div>
+                    </div>
+                    <div class="skeleton-row">
+                        <div class="skeleton-block w-md h-lg"></div>
+                        <div class="skeleton-block w-sm"></div>
+                        <div class="skeleton-block w-lg"></div>
+                        <div class="skeleton-block w-sm"></div>
+                    </div>
                 </div>
             </div>
         </section>
@@ -81,7 +141,8 @@
                 <div class="accuracy-definition-tooltip" id="accuracyTooltip">
                     <span class="tooltip-icon">ℹ️</span>
                     <div class="tooltip-content" id="accuracyDefinition">
-                        Directional Accuracy: Percentage of predictions where the predicted direction (UP/DOWN) matched the actual 5-day price movement exceeding ±0.5% threshold.
+                        Directional Accuracy: Percentage of predictions where the predicted direction (UP/DOWN) matched
+                        the actual 5-day price movement exceeding ±0.5% threshold.
                     </div>
                 </div>
                 <div id="perfAgents">
@@ -103,6 +164,33 @@
                 <div id="perfMonthly" class="chart-container">
                     <canvas id="monthlyChart" width="800" height="300"></canvas>
                 </div>
+            </div>
+        </section>
+
+        <!-- Tab: Consensus (3-Layer Pipeline) -->
+        <section class="tab-content" id="tab-consensus">
+            <!-- Risk Overview Summary -->
+            <div class="consensus-overview" id="consensusOverview">
+                <div class="risk-stat-card">
+                    <div class="risk-stat-value" id="riskStocksTotal">-</div>
+                    <div class="risk-stat-label" data-i18n="totalStocks">Total Stocks</div>
+                </div>
+                <div class="risk-stat-card risk-passed">
+                    <div class="risk-stat-value" id="riskPassed">-</div>
+                    <div class="risk-stat-label" data-i18n="riskPassed">Passed</div>
+                </div>
+                <div class="risk-stat-card risk-flagged">
+                    <div class="risk-stat-value" id="riskFlagged">-</div>
+                    <div class="risk-stat-label" data-i18n="riskFlagged">Flagged</div>
+                </div>
+                <div class="risk-stat-card risk-blocked">
+                    <div class="risk-stat-value" id="riskBlocked">-</div>
+                    <div class="risk-stat-label" data-i18n="riskBlocked">Blocked</div>
+                </div>
+            </div>
+            <!-- Consensus Cards -->
+            <div id="consensusCards" class="consensus-cards-grid">
+                <p class="loading">Loading consensus data...</p>
             </div>
         </section>
 
@@ -138,6 +226,33 @@
         </footer>
     </div>
 
-    <script src="app.js?v=20260210c"></script>
+    <!-- Auth Modal -->
+    <div id="authModal" class="auth-modal-overlay" style="display:none;">
+        <div class="auth-modal">
+            <button id="authCloseBtn" class="auth-close-btn">&times;</button>
+            <h2 id="authWelcome" class="auth-welcome">🔐 Welcome to Xmore</h2>
+            <div class="auth-tabs">
+                <button id="authLoginTab" class="auth-tab active" data-auth-tab="login">Login</button>
+                <button id="authSignupTab" class="auth-tab" data-auth-tab="signup">Sign Up</button>
+            </div>
+            <form id="authForm" class="auth-form">
+                <div class="auth-field">
+                    <label for="authEmail" id="authEmailLabel">Email</label>
+                    <input type="email" id="authEmail" required autocomplete="email">
+                </div>
+                <div class="auth-field">
+                    <label for="authPassword" id="authPasswordLabel">Password</label>
+                    <input type="password" id="authPassword" required minlength="8" autocomplete="current-password">
+                </div>
+                <div id="authError" class="auth-error" style="display:none;"></div>
+                <button type="submit" id="authSubmitBtn" class="auth-submit-btn">Login</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="app.js?v=20260211a"></script>
+    <script src="auth.js?v=20260211a"></script>
+    <script src="watchlist.js?v=20260211a"></script>
 </body>
+
 </html>

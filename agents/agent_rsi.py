@@ -1,7 +1,8 @@
 import pandas as pd
 from typing import Optional, Dict, Any
-from agents.agent_base import BaseAgent
+from agents.agent_base import BaseAgent, AgentSignal
 import config
+
 
 class RSIAgent(BaseAgent):
     """
@@ -31,15 +32,10 @@ class RSIAgent(BaseAgent):
             pd.Series: RSI values.
         """
         delta = data['close'].diff()
-
-        # Separate gains and losses
         gain = (delta.where(delta > 0, 0))
         loss = (-delta.where(delta < 0, 0))
-
-        # Calculate smoothed averages (Wilder's method)
         avg_gain = gain.ewm(alpha=1/window, min_periods=window, adjust=False).mean()
         avg_loss = loss.ewm(alpha=1/window, min_periods=window, adjust=False).mean()
-
         rs = avg_gain / avg_loss
         rsi = 100 - (100 / (1 + rs))
         return rsi
@@ -49,21 +45,15 @@ class RSIAgent(BaseAgent):
         Analyze price data and generate trading signal based on RSI thresholds.
         Sentiment is used as a confirmation signal when available.
 
-        Args:
-            data (pd.DataFrame): DataFrame containing 'close' price column.
-            sentiment: Optional dict with sentiment data (avg_sentiment, sentiment_label)
-
         Returns:
             str: "UP", "DOWN", or "HOLD".
         """
-        # We need at least 15 days of data to calculate a 14-day RSI
         if len(data) < config.RSI_PERIOD + 1:
             return "HOLD"
 
         rsi_values = self.calculate_rsi(data, window=config.RSI_PERIOD)
         current_rsi = rsi_values.iloc[-1]
 
-        # Get base signal from RSI
         if current_rsi < config.RSI_OVERSOLD:
             base_signal = "UP"
         elif current_rsi > config.RSI_OVERBOUGHT:
@@ -71,34 +61,124 @@ class RSIAgent(BaseAgent):
         else:
             base_signal = "HOLD"
 
-        # If no sentiment data, return base signal
         if not sentiment or sentiment.get('article_count', 0) == 0:
             return base_signal
 
-        # Use sentiment to confirm or adjust signal
         sentiment_label = sentiment.get('sentiment_label', 'Neutral')
         avg_sentiment = sentiment.get('avg_sentiment', 0)
 
-        # Strong sentiment can push HOLD into a direction
         if base_signal == "HOLD":
-            # Only act on strong sentiment (score > 0.3 or < -0.3)
             if avg_sentiment > 0.3:
                 return "UP"
             elif avg_sentiment < -0.3:
                 return "DOWN"
             return "HOLD"
 
-        # Sentiment confirms or contradicts signal
         if base_signal == "UP":
-            # Bullish sentiment confirms, bearish sentiment cancels
             if sentiment_label == "Bearish":
                 return "HOLD"
             return "UP"
 
         if base_signal == "DOWN":
-            # Bearish sentiment confirms, bullish sentiment cancels
             if sentiment_label == "Bullish":
                 return "HOLD"
             return "DOWN"
 
         return base_signal
+
+    def predict_signal(self, data: pd.DataFrame, symbol: str = "",
+                       sentiment: Optional[Dict[str, Any]] = None) -> dict:
+        """
+        Generate structured prediction with RSI reasoning data.
+        
+        Returns dict with RSI value, zone, trend, divergence analysis.
+        """
+        if len(data) < config.RSI_PERIOD + 1:
+            return AgentSignal(
+                agent_name=self.name, symbol=symbol,
+                prediction="HOLD", confidence=0.0,
+                reasoning={"error": "insufficient_data", "rows": len(data)}
+            ).to_dict()
+
+        df = data.copy()
+        rsi_values = self.calculate_rsi(df, window=config.RSI_PERIOD)
+        current_rsi = rsi_values.iloc[-1]
+        
+        # RSI from 5 days ago for trend
+        rsi_5d_ago = rsi_values.iloc[-6] if len(rsi_values) >= 6 else rsi_values.iloc[0]
+        
+        # Determine RSI zone
+        if current_rsi < 25:
+            rsi_zone = "oversold"
+        elif current_rsi < 35:
+            rsi_zone = "approaching_oversold"
+        elif current_rsi > 75:
+            rsi_zone = "overbought"
+        elif current_rsi > 65:
+            rsi_zone = "approaching_overbought"
+        else:
+            rsi_zone = "neutral"
+        
+        # RSI trend
+        rsi_diff = current_rsi - rsi_5d_ago
+        if rsi_diff > 3:
+            rsi_trend = "rising"
+        elif rsi_diff < -3:
+            rsi_trend = "falling"
+        else:
+            rsi_trend = "flat"
+        
+        # Check for RSI-Price divergence
+        divergence = "none"
+        if len(df) >= 10:
+            price_now = df['close'].iloc[-1]
+            price_prev = df['close'].iloc[-6] if len(df) >= 6 else df['close'].iloc[0]
+            price_change = (price_now - price_prev) / price_prev if price_prev > 0 else 0
+            
+            if price_change < -0.02 and rsi_diff > 5:
+                divergence = "bullish"   # Price falling but RSI rising
+            elif price_change > 0.02 and rsi_diff < -5:
+                divergence = "bearish"   # Price rising but RSI falling
+        
+        # Get base prediction
+        prediction = self.predict(df, sentiment)
+        
+        # Calculate confidence
+        confidence = 50.0
+        
+        # Extreme RSI = higher confidence
+        if current_rsi < 20 or current_rsi > 80:
+            confidence += 20
+        elif current_rsi < 30 or current_rsi > 70:
+            confidence += 12
+        elif current_rsi < 40 or current_rsi > 60:
+            confidence += 5
+        
+        # Divergence boosts confidence
+        if divergence == "bullish" and prediction == "UP":
+            confidence += 10
+        elif divergence == "bearish" and prediction == "DOWN":
+            confidence += 10
+        
+        # Sentiment confirmation
+        if sentiment and sentiment.get('article_count', 0) > 0:
+            avg_sent = sentiment.get('avg_sentiment', 0)
+            if (prediction == "UP" and avg_sent > 0.1) or (prediction == "DOWN" and avg_sent < -0.1):
+                confidence += 5
+        
+        confidence = min(95, max(15, confidence))
+        
+        reasoning = {
+            "rsi_value": round(current_rsi, 1),
+            "rsi_zone": rsi_zone,
+            "rsi_trend": rsi_trend,
+            "rsi_5d_ago": round(rsi_5d_ago, 1),
+            "rsi_change_5d": round(rsi_diff, 1),
+            "divergence": divergence
+        }
+        
+        return AgentSignal(
+            agent_name=self.name, symbol=symbol,
+            prediction=prediction, confidence=round(confidence, 1),
+            reasoning=reasoning
+        ).to_dict()

@@ -4,7 +4,7 @@
 // ============================================
 
 // Global error handler — surface JS errors visibly for debugging
-window.onerror = function(msg, url, line, col, error) {
+window.onerror = function (msg, url, line, col, error) {
     console.error('Global error:', msg, url, line, col, error);
     const el = document.getElementById('predictions');
     if (el) el.innerHTML = `<p class="error-message">JS Error: ${msg} (line ${line})</p>`;
@@ -65,6 +65,7 @@ const TRANSLATIONS = {
 
         // Tabs
         tabPredictions: 'Predictions',
+        tabWatchlist: 'Watchlist',
         tabPerformance: 'Performance',
         tabResults: 'Results',
         tabPrices: 'Prices',
@@ -150,7 +151,31 @@ const TRANSLATIONS = {
         darkMode: 'Switch to dark mode',
 
         // Terms
-        termsOfService: 'Terms of Service'
+        termsOfService: 'Terms of Service',
+
+        // Consensus tab
+        tabConsensus: 'Consensus',
+        consensus: 'Agreement',
+        consensusTitle: 'Signal Consensus',
+        bullCase: 'Bull Case',
+        bearCase: 'Bear Case',
+        riskAction: 'Risk',
+        conviction: 'Conviction',
+        riskPassed: 'Passed',
+        riskFlagged: 'Flagged',
+        riskBlocked: 'Blocked',
+        riskDowngraded: 'Downgraded',
+        totalStocks: 'Total Stocks',
+        avgRisk: 'Avg Risk',
+        noConsensus: 'No consensus data available yet. Run the prediction pipeline first.',
+        errorConsensus: 'Unable to load consensus data.',
+        convictionVeryHigh: 'Very High',
+        convictionHigh: 'High',
+        convictionModerate: 'Moderate',
+        convictionLow: 'Low',
+        convictionBlocked: 'Blocked',
+        riskWarnings: 'Risk Warnings',
+        agentSignals: 'Agent Signals'
     },
     ar: {
         title: 'إكسمور',
@@ -162,6 +187,7 @@ const TRANSLATIONS = {
         latestData: 'آخر تحديث',
 
         tabPredictions: 'التنبؤات',
+        tabWatchlist: 'المتابعة',
         tabPerformance: 'الأداء',
         tabResults: 'النتائج',
         tabPrices: 'الأسعار',
@@ -235,7 +261,31 @@ const TRANSLATIONS = {
         lightMode: 'التبديل إلى الوضع الفاتح',
         darkMode: 'التبديل إلى الوضع الداكن',
 
-        termsOfService: 'شروط الخدمة'
+        termsOfService: 'شروط الخدمة',
+
+        // Consensus tab
+        tabConsensus: 'الإجماع',
+        consensus: 'الاتفاق',
+        consensusTitle: 'إجماع الإشارات',
+        bullCase: 'حالة الثور',
+        bearCase: 'حالة الدب',
+        riskAction: 'المخاطر',
+        conviction: 'القناعة',
+        riskPassed: 'أُجيز',
+        riskFlagged: 'مُعلّم',
+        riskBlocked: 'محظور',
+        riskDowngraded: 'مُخفّض',
+        totalStocks: 'إجمالي الأسهم',
+        avgRisk: 'متوسط المخاطر',
+        noConsensus: 'لا توجد بيانات إجماع بعد. شغّل خط التنبؤات أولاً.',
+        errorConsensus: 'تعذر تحميل بيانات الإجماع.',
+        convictionVeryHigh: 'عالية جداً',
+        convictionHigh: 'عالية',
+        convictionModerate: 'متوسطة',
+        convictionLow: 'منخفضة',
+        convictionBlocked: 'محظور',
+        riskWarnings: 'تحذيرات المخاطر',
+        agentSignals: 'إشارات الوكلاء'
     }
 };
 
@@ -287,6 +337,7 @@ async function switchLanguage() {
     await loadSentiment();
     loadStats();
     loadPredictions();
+    loadConsensus();
     loadPerformance();
     loadPerformanceDetailed();
     loadEvaluations();
@@ -313,7 +364,7 @@ function applyLanguage() {
     });
 
     // Tab buttons
-    const tabs = ['tabPredictions', 'tabPerformance', 'tabResults', 'tabPrices'];
+    const tabs = ['tabPredictions', 'tabWatchlist', 'tabConsensus', 'tabPerformance', 'tabResults', 'tabPrices'];
     tabs.forEach(id => {
         const btn = document.getElementById(id);
         if (btn) btn.textContent = t(id);
@@ -354,6 +405,10 @@ function applyLanguage() {
     if (langBtn) langBtn.textContent = t('switchLang');
 
     updateThemeButton();
+
+    // Update auth and watchlist text
+    if (typeof updateAuthLanguage === 'function') updateAuthLanguage();
+    if (typeof updateWatchlistLanguage === 'function') updateWatchlistLanguage();
 }
 
 // ============================================
@@ -365,6 +420,12 @@ function initTabs() {
         btn.addEventListener('click', () => {
             const tabId = btn.getAttribute('data-tab');
 
+            // Guard: watchlist tab requires login
+            if (tabId === 'watchlist' && typeof currentUser !== 'undefined' && !currentUser) {
+                if (typeof showAuthModal === 'function') showAuthModal('login');
+                return;
+            }
+
             // Toggle active tab button
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
@@ -373,6 +434,11 @@ function initTabs() {
             document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
             const content = document.getElementById(`tab-${tabId}`);
             if (content) content.classList.add('active');
+
+            // Lazy-load watchlist data on first visit
+            if (tabId === 'watchlist' && typeof loadWatchlist === 'function') {
+                loadWatchlist();
+            }
         });
     });
 }
@@ -572,6 +638,7 @@ window.addEventListener('load', () => {
 
         // Load all independent data in parallel
         loadStats();
+        loadConsensus();
         loadPerformance();
         loadPerformanceDetailed();
         loadEvaluations();
@@ -612,6 +679,7 @@ async function refreshData() {
         await Promise.all([
             loadStats(),
             loadPredictions(),
+            loadConsensus(),
             loadPerformance(),
             loadPerformanceDetailed(),
             loadEvaluations(),
@@ -1086,4 +1154,169 @@ async function loadPrices() {
         console.error('Error loading prices:', error);
         container.innerHTML = `<p class="error-message">${t('errorPrices')}</p>`;
     }
+}
+
+// ============================================
+// LOAD CONSENSUS DATA (3-Layer Pipeline)
+// ============================================
+
+async function loadConsensus() {
+    const cardsContainer = document.getElementById('consensusCards');
+    if (!cardsContainer) return;
+
+    try {
+        // Fetch consensus data and risk overview in parallel
+        const [consensusRes, riskRes] = await Promise.all([
+            fetch(`${API_URL}/consensus`),
+            fetch(`${API_URL}/risk/overview`)
+        ]);
+
+        const consensusData = consensusRes.ok ? await consensusRes.json() : [];
+        const riskData = riskRes.ok ? await riskRes.json() : { stocks: [], summary: {} };
+
+        // Update risk overview stats
+        const summary = riskData.summary || {};
+        const elTotal = document.getElementById('riskStocksTotal');
+        const elPassed = document.getElementById('riskPassed');
+        const elFlagged = document.getElementById('riskFlagged');
+        const elBlocked = document.getElementById('riskBlocked');
+        if (elTotal) elTotal.textContent = summary.total || 0;
+        if (elPassed) elPassed.textContent = summary.passed || 0;
+        if (elFlagged) elFlagged.textContent = (summary.flagged || 0) + (summary.downgraded || 0);
+        if (elBlocked) elBlocked.textContent = summary.blocked || 0;
+
+        // Update i18n labels
+        document.querySelectorAll('[data-i18n]').forEach(el => {
+            const key = el.getAttribute('data-i18n');
+            if (key) el.textContent = t(key);
+        });
+
+        if (!consensusData || consensusData.length === 0) {
+            cardsContainer.innerHTML = `<p class="no-data">${t('noConsensus')}</p>`;
+            return;
+        }
+
+        // Render consensus cards
+        let html = '';
+        consensusData.forEach(item => {
+            html += renderConsensusCard(item);
+        });
+        cardsContainer.innerHTML = html;
+
+    } catch (error) {
+        console.error('Error loading consensus:', error);
+        cardsContainer.innerHTML = `<p class="error-message">${t('errorConsensus')}</p>`;
+    }
+}
+
+function renderConsensusCard(item) {
+    const isArabic = currentLang === 'ar';
+    const companyName = getCompanyName(item.symbol);
+
+    // Signal display
+    const display = item.display || {};
+    const signalText = isArabic ? (display.signal_text_ar || display.signal_text || item.final_signal) : (display.signal_text || item.final_signal);
+    const signalKey = (item.final_signal || 'HOLD').toLowerCase();
+
+    // Conviction
+    const convictionText = isArabic ? (display.conviction_text_ar || item.conviction) : (display.conviction_text || item.conviction);
+    const convictionClass = (item.conviction || 'LOW').toLowerCase().replace('_', '-');
+
+    // Summary
+    const summaryText = isArabic ? (display.summary_ar || display.summary || '') : (display.summary || '');
+
+    // Bull/Bear scores
+    const bullScore = item.bull_score || 0;
+    const bearScore = item.bear_score || 0;
+
+    // Risk action
+    const riskAction = item.risk_action || 'PASS';
+    const riskScore = item.risk_score || 0;
+    const riskAdjusted = item.risk_adjusted;
+
+    // Risk warnings from risk_assessment
+    const riskAssessment = item.risk_assessment || {};
+    const riskFlags = isArabic ? (riskAssessment.risk_flags_ar || []) : (riskAssessment.risk_flags || []);
+
+    // Agreement
+    const agreementPct = Math.round((item.agent_agreement || 0) * 100);
+    const agentsAgreeing = item.agents_agreeing || 0;
+    const agentsTotal = item.agents_total || 0;
+
+    // Risk action badge class
+    let riskBadgeClass = 'risk-badge-pass';
+    let riskBadgeText = '✓ PASS';
+    if (riskAction === 'BLOCK') {
+        riskBadgeClass = 'risk-badge-block';
+        riskBadgeText = '🚫 BLOCK';
+    } else if (riskAction === 'DOWNGRADE') {
+        riskBadgeClass = 'risk-badge-downgrade';
+        riskBadgeText = '⬇ DOWNGRADE';
+    } else if (riskAction === 'FLAG') {
+        riskBadgeClass = 'risk-badge-flag';
+        riskBadgeText = '⚠️ FLAG';
+    }
+
+    return `
+    <div class="consensus-card ${riskAction === 'BLOCK' ? 'consensus-card-blocked' : ''}">
+        <div class="consensus-card-header">
+            <div class="consensus-card-stock">
+                <strong>${item.symbol}</strong>
+                <small class="company-name">${companyName}</small>
+            </div>
+            <div class="consensus-card-signal">
+                <span class="consensus-signal-badge signal-${signalKey}">${signalText}</span>
+                ${riskAdjusted ? '<span class="risk-adjusted-badge" title="Risk-adjusted">⚠️</span>' : ''}
+            </div>
+        </div>
+
+        <div class="consensus-card-body">
+            <!-- Conviction & Agreement -->
+            <div class="consensus-meta-row">
+                <div class="consensus-meta-item">
+                    <span class="meta-label">${t('conviction')}:</span>
+                    <span class="conviction-badge conviction-${convictionClass}">${convictionText}</span>
+                </div>
+                <div class="consensus-meta-item">
+                    <span class="meta-label">${t('consensus')}:</span>
+                    <span class="agreement-text">${agentsAgreeing}/${agentsTotal} (${agreementPct}%)</span>
+                </div>
+            </div>
+
+            <!-- Bull/Bear Bars -->
+            <div class="bull-bear-section">
+                <div class="bull-bear-row">
+                    <span class="bb-label">🐂 ${t('bullCase')}</span>
+                    <div class="bb-bar-container">
+                        <div class="bb-bar bb-bull" style="width: ${bullScore}%"></div>
+                    </div>
+                    <span class="bb-score">${bullScore}</span>
+                </div>
+                <div class="bull-bear-row">
+                    <span class="bb-label">🐻 ${t('bearCase')}</span>
+                    <div class="bb-bar-container">
+                        <div class="bb-bar bb-bear" style="width: ${bearScore}%"></div>
+                    </div>
+                    <span class="bb-score">${bearScore}</span>
+                </div>
+            </div>
+
+            <!-- Risk Badge -->
+            <div class="consensus-risk-row">
+                <span class="${riskBadgeClass}">${riskBadgeText}</span>
+                <span class="risk-score-text">${t('riskAction')}: ${riskScore}/100</span>
+            </div>
+
+            <!-- Summary -->
+            <div class="consensus-summary">${summaryText}</div>
+
+            ${riskFlags.length > 0 ? `
+            <details class="risk-warnings-details">
+                <summary>${t('riskWarnings')} (${riskFlags.length})</summary>
+                <ul class="risk-warnings-list">
+                    ${riskFlags.map(f => `<li>${f}</li>`).join('')}
+                </ul>
+            </details>` : ''}
+        </div>
+    </div>`;
 }

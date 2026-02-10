@@ -192,11 +192,159 @@ def create_tables():
             )
         """)
 
+        # Table 7: Consensus Results (3-Layer Pipeline Output)
+        cursor.execute(f"""
+            CREATE TABLE IF NOT EXISTS consensus_results (
+                id {auto_id},
+                symbol TEXT NOT NULL,
+                prediction_date DATE NOT NULL,
+                
+                -- Final output
+                final_signal TEXT NOT NULL,
+                conviction TEXT,
+                confidence REAL,
+                risk_adjusted {bool_default},
+                
+                -- Agreement
+                agent_agreement REAL,
+                agents_agreeing INTEGER,
+                agents_total INTEGER,
+                majority_direction TEXT,
+                
+                -- Bull / Bear scores
+                bull_score INTEGER,
+                bear_score INTEGER,
+                
+                -- Risk
+                risk_action TEXT,
+                risk_score INTEGER,
+                
+                -- Full data (JSON)
+                bull_case_json TEXT,
+                bear_case_json TEXT,
+                risk_assessment_json TEXT,
+                agent_signals_json TEXT,
+                reasoning_chain_json TEXT,
+                display_json TEXT,
+                
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(symbol, prediction_date)
+            )
+        """)
+
+        # Add reasoning column to predictions if it doesn't exist
+        try:
+            cursor.execute("ALTER TABLE predictions ADD COLUMN reasoning TEXT")
+        except Exception:
+            pass  # Column already exists
+
+        # Table 8: Users (Auth)
+        cursor.execute(f"""
+            CREATE TABLE IF NOT EXISTS users (
+                id {auto_id},
+                email TEXT NOT NULL,
+                email_lower TEXT NOT NULL UNIQUE,
+                password_hash TEXT NOT NULL,
+                display_name TEXT,
+                preferred_language TEXT DEFAULT 'en',
+                is_active {bool_default},
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                last_login_at TIMESTAMP
+            )
+        """)
+
+        # Table 9: EGX 30 Stocks Reference
+        cursor.execute(f"""
+            CREATE TABLE IF NOT EXISTS egx30_stocks (
+                id {auto_id},
+                symbol TEXT NOT NULL UNIQUE,
+                name_en TEXT NOT NULL,
+                name_ar TEXT NOT NULL,
+                sector_en TEXT,
+                sector_ar TEXT,
+                is_active {bool_default},
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
+        # Table 10: User Watchlist
+        cursor.execute(f"""
+            CREATE TABLE IF NOT EXISTS user_watchlist (
+                id {auto_id},
+                user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                stock_id INTEGER NOT NULL REFERENCES egx30_stocks(id) ON DELETE CASCADE,
+                added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(user_id, stock_id)
+            )
+        """)
+
+        # Table 11: Sentiment Scores (Aggregated)
+        cursor.execute(f"""
+            CREATE TABLE IF NOT EXISTS sentiment_scores (
+                id {auto_id},
+                symbol TEXT NOT NULL,
+                date DATE NOT NULL,
+                avg_sentiment REAL,
+                sentiment_label TEXT,
+                article_count INTEGER DEFAULT 0,
+                positive_count INTEGER DEFAULT 0,
+                negative_count INTEGER DEFAULT 0,
+                neutral_count INTEGER DEFAULT 0,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(symbol, date)
+            )
+        """)
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_sentiment_symbol_date ON sentiment_scores(symbol, date)")
+
+        # Seed EGX 30 stocks (insert or ignore for SQLite)
+        egx30_stocks = [
+            ('COMI.CA', 'Commercial International Bank', 'البنك التجاري الدولي', 'Banking', 'البنوك'),
+            ('HRHO.CA', 'Hermes Holding', 'القابضة المصرية الكويتية (هيرميس)', 'Financial Services', 'الخدمات المالية'),
+            ('TMGH.CA', 'Talaat Moustafa Group', 'مجموعة طلعت مصطفى', 'Real Estate', 'العقارات'),
+            ('SWDY.CA', 'Elsewedy Electric', 'السويدي إليكتريك', 'Industrials', 'الصناعات'),
+            ('EAST.CA', 'Eastern Company', 'الشرقية (إيسترن كومباني)', 'Consumer Staples', 'السلع الأساسية'),
+            ('ETEL.CA', 'Telecom Egypt', 'المصرية للاتصالات', 'Telecom', 'الاتصالات'),
+            ('ABUK.CA', 'Abu Qir Fertilizers', 'أبو قير للأسمدة', 'Materials', 'المواد'),
+            ('ORWE.CA', 'Oriental Weavers', 'السجاد الشرقية (أوريانتال ويفرز)', 'Consumer Discretionary', 'السلع الاستهلاكية'),
+            ('EFIH.CA', 'EFG Hermes', 'إي إف جي هيرميس', 'Financial Services', 'الخدمات المالية'),
+            ('OCDI.CA', 'Orascom Development', 'أوراسكوم للتنمية', 'Real Estate', 'العقارات'),
+            ('PHDC.CA', 'Palm Hills Development', 'بالم هيلز للتعمير', 'Real Estate', 'العقارات'),
+            ('MNHD.CA', 'Madinet Nasr Housing', 'مدينة نصر للإسكان', 'Real Estate', 'العقارات'),
+            ('CLHO.CA', 'Cleopatra Hospital', 'مستشفى كليوباترا', 'Healthcare', 'الرعاية الصحية'),
+            ('EKHO.CA', 'Ezz Steel', 'حديد عز', 'Materials', 'المواد'),
+            ('AMOC.CA', 'Alexandria Mineral Oils', 'الإسكندرية للزيوت المعدنية', 'Energy', 'الطاقة'),
+            ('ESRS.CA', 'Ezz Steel (Rebars)', 'عز الدخيلة للصلب', 'Materials', 'المواد'),
+            ('HELI.CA', 'Heliopolis Housing', 'مصر الجديدة للإسكان', 'Real Estate', 'العقارات'),
+            ('GBCO.CA', 'GB Auto', 'جي بي أوتو', 'Consumer Discretionary', 'السلع الاستهلاكية'),
+            ('CCAP.CA', 'Citadel Capital (Qalaa)', 'القلعة (سيتاديل كابيتال)', 'Financial Services', 'الخدمات المالية'),
+            ('JUFO.CA', 'Juhayna Food', 'جهينة', 'Consumer Staples', 'السلع الأساسية'),
+            ('SKPC.CA', 'Sidi Kerir Petrochemicals', 'سيدي كرير للبتروكيماويات', 'Materials', 'المواد'),
+            ('ORAS.CA', 'Orascom Construction', 'أوراسكوم للإنشاءات', 'Industrials', 'الصناعات'),
+            ('FWRY.CA', 'Fawry', 'فوري', 'Technology', 'التكنولوجيا'),
+            ('EKHOA.CA', 'Ezz Aldekhela', 'عز الدخيلة', 'Materials', 'المواد'),
+            ('BINV.CA', 'Beltone Financial', 'بلتون المالية القابضة', 'Financial Services', 'الخدمات المالية'),
+            ('EIOD.CA', 'E-Finance', 'إي فاينانس', 'Technology', 'التكنولوجيا'),
+            ('TALM.CA', 'Talem Medical', 'تاليم الطبية', 'Healthcare', 'الرعاية الصحية'),
+            ('ADIB.CA', 'Abu Dhabi Islamic Bank Egypt', 'مصرف أبوظبي الإسلامي – مصر', 'Banking', 'البنوك'),
+            ('DMCR.CA', 'Dice Medical & Scientific', 'دايس الطبية والعلمية', 'Healthcare', 'الرعاية الصحية'),
+            ('ASCM.CA', 'Arabian Cement', 'الأسمنت العربية', 'Materials', 'المواد'),
+        ]
+        for stock in egx30_stocks:
+            cursor.execute("""
+                INSERT OR IGNORE INTO egx30_stocks (symbol, name_en, name_ar, sector_en, sector_ar)
+                VALUES (?, ?, ?, ?, ?)
+            """, stock)
+
         # Create indexes for common queries
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_prices_symbol_date ON prices(symbol, date)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_news_symbol_date ON news(symbol, date)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_predictions_symbol ON predictions(symbol, prediction_date)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_predictions_date ON predictions(prediction_date)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_consensus_symbol ON consensus_results(symbol, prediction_date)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_consensus_date ON consensus_results(prediction_date)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_users_email_lower ON users(email_lower)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_watchlist_user ON user_watchlist(user_id)")
 
         logger.info("✅ Database tables created successfully")
 
