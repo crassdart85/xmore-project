@@ -21,7 +21,7 @@ let currentTheme = localStorage.getItem('theme') ||
 
 function applyTheme() {
     document.documentElement.setAttribute('data-theme', currentTheme);
-    updateThemeButton();
+    try { updateThemeButton(); } catch (e) { /* TRANSLATIONS not ready yet */ }
 }
 
 function updateThemeButton() {
@@ -42,6 +42,7 @@ function toggleTheme() {
     loadTradingViewTicker();
 }
 
+// Apply theme CSS immediately (prevents flash); button tooltip set later in applyLanguage()
 applyTheme();
 
 // ============================================
