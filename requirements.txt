@@ -11,3 +11,8 @@ requests>=2.31.0
 textblob>=0.18.0
 feedparser>=6.0.0
 finnhub-python>=2.4.0
+lxml>=4.9.0
+vaderSentiment>=3.3.2
+quantstats>=0.0.62
+TA-Lib>=0.4.28
+

@@ -19,7 +19,8 @@ try:
     from agents.agent_ma import MAAgent
     from agents.agent_volume import VolumeAgent
     from agents.agent_ml import MLAgent
-    print("✅ All agents imported successfully")
+    from agents.agent_consensus import ConsensusAgent
+    print("✅ All agents imported successfully (including Consensus)")
 except Exception as e:
     print(f"❌ Failed to import agents: {e}")
     traceback.print_exc()
@@ -60,6 +61,9 @@ def execute():
         ml_agent = MLAgent()
 
         agents = [rsi_agent, ma_agent, vol_agent, ml_agent]
+
+        # 5. Consensus Agent (weighted vote across all agents)
+        consensus_agent = ConsensusAgent()
 
         print(f"✅ Created {len(agents)} agents")
         
@@ -108,8 +112,10 @@ def execute():
 
                 # Run agents with sentiment
                 cursor = conn.cursor()
+                stock_signals = {}  # Collect signals for consensus
                 for agent in agents:
                     signal = agent.predict(df, sentiment=sentiment)
+                    stock_signals[agent.name] = signal
 
                     # Use PostgreSQL-compatible upsert when DATABASE_URL is set
                     if os.getenv('DATABASE_URL'):
@@ -128,6 +134,27 @@ def execute():
                         """, (stock, today, target, agent.name, signal))
 
                     print(f"  🔮 {agent.name}: {signal}")
+
+                # Run consensus agent (combines all individual signals)
+                consensus_signal = consensus_agent.predict(stock_signals, sentiment=sentiment)
+                confidence = consensus_agent.get_confidence(stock_signals)
+                
+                if os.getenv('DATABASE_URL'):
+                    cursor.execute("""
+                        INSERT INTO predictions
+                        (symbol, prediction_date, target_date, agent_name, prediction)
+                        VALUES (%s, %s, %s, %s, %s)
+                        ON CONFLICT (symbol, prediction_date, target_date, agent_name)
+                        DO UPDATE SET prediction = EXCLUDED.prediction
+                    """, (stock, today, target, consensus_agent.name, consensus_signal))
+                else:
+                    cursor.execute("""
+                        INSERT OR REPLACE INTO predictions
+                        (symbol, prediction_date, target_date, agent_name, prediction)
+                        VALUES (?, ?, ?, ?, ?)
+                    """, (stock, today, target, consensus_agent.name, consensus_signal))
+                
+                print(f"  🤝 Consensus: {consensus_signal} (confidence: {confidence:.0%})")
         
         print("\n✅ All predictions saved!")
         

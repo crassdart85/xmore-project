@@ -3,11 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Trading System Dashboard</title>
+    <title>Xmore — AI Stock Prediction Dashboard</title>
+    <meta name="description" content="Xmore is an AI-powered stock prediction system for the Egyptian Exchange (EGX) and US markets. Live performance tracking, multi-agent consensus signals.">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
+        <!-- TradingView Ticker Tape (EGX30 index) -->
+        <div id="tv-ticker-tape" class="tv-ticker-container"></div>
+
         <header>
             <div class="header-buttons">
                 <button id="themeBtn" class="theme-btn" title="Toggle dark mode">
@@ -16,8 +20,8 @@
                 </button>
                 <button id="langBtn" class="lang-btn">عربي</button>
             </div>
-            <h1>Stock Trading System</h1>
-            <p class="subtitle">Automated Prediction Dashboard</p>
+            <h1>Xmore</h1>
+            <p class="subtitle">AI Stock Prediction Dashboard</p>
         </header>
 
         <!-- System Stats -->
@@ -31,8 +35,8 @@
                 <div class="stat-label">Total Predictions</div>
             </div>
             <div class="stat-card">
-                <div class="stat-value" id="totalPrices">-</div>
-                <div class="stat-label">Price Records</div>
+                <div class="stat-value" id="overallAccuracy">-</div>
+                <div class="stat-label">Accuracy</div>
             </div>
             <div class="stat-card">
                 <div class="stat-value" id="latestDate">-</div>
@@ -40,9 +44,16 @@
             </div>
         </section>
 
-        <!-- Latest Predictions -->
-        <section class="section">
-            <h2>Latest Predictions</h2>
+        <!-- Tab Navigation -->
+        <nav class="tab-nav" id="tabNav">
+            <button class="tab-btn active" data-tab="predictions" id="tabPredictions">Predictions</button>
+            <button class="tab-btn" data-tab="performance" id="tabPerformance">Performance</button>
+            <button class="tab-btn" data-tab="results" id="tabResults">Results</button>
+            <button class="tab-btn" data-tab="prices" id="tabPrices">Prices</button>
+        </nav>
+
+        <!-- Tab: Predictions -->
+        <section class="tab-content active" id="tab-predictions">
             <div class="search-box">
                 <input type="text" id="predictionsSearch" placeholder="Search by stock symbol or company name..." onkeyup="filterPredictions()">
             </div>
@@ -51,25 +62,53 @@
             </div>
         </section>
 
-        <!-- Agent Performance -->
-        <section class="section">
-            <h2>Agent Performance</h2>
-            <div id="performance">
+        <!-- Tab: Performance Dashboard -->
+        <section class="tab-content" id="tab-performance">
+            <!-- Overall Stats -->
+            <div class="perf-overall" id="perfOverall">
                 <p class="loading">Loading performance data...</p>
+            </div>
+
+            <!-- Per-Agent Accuracy Bars -->
+            <div class="section-inner">
+                <h3 id="perfAgentTitle">Agent Accuracy</h3>
+                <div class="accuracy-definition-tooltip" id="accuracyTooltip">
+                    <span class="tooltip-icon">ℹ️</span>
+                    <div class="tooltip-content" id="accuracyDefinition">
+                        Directional Accuracy: Percentage of predictions where the predicted direction (UP/DOWN) matched the actual 5-day price movement exceeding ±0.5% threshold.
+                    </div>
+                </div>
+                <div id="perfAgents">
+                    <p class="loading">Loading agent data...</p>
+                </div>
+            </div>
+
+            <!-- Per-Stock Breakdown -->
+            <div class="section-inner">
+                <h3 id="perfStockTitle">Stock Performance</h3>
+                <div id="perfStocks">
+                    <p class="loading">Loading stock data...</p>
+                </div>
+            </div>
+
+            <!-- Monthly Accuracy Chart -->
+            <div class="section-inner">
+                <h3 id="perfMonthlyTitle">Monthly Accuracy Trend</h3>
+                <div id="perfMonthly" class="chart-container">
+                    <canvas id="monthlyChart" width="800" height="300"></canvas>
+                </div>
             </div>
         </section>
 
-        <!-- Prediction Results (Actual vs Predicted) -->
-        <section class="section">
-            <h2>Prediction Results</h2>
+        <!-- Tab: Prediction Results -->
+        <section class="tab-content" id="tab-results">
             <div id="evaluations" class="scrollable-container">
                 <p class="loading">Loading prediction results...</p>
             </div>
         </section>
 
-        <!-- Latest Prices -->
-        <section class="section">
-            <h2>Latest Stock Prices</h2>
+        <!-- Tab: Latest Prices -->
+        <section class="tab-content" id="tab-prices">
             <div id="prices">
                 <p class="loading">Loading prices...</p>
             </div>
@@ -77,7 +116,19 @@
 
         <footer>
             <button id="refreshBtn" class="refresh-btn">Refresh Data</button>
-            <p class="disclaimer">Not financial advice. For research purposes only.</p>
+            <div class="disclaimer-block">
+                <p class="disclaimer" id="disclaimerEN">
+                    Xmore is an information and analytics tool, not a licensed investment advisor or broker.
+                    This is not financial advice. Use as one input in your decision, not as a guarantee.
+                    Past performance does not guarantee future results.
+                </p>
+                <p class="disclaimer disclaimer-ar" id="disclaimerAR">
+                    Xmore أداة معلومات وتحليلات، وليس مستشاراً استثمارياً مرخصاً أو وسيطاً.
+                    هذا ليس نصيحة مالية. استخدم هذا كمدخل واحد في قرارك، وليس كضمان.
+                    الأداء السابق لا يضمن النتائج المستقبلية.
+                </p>
+                <a href="/terms" class="terms-link" id="termsLink">Terms of Service</a>
+            </div>
         </footer>
     </div>
 

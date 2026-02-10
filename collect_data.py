@@ -1,12 +1,14 @@
 """
 Data Collection Script
 
-This module is responsible for fetching stock prices and news from external APIs
-(principally Yahoo Finance and NewsAPI) and saving them to the database.
-It implements retry logic, error handling, and data quality logging.
+This module is responsible for fetching stock prices and news from external APIs.
+Primary EGX source: EGX live feed (http://41.33.162.236/egs4/)
+Fallback: Yahoo Finance (yfinance)
+News: NewsAPI + RSS feeds
 
 Key components:
-- Price collection via yfinance with retry logic
+- EGX live feed scraper (primary for Egyptian stocks)
+- Price collection via yfinance (fallback + US stocks)
 - News collection via NewsAPI
 - Basic sentiment analysis using TextBlob
 - Database persistence for collected data
@@ -16,6 +18,7 @@ import yfinance as yf
 from newsapi import NewsApiClient
 from datetime import datetime, timedelta
 import time
+import logging
 
 # Import your existing logic
 import config
@@ -24,6 +27,8 @@ from database import get_connection, log_system_run, log_data_quality_issue, cre
 # Check if using PostgreSQL
 import os
 DATABASE_URL = os.getenv('DATABASE_URL')
+
+logger = logging.getLogger(__name__)
 
 def _adapt_sql(sql):
     """Convert SQLite SQL to PostgreSQL when needed."""
@@ -35,44 +40,68 @@ def _adapt_sql(sql):
             sql = sql.rstrip().rstrip(')') + ') ON CONFLICT DO NOTHING'
     return sql
 
-def collect_prices():
+def collect_egx_data():
     """
-    Fetch stock prices from Yahoo Finance for all configured stocks and save to DB.
-    
-    Collection Strategy:
-    - Iterates through ALL_STOCKS from config
-    - Fetches last 5 days of data (to ensure coverage)
-    - Saves Open, High, Low, Close, Volume
-    
+    Collect EGX stock data using live feed as primary source, yfinance as fallback.
+
+    Strategy:
+    - Try EGX live feed first (200+ stocks, real-time data)
+    - Fall back to yfinance if live feed fails
+    - Store all data in prices table with source tracking
+
     Returns:
         int: Number of stocks successfully collected.
-        
-    Example:
-        >>> count = collect_prices()
-        >>> print(f"Collected {count} stocks")
     """
-    print("📈 Fetching price data...")
+    print("🏛️  Fetching EGX data...")
+
+    try:
+        # Primary: EGX live feed
+        from data.egx_live_scraper import fetch_egx_live, egx_to_prices_schema
+        df = fetch_egx_live()
+        prices_df = egx_to_prices_schema(df)
+        
+        if len(prices_df) > 0:
+            stored = _store_prices(prices_df, source='egx_live')
+            print(f"  ✅ EGX live feed: {stored} stocks collected")
+            return stored
+        else:
+            raise ValueError("EGX live feed returned 0 stocks")
+
+    except Exception as e:
+        print(f"  ⚠️  EGX live feed failed: {e}")
+        print(f"  🔄 Falling back to yfinance for EGX stocks...")
+        logger.warning(f"EGX live feed failed: {e}, falling back to yfinance")
+
+        # Fallback: use yfinance for EGX stocks
+        return collect_prices_yfinance(config.EGX_STOCKS)
+
+
+def collect_prices_yfinance(symbols=None):
+    """
+    Fetch stock prices from Yahoo Finance and save to DB.
+
+    Args:
+        symbols: List of symbols to fetch. Defaults to ALL_STOCKS.
+
+    Returns:
+        int: Number of stocks successfully collected.
+    """
+    if symbols is None:
+        symbols = config.ALL_STOCKS
+
+    print(f"📈 Fetching price data from yfinance for {len(symbols)} stocks...")
     success_count = 0
     
-    # Iterate through all stocks defined in config.py
-    for symbol in config.ALL_STOCKS:
+    for symbol in symbols:
         try:
-            # Download data using yfinance
             ticker = yf.Ticker(symbol)
-            
-            # Fetch 90 days to ensure enough data for technical indicators (50+ days needed)
-            # ON CONFLICT DO NOTHING prevents duplicates on subsequent runs
             df = ticker.history(period="90d")
             
             with get_connection() as conn:
                 cursor = conn.cursor()
-                # Iterate over the dataframe rows (Date is index)
                 for date, row in df.iterrows():
-                    # Skip rows with NaN values
                     if row.isnull().any():
                         continue
-                    # Insert into DB. ON CONFLICT DO NOTHING prevents duplicates if run multiple times/day
-                    # Convert numpy types to Python native types for PostgreSQL compatibility
                     cursor.execute(_adapt_sql("""
                         INSERT OR IGNORE INTO prices
                         (symbol, date, open, high, low, close, volume, data_source)
@@ -86,9 +115,66 @@ def collect_prices():
             success_count += 1
         except Exception as e:
             log_data_quality_issue(symbol, 'api_failure', str(e), 'high')
-            print(f"❌ Error fetching prices for {symbol}: {e}")
+            print(f"  ❌ Error fetching prices for {symbol}: {e}")
             
     return success_count
+
+
+def collect_prices():
+    """
+    Fetch stock prices — EGX live feed for Egyptian stocks, yfinance for US stocks.
+
+    Returns:
+        int: Number of stocks successfully collected.
+    """
+    total = 0
+
+    # EGX stocks: try live feed first, fallback to yfinance
+    if config.EGX_STOCKS:
+        total += collect_egx_data()
+
+    # US stocks: always use yfinance
+    if config.US_STOCKS:
+        print("📈 Fetching US stock data from yfinance...")
+        total += collect_prices_yfinance(config.US_STOCKS)
+
+    return total
+
+
+def _store_prices(prices_df, source='egx_live'):
+    """
+    Store a DataFrame of prices into the database.
+
+    Args:
+        prices_df: DataFrame with columns: symbol, date, open, high, low, close, volume
+        source: Data source identifier string
+
+    Returns:
+        int: Number of records stored.
+    """
+    stored = 0
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        for _, row in prices_df.iterrows():
+            try:
+                cursor.execute(_adapt_sql("""
+                    INSERT OR IGNORE INTO prices
+                    (symbol, date, open, high, low, close, volume, data_source)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """), (
+                    str(row['symbol']),
+                    str(row['date']),
+                    float(row['open']),
+                    float(row['high']),
+                    float(row['low']),
+                    float(row['close']),
+                    int(row['volume']),
+                    source
+                ))
+                stored += 1
+            except Exception as e:
+                logger.error(f"Error storing price for {row['symbol']}: {e}")
+    return stored
 
 def collect_news():
     """

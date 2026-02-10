@@ -1,13 +1,15 @@
 """
 Sentiment Analysis Module
 
-This module fetches financial news from Finnhub and analyzes sentiment using FinBERT.
-Results are stored in the database for use by prediction agents.
+Dual-engine sentiment analysis:
+- VADER: Fast-path (1000+ headlines/sec) for real-time/high-volume scoring
+- FinBERT: Deep analysis for batch accuracy on financial text
 
-Key components:
-- Finnhub API integration for company news
-- FinBERT transformer model for financial sentiment analysis
-- Database persistence with aggregated sentiment scores
+Auto mode selects engine based on volume:
+- >50 headlines → VADER (fast)
+- ≤50 headlines → FinBERT (deep/accurate)
+
+Source-specific weighting gives higher weight to financial sources.
 """
 
 import os
@@ -27,6 +29,43 @@ logger = logging.getLogger(__name__)
 # Check if using PostgreSQL
 DATABASE_URL = os.getenv('DATABASE_URL')
 FINNHUB_API_KEY = os.getenv('FINNHUB_API_KEY', '')
+
+# ===================== VADER FAST-PATH =====================
+try:
+    from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+    _vader = SentimentIntensityAnalyzer()
+    VADER_AVAILABLE = True
+except ImportError:
+    VADER_AVAILABLE = False
+    logger.warning("vaderSentiment not installed. VADER fast-path unavailable.")
+
+# ===================== SOURCE WEIGHTS =====================
+# Financial-specific sources are weighted higher than general news
+SOURCE_WEIGHTS = {
+    'finnhub': 1.0,
+    'bloomberg': 1.0,
+    'reuters': 1.0,
+    'cnbc': 0.9,
+    'marketwatch': 0.9,
+    'financial times': 0.9,
+    'wall street journal': 0.9,
+    'yahoo finance': 0.8,
+    'newsapi_business': 0.8,
+    'newsapi_general': 0.5,
+    'rss': 0.6,
+    'default': 0.5,
+}
+
+
+def _get_source_weight(source_name):
+    """Get weight for a news source. Financial sources are weighted higher."""
+    if not source_name:
+        return SOURCE_WEIGHTS['default']
+    source_lower = source_name.lower()
+    for key, weight in SOURCE_WEIGHTS.items():
+        if key in source_lower:
+            return weight
+    return SOURCE_WEIGHTS['default']
 
 
 def _adapt_sql(sql):
@@ -79,6 +118,89 @@ def create_sentiment_table():
         logger.info("Sentiment table ready")
 
 
+def quick_sentiment(headline):
+    """
+    Fast sentiment scoring using VADER. Processes 1000+ headlines/sec.
+    
+    Args:
+        headline: News headline string
+        
+    Returns:
+        float: Compound sentiment score from -1 (most negative) to +1 (most positive)
+    """
+    if not VADER_AVAILABLE:
+        return 0.0
+    return _vader.polarity_scores(headline)['compound']
+
+
+def analyze_sentiment(headlines, sources=None, mode='auto'):
+    """
+    Analyze sentiment using VADER (fast) or FinBERT (deep).
+    
+    Auto mode: Uses VADER for >50 headlines, FinBERT for ≤50.
+    
+    Args:
+        headlines: List of headline strings
+        sources: Optional list of source names (same length as headlines)
+        mode: 'auto', 'fast' (VADER), or 'deep' (FinBERT)
+        
+    Returns:
+        dict with avg_score, label, per-headline scores, weighted average
+    """
+    if not headlines:
+        return {
+            'avg_score': 0, 'label': 'Neutral',
+            'positive_count': 0, 'negative_count': 0, 'neutral_count': 0,
+            'weighted_avg_score': 0
+        }
+    
+    if mode == 'auto':
+        mode = 'fast' if len(headlines) > 50 or not VADER_AVAILABLE else 'deep'
+    
+    if mode == 'fast' and VADER_AVAILABLE:
+        results = []
+        for h in headlines:
+            score = quick_sentiment(h)
+            results.append(score)
+        return _aggregate_scores(results, headlines, sources)
+    else:
+        # Use FinBERT (deep analysis)
+        return analyze_sentiment_finbert(headlines, sources)
+
+
+def _aggregate_scores(scores, headlines, sources=None):
+    """Aggregate individual scores with optional source weighting."""
+    positive_count = sum(1 for s in scores if s > 0.1)
+    negative_count = sum(1 for s in scores if s < -0.1)
+    neutral_count = len(scores) - positive_count - negative_count
+    
+    avg_score = sum(scores) / len(scores) if scores else 0
+    
+    # Calculate source-weighted average
+    if sources and len(sources) == len(scores):
+        weights = [_get_source_weight(s) for s in sources]
+        total_weight = sum(weights)
+        weighted_avg = sum(s * w for s, w in zip(scores, weights)) / total_weight if total_weight > 0 else avg_score
+    else:
+        weighted_avg = avg_score
+    
+    if weighted_avg > 0.1:
+        label = 'Bullish'
+    elif weighted_avg < -0.1:
+        label = 'Bearish'
+    else:
+        label = 'Neutral'
+    
+    return {
+        'avg_score': avg_score,
+        'weighted_avg_score': weighted_avg,
+        'label': label,
+        'positive_count': positive_count,
+        'negative_count': negative_count,
+        'neutral_count': neutral_count
+    }
+
+
 def get_finnhub_news(symbol: str, days_back: int = 7) -> list:
     """
     Fetch company news from Finnhub API.
@@ -116,48 +238,47 @@ def get_finnhub_news(symbol: str, days_back: int = 7) -> list:
         return []
 
 
-def analyze_sentiment_finbert(headlines: list) -> dict:
+def analyze_sentiment_finbert(headlines: list, sources=None) -> dict:
     """
-    Analyze sentiment of headlines using FinBERT.
+    Analyze sentiment of headlines using FinBERT (deep/accurate).
+    ~50 headlines/sec. More accurate for financial text than VADER.
 
     Args:
         headlines: List of news headline strings
+        sources: Optional list of source names for weighting
 
     Returns:
-        dict with:
-        - avg_score: Average sentiment (-1 to 1)
-        - label: 'Bullish', 'Neutral', or 'Bearish'
-        - positive_count, negative_count, neutral_count
+        dict with avg_score, label, counts, weighted_avg_score
     """
     if not headlines:
         return {
-            'avg_score': 0,
-            'label': 'Neutral',
-            'positive_count': 0,
-            'negative_count': 0,
-            'neutral_count': 0
+            'avg_score': 0, 'label': 'Neutral',
+            'positive_count': 0, 'negative_count': 0, 'neutral_count': 0,
+            'weighted_avg_score': 0
         }
 
     try:
         from transformers import pipeline
         sentiment_pipeline = pipeline("sentiment-analysis", model="ProsusAI/finbert")
     except ImportError:
-        logger.warning("Transformers not installed, returning neutral sentiment")
+        logger.warning("Transformers not installed, falling back to VADER")
+        if VADER_AVAILABLE:
+            scores = [quick_sentiment(h) for h in headlines]
+            return _aggregate_scores(scores, headlines, sources)
         return {
-            'avg_score': 0,
-            'label': 'Neutral',
-            'positive_count': 0,
-            'negative_count': 0,
-            'neutral_count': len(headlines)
+            'avg_score': 0, 'label': 'Neutral',
+            'positive_count': 0, 'negative_count': 0, 'neutral_count': len(headlines),
+            'weighted_avg_score': 0
         }
     except Exception as e:
         logger.error(f"Error loading FinBERT: {e}")
+        if VADER_AVAILABLE:
+            scores = [quick_sentiment(h) for h in headlines]
+            return _aggregate_scores(scores, headlines, sources)
         return {
-            'avg_score': 0,
-            'label': 'Neutral',
-            'positive_count': 0,
-            'negative_count': 0,
-            'neutral_count': len(headlines)
+            'avg_score': 0, 'label': 'Neutral',
+            'positive_count': 0, 'negative_count': 0, 'neutral_count': len(headlines),
+            'weighted_avg_score': 0
         }
 
     scores = []
@@ -167,7 +288,6 @@ def analyze_sentiment_finbert(headlines: list) -> dict:
 
     for headline in headlines:
         try:
-            # Truncate long headlines (FinBERT max length)
             text = headline[:512] if len(headline) > 512 else headline
             result = sentiment_pipeline(text)[0]
 
@@ -180,7 +300,7 @@ def analyze_sentiment_finbert(headlines: list) -> dict:
             elif label == 'negative':
                 scores.append(-score)
                 negative_count += 1
-            else:  # neutral
+            else:
                 scores.append(0)
                 neutral_count += 1
 
@@ -191,16 +311,24 @@ def analyze_sentiment_finbert(headlines: list) -> dict:
 
     avg_score = sum(scores) / len(scores) if scores else 0
 
-    # Determine overall label based on average score
-    if avg_score > 0.1:
+    # Source-weighted average
+    if sources and len(sources) == len(scores):
+        weights = [_get_source_weight(s) for s in sources]
+        total_weight = sum(weights)
+        weighted_avg = sum(s * w for s, w in zip(scores, weights)) / total_weight if total_weight > 0 else avg_score
+    else:
+        weighted_avg = avg_score
+
+    if weighted_avg > 0.1:
         label = 'Bullish'
-    elif avg_score < -0.1:
+    elif weighted_avg < -0.1:
         label = 'Bearish'
     else:
         label = 'Neutral'
 
     return {
         'avg_score': avg_score,
+        'weighted_avg_score': weighted_avg,
         'label': label,
         'positive_count': positive_count,
         'negative_count': negative_count,
@@ -243,17 +371,18 @@ def collect_sentiment(symbols: list = None, days_back: int = 7):
             success_count += 1
             continue
 
-        # Extract headlines
+        # Extract headlines and sources
         headlines = [article.get('headline', '') for article in news if article.get('headline')]
+        sources = [article.get('source', 'finnhub') for article in news if article.get('headline')]
 
-        # Analyze sentiment
-        sentiment = analyze_sentiment_finbert(headlines)
+        # Analyze sentiment (auto mode: VADER for >50, FinBERT for ≤50)
+        sentiment = analyze_sentiment(headlines, sources=sources, mode='auto')
 
-        # Save to database
+        # Save to database (use weighted score as primary)
         _save_sentiment(
             symbol=symbol,
             date=today,
-            avg_sentiment=sentiment['avg_score'],
+            avg_sentiment=sentiment.get('weighted_avg_score', sentiment['avg_score']),
             label=sentiment['label'],
             article_count=len(headlines),
             positive_count=sentiment['positive_count'],
@@ -261,7 +390,7 @@ def collect_sentiment(symbols: list = None, days_back: int = 7):
             neutral_count=sentiment['neutral_count']
         )
 
-        logger.info(f"  {symbol}: {sentiment['label']} (score: {sentiment['avg_score']:.3f}, articles: {len(headlines)})")
+        logger.info(f"  {symbol}: {sentiment['label']} (score: {sentiment.get('weighted_avg_score', sentiment['avg_score']):.3f}, articles: {len(headlines)})")
         success_count += 1
 
         # Rate limiting for Finnhub free tier (60 calls/min)

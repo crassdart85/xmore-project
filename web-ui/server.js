@@ -89,8 +89,10 @@ app.get('/api/predictions', (req, res) => {
       res.status(500).json({ error: err.message });
     } else {
       console.log('Successfully executed query for /api/predictions');
-      // Return empty array if no data yet
-      res.json(rows || []);
+      res.json({
+        disclaimer: 'Xmore is an information and analytics tool, not a licensed investment advisor. This is not financial advice. Past performance does not guarantee future results.',
+        predictions: rows || []
+      });
     }
   });
 });
@@ -120,6 +122,130 @@ app.get('/api/performance', (req, res) => {
     } else {
       res.json(rows || []);
     }
+  });
+});
+
+// 2b. Detailed performance metrics (Phase 1 Task 4)
+app.get('/api/performance/detailed', (req, res) => {
+  const boolTrue = DATABASE_URL ? 'true' : '1';
+
+  // We'll run multiple queries and combine results
+  const results = { overall: {}, per_agent: {}, per_stock: {}, monthly: [] };
+  let completed = 0;
+  const totalQueries = 4;
+
+  function checkDone() {
+    completed++;
+    if (completed === totalQueries) {
+      res.json(results);
+    }
+  }
+
+  // 1. Overall metrics
+  db.get(`
+    SELECT
+      COUNT(*) as total_predictions,
+      SUM(CASE WHEN was_correct = ${boolTrue} THEN 1 ELSE 0 END) as correct_predictions,
+      ROUND(AVG(CASE WHEN was_correct = ${boolTrue} THEN 1.0 ELSE 0.0 END) * 100, 1) as directional_accuracy,
+      ROUND(AVG(actual_change_pct), 4) as avg_return_per_signal,
+      ROUND(AVG(CASE WHEN prediction = 'UP' AND was_correct = ${boolTrue} THEN 1.0
+                       WHEN prediction = 'UP' THEN 0.0 END) * 100, 1) as win_rate_buy,
+      ROUND(AVG(CASE WHEN prediction = 'DOWN' AND was_correct = ${boolTrue} THEN 1.0
+                       WHEN prediction = 'DOWN' THEN 0.0 END) * 100, 1) as win_rate_sell,
+      MIN(actual_change_pct) as max_drawdown
+    FROM evaluations
+  `, [], (err, row) => {
+    if (err || !row) {
+      results.overall = {
+        directional_accuracy: 0, total_predictions: 0, correct_predictions: 0,
+        avg_return_per_signal: 0, win_rate_buy: 0, win_rate_sell: 0, max_drawdown: 0
+      };
+    } else {
+      results.overall = {
+        directional_accuracy: row.directional_accuracy || 0,
+        total_predictions: row.total_predictions || 0,
+        correct_predictions: row.correct_predictions || 0,
+        avg_return_per_signal: row.avg_return_per_signal || 0,
+        win_rate_buy: row.win_rate_buy || 0,
+        win_rate_sell: row.win_rate_sell || 0,
+        max_drawdown: row.max_drawdown || 0
+      };
+    }
+    checkDone();
+  });
+
+  // 2. Per-agent metrics
+  db.all(`
+    SELECT
+      agent_name,
+      COUNT(*) as total,
+      SUM(CASE WHEN was_correct = ${boolTrue} THEN 1 ELSE 0 END) as correct,
+      ROUND(AVG(CASE WHEN was_correct = ${boolTrue} THEN 1.0 ELSE 0.0 END) * 100, 1) as accuracy
+    FROM evaluations
+    GROUP BY agent_name
+    ORDER BY accuracy DESC
+  `, [], (err, rows) => {
+    if (!err && rows) {
+      rows.forEach(r => {
+        results.per_agent[r.agent_name] = {
+          accuracy: r.accuracy || 0,
+          total: r.total || 0,
+          correct: r.correct || 0
+        };
+      });
+    }
+    checkDone();
+  });
+
+  // 3. Per-stock metrics
+  db.all(`
+    SELECT
+      symbol,
+      COUNT(*) as predictions,
+      ROUND(AVG(CASE WHEN was_correct = ${boolTrue} THEN 1.0 ELSE 0.0 END) * 100, 1) as accuracy,
+      ROUND(AVG(actual_change_pct), 4) as avg_return
+    FROM evaluations
+    GROUP BY symbol
+    ORDER BY accuracy DESC
+  `, [], (err, rows) => {
+    if (!err && rows) {
+      rows.forEach(r => {
+        results.per_stock[r.symbol] = {
+          accuracy: r.accuracy || 0,
+          avg_return: r.avg_return || 0,
+          predictions: r.predictions || 0
+        };
+      });
+    }
+    checkDone();
+  });
+
+  // 4. Monthly breakdown
+  const monthExtract = DATABASE_URL
+    ? "TO_CHAR(p.prediction_date::date, 'YYYY-MM')"
+    : "strftime('%Y-%m', p.prediction_date)";
+
+  db.all(`
+    SELECT
+      ${monthExtract} as month,
+      COUNT(*) as predictions,
+      ROUND(AVG(CASE WHEN e.was_correct = ${boolTrue} THEN 1.0 ELSE 0.0 END) * 100, 1) as accuracy,
+      ROUND(AVG(e.actual_change_pct), 4) as avg_return
+    FROM evaluations e
+    JOIN predictions p ON e.prediction_id = p.id
+    GROUP BY ${monthExtract}
+    ORDER BY month DESC
+    LIMIT 12
+  `, [], (err, rows) => {
+    if (!err && rows) {
+      results.monthly = rows.map(r => ({
+        month: r.month,
+        accuracy: r.accuracy || 0,
+        predictions: r.predictions || 0,
+        avg_return: r.avg_return || 0
+      }));
+    }
+    checkDone();
   });
 });
 
