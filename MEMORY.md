@@ -110,9 +110,10 @@ Stock trading prediction system with web dashboard. Uses multiple AI agents to p
 - **"Performance tracking will begin..."** - Normal message when no evaluations exist yet. Wait for hourly GitHub Action
 - **"N/A" sentiment badges** - Run `python sentiment.py` or check FINNHUB_API_KEY secret
 - **Server errors** - Run `npm install` in web-ui folder, then restart server
-- **Browser cache** - Hard refresh (Ctrl+Shift+R) after code changes
+- **Browser cache** - Hard refresh (Ctrl+Shift+R) after code changes; static assets use `?v=` cache-busting
 - **GitHub Actions failing** - Check secrets: DATABASE_URL, NEWS_API_KEY, FINNHUB_API_KEY
 - **Render not updating** - Wait 2-3 minutes after push for auto-deploy
+- **Blank dashboard / no data** - Check browser console for JS errors; `window.onerror` handler shows errors on-page
 
 ## Database Compatibility
 - **Boolean handling**: PostgreSQL uses `true/false`, SQLite uses `1/0`
@@ -130,7 +131,10 @@ Stock trading prediction system with web dashboard. Uses multiple AI agents to p
 - Prediction horizon: 1 day (changed from 7 days for faster evaluation)
 
 ## Recent Changes (Feb 2026)
+- **TDZ Fix**: `applyTheme()` crashed accessing `const TRANSLATIONS` before init; wrapped in try/catch
+- **Predictions Workflow Fix**: Removed broken `needs: daily-collection` dependency that prevented `daily-predictions` from ever running on schedule
 - **Dashboard Load Performance**: Parallelized API calls, eliminated duplicate fetch, optimized SQL, skeleton loader
+- **Cache-Busting**: Static assets use `?v=` query params; `window.onerror` shows JS errors on-page
 - **Dark Mode Toggle**: Added `.theme-btn` with sun/moon icons, CSS custom properties, system preference detection
 - **Daily Predictions**: 1-day horizon for faster evaluation turnaround
 - **GitHub Actions Upgraded**: All jobs now use `actions/checkout@v4`

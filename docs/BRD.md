@@ -165,7 +165,7 @@ To provide retail and institutional investors with an intelligent, data-driven d
 | ID | Requirement | Schedule | Status |
 |----|-------------|----------|--------|
 | **FR-AU-001** | Automated data collection + sentiment analysis | Mon-Fri 4:30 PM EST | ✅ Implemented |
-| **FR-AU-002** | Automated prediction generation | Friday 6:00 PM EST | ✅ Implemented |
+| **FR-AU-002** | Automated prediction generation | Mon-Fri 5:00 PM EST | ✅ Fixed (removed broken `needs` dependency) |
 | **FR-AU-003** | Automated evaluation of past predictions | Every hour | ✅ Implemented |
 | **FR-AU-004** | GitHub Actions workflow orchestration | As scheduled | ✅ Implemented |
 
@@ -177,7 +177,7 @@ To provide retail and institutional investors with an intelligent, data-driven d
 
 | ID | Requirement | Target | Status |
 |----|-------------|--------|--------|
-| **NFR-P-001** | Dashboard page load time | < 3 seconds | Optimized: parallel API calls, skeleton loader |
+| **NFR-P-001** | Dashboard page load time | < 3 seconds | Fixed: TDZ crash, parallel API calls, skeleton loader, cache-busting |
 | **NFR-P-002** | API response time | < 500ms | Optimized: eliminated duplicate calls, SQL query tuning |
 | **NFR-P-003** | Data collection cycle completion | < 15 minutes | |
 | **NFR-P-004** | Prediction generation per stock | < 5 seconds | |
