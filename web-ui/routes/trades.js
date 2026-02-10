@@ -1,0 +1,324 @@
+const express = require('express');
+const router = express.Router();
+const { authMiddleware } = require('../middleware/auth');
+
+let db;
+
+function attachDb(database) {
+    db = database;
+}
+
+// Helper to promisify db.all (since server.js db wrapper uses callbacks)
+function queryAll(sql, params = []) {
+    return new Promise((resolve, reject) => {
+        // Adjust params placeholder if SQLite
+        if (!db._isPostgres) {
+            // Very basic param replacement $1 -> ?
+            // Note: This is a simple regex replacement, might break if $1 is in strings
+            // But for our controlled queries it's likely fine or we write specific logic
+            let i = 1;
+            while (sql.includes(`$${i}`)) {
+                sql = sql.replace(`$${i}`, '?');
+                i++;
+            }
+        }
+
+        db.all(sql, params, (err, rows) => {
+            if (err) reject(err);
+            else resolve({ rows: rows || [] }); // match pg format
+        });
+    });
+}
+
+
+// ─── GET /api/trades/today ────────────────────────────────────
+router.get('/today', authMiddleware, async (req, res) => {
+    try {
+        const userId = req.userId;
+
+        // Fetch user language preference
+        // We do this inside the route to keep auth middleware lightweight
+        const userSql = `SELECT preferred_language FROM users WHERE id = $1`;
+        // Since we are inside an async route and queryAll returns { rows: [] }
+        // We need to be careful with queryAll result structure
+        let lang = 'en';
+        try {
+            const userRes = await queryAll(userSql, [userId]);
+            if (userRes.rows.length > 0) {
+                lang = userRes.rows[0].preferred_language || 'en';
+            }
+        } catch (e) {
+            console.warn('Failed to fetch user language, defaulting to en', e);
+        }
+
+        // PostgreSQL uses LATERAL, SQLite might not support it in older versions, 
+        // but Render generic SQLite usually is modern enough or we fallback.
+        // For simplicity, we keep the query mostly standard.
+        // However, SQLite doesn't use $1, $2. We handle that in queryAll.
+
+        const sql = `
+            SELECT 
+                tr.symbol,
+                s.name_en, s.name_ar, s.sector,
+                tr.action, tr.signal, tr.confidence, tr.conviction,
+                tr.risk_action, tr.priority,
+                tr.close_price, tr.stop_loss_pct, tr.target_pct,
+                tr.stop_loss_price, tr.target_price, tr.risk_reward_ratio,
+                tr.reasons, tr.reasons_ar,
+                tr.bull_score, tr.bear_score,
+                tr.agents_agreeing, tr.agents_total,
+                tr.risk_flags,
+                CASE WHEN up.id IS NOT NULL THEN 1 ELSE 0 END AS has_position,
+                up.entry_date, up.entry_price
+            FROM trade_recommendations tr
+            JOIN egx30_stocks s ON tr.symbol = s.symbol
+            LEFT JOIN user_positions up 
+                ON up.user_id = tr.user_id 
+                AND up.symbol = tr.symbol 
+                AND up.status = 'OPEN'
+            WHERE tr.user_id = $1
+            AND tr.recommendation_date = CURRENT_DATE
+            ORDER BY tr.priority DESC
+        `;
+
+        const result = await queryAll(sql, [userId]);
+
+        // Summary counts
+        const rows = result.rows;
+        const summary = {
+            buy: rows.filter(r => r.action === 'BUY').length,
+            sell: rows.filter(r => r.action === 'SELL').length,
+            hold: rows.filter(r => r.action === 'HOLD').length,
+            watch: rows.filter(r => r.action === 'WATCH').length,
+            total: rows.length,
+            date: new Date().toISOString().split('T')[0]
+        };
+
+        return res.json({
+            summary,
+            recommendations: rows.map(r => ({
+                ...r,
+                name: lang === 'ar' ? r.name_ar : r.name_en,
+                reasons: lang === 'ar' ? (r.reasons_ar ? JSON.parse(r.reasons_ar) : []) : (r.reasons ? JSON.parse(r.reasons) : []),
+                has_position: !!r.has_position
+            }))
+        });
+    } catch (err) {
+        console.error('Error fetching today trades:', err);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+
+// ─── GET /api/trades/history ──────────────────────────────────
+router.get('/history', authMiddleware, async (req, res) => {
+    try {
+        const userId = req.userId;
+        const page = parseInt(req.query.page) || 1;
+        const limit = Math.min(parseInt(req.query.limit) || 20, 50);
+        const offset = (page - 1) * limit;
+        const action = req.query.action;
+        const symbol = req.query.symbol;
+
+        let whereClause = 'WHERE tr.user_id = $1';
+        const params = [userId];
+        let paramIdx = 2;
+
+        if (action) {
+            whereClause += ` AND tr.action = $${paramIdx++}`;
+            params.push(action.toUpperCase());
+        }
+        if (symbol) {
+            whereClause += ` AND tr.symbol = $${paramIdx++}`;
+            params.push(symbol.toUpperCase());
+        }
+
+        const sql = `
+            SELECT 
+                tr.*, s.name_en, s.name_ar,
+                tr.actual_next_day_return, tr.actual_5day_return, tr.was_correct
+            FROM trade_recommendations tr
+            JOIN egx30_stocks s ON tr.symbol = s.symbol
+            ${whereClause}
+            ORDER BY tr.recommendation_date DESC, tr.priority DESC
+            LIMIT $${paramIdx++} OFFSET $${paramIdx++}
+        `;
+
+        const result = await queryAll(sql, [...params, limit, offset]);
+
+        // Count query
+        const countSql = `SELECT COUNT(*) as count FROM trade_recommendations tr ${whereClause}`;
+        // params only up to filters, excluding limit/offset
+        const countParams = params;
+
+        const countResult = await queryAll(countSql, countParams);
+        const total = parseInt(countResult.rows[0].count);
+
+        return res.json({
+            trades: result.rows,
+            pagination: {
+                page,
+                limit,
+                total: total,
+                pages: Math.ceil(total / limit)
+            }
+        });
+    } catch (err) {
+        console.error('Error fetching trade history:', err);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// ─── GET /api/portfolio ───────────────────────────────────────
+router.get('/portfolio', authMiddleware, async (req, res) => {
+    try {
+        // Since we are mocking 'user_positions' which might not exist if running fresh without migration locally (though I added sql),
+        // we should be careful. 
+        // Also LATERAL might flag on SQLite.
+
+        const userId = req.userId;
+
+        // Open positions
+        // Re-write query to avoid LATERAL for better SQLite compat if needed, 
+        // but for now let's stick to the prompt's SQL and assume Postgres (Production) or decent SQLite.
+        // Actually, let's use a subquery in SELECT join which is safer.
+        const openSql = `
+            SELECT 
+                up.symbol, s.name_en, s.name_ar, s.sector,
+                up.entry_date, up.entry_price,
+                (SELECT close FROM prices WHERE symbol = up.symbol ORDER BY date DESC LIMIT 1) AS current_price,
+                (CURRENT_DATE - up.entry_date) AS days_held
+            FROM user_positions up
+            JOIN egx30_stocks s ON up.symbol = s.symbol
+            WHERE up.user_id = $1 AND up.status = 'OPEN'
+            ORDER BY up.entry_date DESC
+        `;
+
+        const openResult = await queryAll(openSql, [userId]);
+        const openPositions = openResult.rows.map(p => {
+            const ret = p.entry_price && p.current_price
+                ? ((p.current_price - p.entry_price) / p.entry_price * 100).toFixed(2)
+                : 0;
+            return { ...p, unrealized_return_pct: ret };
+        });
+
+        // Closed positions
+        const closedSql = `
+            SELECT 
+                up.symbol, s.name_en, s.name_ar,
+                up.entry_date, up.entry_price,
+                up.exit_date, up.exit_price,
+                up.return_pct,
+                (up.exit_date - up.entry_date) AS days_held
+            FROM user_positions up
+            JOIN egx30_stocks s ON up.symbol = s.symbol
+            WHERE up.user_id = $1 AND up.status = 'CLOSED'
+            ORDER BY up.exit_date DESC
+            LIMIT 30
+        `;
+        const closedResult = await queryAll(closedSql, [userId]);
+
+        // Stats
+        const statsSql = `
+            SELECT 
+                COUNT(*) as count,
+                status,
+                return_pct
+            FROM user_positions
+            WHERE user_id = $1
+        `;
+        // Aggregate in JS to avoid complex FILTER which SQLite hates
+        const allPositionsSql = `SELECT status, return_pct FROM user_positions WHERE user_id = $1`;
+        const allPosResult = await queryAll(allPositionsSql, [userId]);
+
+        const allPos = allPosResult.rows;
+        const closed = allPos.filter(p => p.status === 'CLOSED');
+        const open = allPos.filter(p => p.status === 'OPEN');
+
+        const total_trades = closed.length;
+        const winning = closed.filter(p => p.return_pct > 0);
+        const losing = closed.filter(p => p.return_pct <= 0);
+
+        const avg_ret = total_trades > 0 ? closed.reduce((sum, p) => sum + (p.return_pct || 0), 0) / total_trades : 0;
+        const avg_win = winning.length > 0 ? winning.reduce((sum, p) => sum + (p.return_pct || 0), 0) / winning.length : 0;
+        const avg_loss = losing.length > 0 ? losing.reduce((sum, p) => sum + (p.return_pct || 0), 0) / losing.length : 0;
+
+        return res.json({
+            open_positions: openPositions,
+            closed_positions: closedResult.rows,
+            stats: {
+                total_trades,
+                winning_trades: winning.length,
+                losing_trades: losing.length,
+                win_rate: total_trades > 0 ? Math.round((winning.length / total_trades) * 100) : 0,
+                avg_return: parseFloat(avg_ret.toFixed(2)),
+                avg_win: parseFloat(avg_win.toFixed(2)),
+                avg_loss: parseFloat(avg_loss.toFixed(2)),
+                open_positions: open.length
+            }
+        });
+
+    } catch (err) {
+        console.error('Error fetching portfolio:', err);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// ─── GET /api/trades/performance ──────────────────────────────
+router.get('/performance', authMiddleware, async (req, res) => {
+    try {
+        const userId = req.userId;
+        const days = parseInt(req.query.days) || 30;
+
+        // SQLite doesn't support FILTER (WHERE...) in aggregates easily or INTERVAL syntax
+        // We'll fetch rows and aggregate in JS for compatibility
+
+        const dateLimit = new Date();
+        dateLimit.setDate(dateLimit.getDate() - days);
+        const dateStr = dateLimit.toISOString().split('T')[0];
+
+        const sql = `
+            SELECT action, was_correct, actual_next_day_return, actual_5day_return
+            FROM trade_recommendations
+            WHERE user_id = $1
+            AND recommendation_date >= $2
+            AND was_correct IS NOT NULL
+        `;
+
+        const result = await queryAll(sql, [userId, dateStr]);
+
+        // Group by action
+        const stats = { BUY: [], SELL: [], HOLD: [], WATCH: [] };
+        result.rows.forEach(r => {
+            if (stats[r.action]) stats[r.action].push(r);
+        });
+
+        const by_action = Object.keys(stats).map(action => {
+            const items = stats[action];
+            if (items.length === 0) return null;
+
+            const total = items.length;
+            const correct = items.filter(i => i.was_correct).length; // 1 or true
+            const avg1d = items.reduce((sum, i) => sum + (i.actual_next_day_return || 0), 0) / total;
+            const avg5d = items.reduce((sum, i) => sum + (i.actual_5day_return || 0), 0) / total;
+
+            return {
+                action,
+                total,
+                correct,
+                avg_1d_return: parseFloat(avg1d.toFixed(2)),
+                avg_5d_return: parseFloat(avg5d.toFixed(2))
+            };
+        }).filter(x => x);
+
+        return res.json({
+            period_days: days,
+            by_action
+        });
+    } catch (err) {
+        console.error('Error fetching performance:', err);
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+module.exports = { router, attachDb };

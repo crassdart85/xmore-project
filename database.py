@@ -279,6 +279,78 @@ def create_tables():
             )
         """)
 
+        # Table 12: User Positions (Virtual Portfolio)
+        cursor.execute(f"""
+            CREATE TABLE IF NOT EXISTS user_positions (
+                id {auto_id},
+                user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                symbol TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'OPEN',
+                entry_date DATE NOT NULL,
+                entry_price REAL,
+                exit_date DATE,
+                exit_price REAL,
+                return_pct REAL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        # Partial index for unique OPEN position
+        if DATABASE_URL:
+            cursor.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_open_position ON user_positions(user_id, symbol) WHERE status = 'OPEN'")
+        else:
+            # SQLite doesn't strictly support WHERE in unique index in older versions easily via standard SQL, 
+            # but we can enforce logic in app or use a trigger. For now, we'll skip the partial index in SQLite or just rely on app logic.
+            # Actually SQLite supports partial indexes since 3.8.0.
+            cursor.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_open_position ON user_positions(user_id, symbol) WHERE status = 'OPEN'")
+
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_positions_user ON user_positions(user_id)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_positions_status ON user_positions(status)")
+
+        # Table 13: Trade Recommendations
+        cursor.execute(f"""
+            CREATE TABLE IF NOT EXISTS trade_recommendations (
+                id {auto_id},
+                user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                symbol TEXT NOT NULL,
+                recommendation_date DATE NOT NULL,
+                
+                action TEXT NOT NULL,
+                signal TEXT NOT NULL,
+                confidence INTEGER NOT NULL,
+                conviction TEXT,
+                risk_action TEXT,
+                priority REAL,
+                
+                close_price REAL,
+                stop_loss_pct REAL,
+                target_pct REAL,
+                stop_loss_price REAL,
+                target_price REAL,
+                risk_reward_ratio REAL,
+                
+                reasons TEXT,
+                reasons_ar TEXT,
+                
+                bull_score INTEGER,
+                bear_score INTEGER,
+                agents_agreeing INTEGER,
+                agents_total INTEGER,
+                risk_flags TEXT,
+                
+                actual_next_day_return REAL,
+                actual_5day_return REAL,
+                was_correct {bool_default},
+                
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                
+                UNIQUE(user_id, symbol, recommendation_date)
+            )
+        """)
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_trade_rec_user_date ON trade_recommendations(user_id, recommendation_date DESC)")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_trade_rec_date ON trade_recommendations(recommendation_date DESC)")
+
         # Table 11: Sentiment Scores (Aggregated)
         cursor.execute(f"""
             CREATE TABLE IF NOT EXISTS sentiment_scores (

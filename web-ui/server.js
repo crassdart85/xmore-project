@@ -8,6 +8,7 @@ const cookieParser = require('cookie-parser');
 const { router: authRouter, attachDb: attachAuthDb } = require('./routes/auth');
 const { router: stocksRouter, attachDb: attachStocksDb } = require('./routes/stocks');
 const { router: watchlistRouter, attachDb: attachWatchlistDb } = require('./routes/watchlist');
+const { router: tradesRouter, attachDb: attachTradesDb } = require('./routes/trades');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -41,6 +42,11 @@ if (DATABASE_URL) {
     get: (query, params, callback) => {
       pool.query(query, params)
         .then(result => callback(null, result.rows[0] || null))
+        .catch(err => callback(err));
+    },
+    run: (query, params, callback) => {
+      pool.query(query, params)
+        .then(result => callback(null, result))
         .catch(err => callback(err));
     }
   };
@@ -77,10 +83,29 @@ if (DATABASE_URL) {
     // Create a dummy db object that will fail gracefully
     db = {
       all: (query, params, callback) => callback(new Error('No database configured')),
-      get: (query, params, callback) => callback(new Error('No database configured'))
+      get: (query, params, callback) => callback(new Error('No database configured')),
+      run: (query, params, callback) => callback(new Error('No database configured'))
     };
   }
 }
+
+// ... existing endpoints ...
+
+// ============================================
+// AUTH, STOCKS, WATCHLIST & TRADES ROUTES
+// ============================================
+
+// Attach DB to route modules
+const isPostgres = !!DATABASE_URL;
+attachAuthDb(db, isPostgres);
+attachStocksDb(db);
+attachWatchlistDb(db, isPostgres);
+attachTradesDb(db);
+
+app.use('/api', authRouter);
+app.use('/api', stocksRouter);
+app.use('/api', watchlistRouter);
+app.use('/api/trades', tradesRouter);
 
 // ============================================
 // API ENDPOINTS
@@ -534,20 +559,6 @@ app.get('/api/risk/overview', (req, res) => {
     }
   });
 });
-
-// ============================================
-// AUTH, STOCKS & WATCHLIST ROUTES
-// ============================================
-
-// Attach DB to route modules
-const isPostgres = !!DATABASE_URL;
-attachAuthDb(db, isPostgres);
-attachStocksDb(db);
-attachWatchlistDb(db, isPostgres);
-
-app.use('/api', authRouter);
-app.use('/api', stocksRouter);
-app.use('/api', watchlistRouter);
 
 // ============================================
 // FRONTEND ROUTE

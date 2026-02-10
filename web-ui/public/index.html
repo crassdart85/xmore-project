@@ -59,6 +59,8 @@
         <!-- Tab Navigation -->
         <nav class="tab-nav" id="tabNav">
             <button class="tab-btn active" data-tab="predictions" id="tabPredictions">Predictions</button>
+            <button class="tab-btn" data-tab="trades" id="tabTrades">Trades</button>
+            <button class="tab-btn" data-tab="portfolio" id="tabPortfolio">Portfolio</button>
             <button class="tab-btn" data-tab="watchlist" id="tabWatchlist" style="display:none;">Watchlist</button>
             <button class="tab-btn" data-tab="consensus" id="tabConsensus">Consensus</button>
             <button class="tab-btn" data-tab="performance" id="tabPerformance">Performance</button>
@@ -208,22 +210,58 @@
             </div>
         </section>
 
-        <footer>
-            <button id="refreshBtn" class="refresh-btn">Refresh Data</button>
-            <div class="disclaimer-block">
-                <p class="disclaimer" id="disclaimerEN">
-                    Xmore is an information and analytics tool, not a licensed investment advisor or broker.
-                    This is not financial advice. Use as one input in your decision, not as a guarantee.
-                    Past performance does not guarantee future results.
+        <!-- Tab: Trades (Today) -->
+        <section class="tab-content" id="tab-trades">
+            <div class="section-header">
+                <h2 id="tradesTitle">Today's Recommendations</h2>
+                <p class="section-subtitle" id="tradesSubtitle">AI-generated trade signals for today's market session.
                 </p>
-                <p class="disclaimer disclaimer-ar" id="disclaimerAR">
-                    Xmore أداة معلومات وتحليلات، وليس مستشاراً استثمارياً مرخصاً أو وسيطاً.
-                    هذا ليس نصيحة مالية. استخدم هذا كمدخل واحد في قرارك، وليس كضمان.
-                    الأداء السابق لا يضمن النتائج المستقبلية.
-                </p>
-                <a href="/terms" class="terms-link" id="termsLink">Terms of Service</a>
             </div>
-        </footer>
+            <div id="todayTradesContainer">
+                <p class="loading">Loading trades...</p>
+            </div>
+        </section>
+
+        <!-- Tab: Portfolio -->
+        <section class="tab-content" id="tab-portfolio">
+            <div class="section-header">
+                <h2 id="portfolioTitle">My Portfolio</h2>
+            </div>
+
+            <div id="portfolioStats" class="stats-grid-mini">
+                <!-- Populated by JS -->
+            </div>
+
+            <div class="section-inner">
+                <h3 id="portfolioOpenTitle">Open Positions</h3>
+                <div id="portfolioOpen" class="table-responsive">
+                    <p class="loading">Loading positions...</p>
+                </div>
+            </div>
+
+            <div class="section-inner">
+                <h3 id="portfolioHistoryTitle">Trade History</h3>
+                <div id="portfolioHistory" class="table-responsive">
+                    <p class="loading">Loading history...</p>
+                </div>
+            </div>
+
+            <footer>
+                <button id="refreshBtn" class="refresh-btn">Refresh Data</button>
+                <div class="disclaimer-block">
+                    <p class="disclaimer" id="disclaimerEN">
+                        Xmore is an information and analytics tool, not a licensed investment advisor or broker.
+                        This is not financial advice. Use as one input in your decision, not as a guarantee.
+                        Past performance does not guarantee future results.
+                    </p>
+                    <p class="disclaimer disclaimer-ar" id="disclaimerAR">
+                        Xmore أداة معلومات وتحليلات، وليس مستشاراً استثمارياً مرخصاً أو وسيطاً.
+                        هذا ليس نصيحة مالية. استخدم هذا كمدخل واحد في قرارك، وليس كضمان.
+                        الأداء السابق لا يضمن النتائج المستقبلية.
+                    </p>
+                    <a href="/terms" class="terms-link" id="termsLink">Terms of Service</a>
+                </div>
+            </footer>
     </div>
 
     <!-- Auth Modal -->
@@ -253,6 +291,7 @@
     <script src="app.js?v=20260211a"></script>
     <script src="auth.js?v=20260211a"></script>
     <script src="watchlist.js?v=20260211a"></script>
+    <script src="trades.js?v=20260211a"></script>
 </body>
 
 </html>

@@ -244,6 +244,63 @@ async function initializeDatabase() {
       )
     `);
 
+    // Table 12: User Positions
+    console.log('📊 Creating user_positions table...');
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS user_positions (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        symbol TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'OPEN',
+        entry_date DATE NOT NULL,
+        entry_price REAL,
+        exit_date DATE,
+        exit_price REAL,
+        return_pct REAL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    await pool.query("CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_open_position ON user_positions(user_id, symbol) WHERE status = 'OPEN'");
+    await pool.query("CREATE INDEX IF NOT EXISTS idx_positions_user ON user_positions(user_id)");
+
+    // Table 13: Trade Recommendations
+    console.log('📊 Creating trade_recommendations table...');
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS trade_recommendations (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        symbol TEXT NOT NULL,
+        recommendation_date DATE NOT NULL,
+        action TEXT NOT NULL,
+        signal TEXT NOT NULL,
+        confidence INTEGER NOT NULL,
+        conviction TEXT,
+        risk_action TEXT,
+        priority REAL,
+        close_price REAL,
+        stop_loss_pct REAL,
+        target_pct REAL,
+        stop_loss_price REAL,
+        target_price REAL,
+        risk_reward_ratio REAL,
+        reasons TEXT,
+        reasons_ar TEXT,
+        bull_score INTEGER,
+        bear_score INTEGER,
+        agents_agreeing INTEGER,
+        agents_total INTEGER,
+        risk_flags TEXT,
+        actual_next_day_return REAL,
+        actual_5day_return REAL,
+        was_correct BOOLEAN,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(user_id, symbol, recommendation_date)
+      )
+    `);
+    await pool.query("CREATE INDEX IF NOT EXISTS idx_trade_rec_user_date ON trade_recommendations(user_id, recommendation_date DESC)");
+
     // Seed EGX 30 stocks
     console.log('🌱 Seeding EGX 30 stocks...');
     await pool.query(`

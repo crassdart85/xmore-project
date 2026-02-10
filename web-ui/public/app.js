@@ -409,6 +409,7 @@ function applyLanguage() {
     // Update auth and watchlist text
     if (typeof updateAuthLanguage === 'function') updateAuthLanguage();
     if (typeof updateWatchlistLanguage === 'function') updateWatchlistLanguage();
+    if (typeof updateTradesLanguage === 'function') updateTradesLanguage();
 }
 
 // ============================================
@@ -438,6 +439,12 @@ function initTabs() {
             // Lazy-load watchlist data on first visit
             if (tabId === 'watchlist' && typeof loadWatchlist === 'function') {
                 loadWatchlist();
+            }
+            if (tabId === 'trades' && typeof loadTrades === 'function') {
+                loadTrades();
+            }
+            if (tabId === 'portfolio' && typeof loadPortfolio === 'function') {
+                loadPortfolio();
             }
         });
     });
@@ -685,6 +692,10 @@ async function refreshData() {
             loadEvaluations(),
             loadPrices()
         ]);
+
+        // Load trades if functions exist
+        if (typeof loadTrades === 'function') loadTrades();
+        if (typeof loadPortfolio === 'function') loadPortfolio();
     } finally {
         if (btn) {
             btn.disabled = false;

@@ -1,0 +1,375 @@
+/**
+ * Xmore — Trades & Portfolio Module
+ * Handles Today's Recommendations and User Portfolio display.
+ */
+
+// ============================================
+// STATE
+// ============================================
+let todayTrades = [];
+let portfolioData = {};
+let tradesPerformance = {};
+
+// ============================================
+// BILINGUAL TEXT
+// ============================================
+const tradesText = {
+    en: {
+        // Today's Trades
+        tt_title: "Today's Recommendations",
+        tt_subtitle: "AI-generated trade signals for today's market session.",
+        tt_buy: "BUY",
+        tt_sell: "SELL",
+        tt_hold: "HOLD",
+        tt_watch: "WATCH",
+        tt_entry: "Entry Zone",
+        tt_target: "Target",
+        tt_stop: "Stop Loss",
+        tt_risk_reward: "R/R Ratio",
+        tt_conviction: "Conviction",
+        tt_reasoning: "Analysis",
+        tt_execute: "Trade",
+        tt_no_trades: "No trade recommendations generated for today yet.",
+        tt_login_required: "Login to view personalized trade recommendations.",
+
+        // Portfolio
+        pt_title: "My Portfolio",
+        pt_open: "Open Positions",
+        pt_history: "Trade History",
+        pt_stats: "Performance Stats",
+        pt_symbol: "Symbol",
+        pt_entry_date: "Entry Date",
+        pt_entry_price: "Entry Price",
+        pt_current_price: "Current Price",
+        pt_pnl: "P&L %",
+        pt_days_held: "Days Held",
+        pt_exit_date: "Exit Date",
+        pt_exit_price: "Exit Price",
+        pt_return: "Return %",
+        pt_win_rate: "Win Rate",
+        pt_avg_return: "Avg Return",
+        pt_total_trades: "Total Trades",
+        pt_no_open: "No open positions currently.",
+        pt_no_history: "No trade history available.",
+
+        // General
+        loading: "Loading data...",
+        error: "Error loading data",
+    },
+    ar: {
+        // Today's Trades
+        tt_title: "توصيات اليوم",
+        tt_subtitle: "إشارات تداول مولدة بالذكاء الاصطناعي لجلسة اليوم.",
+        tt_buy: "شراء",
+        tt_sell: "بيع",
+        tt_hold: "احتفاظ",
+        tt_watch: "مراقبة",
+        tt_entry: "منطقة الدخول",
+        tt_target: "الهدف",
+        tt_stop: "وقف الخسارة",
+        tt_risk_reward: "العائد/المخاطرة",
+        tt_conviction: "القناعة",
+        tt_reasoning: "التحليل",
+        tt_execute: "تداول",
+        tt_no_trades: "لم يتم إنشاء توصيات لهذا اليوم بعد.",
+        tt_login_required: "سجّل دخولك لعرض التوصيات المخصصة.",
+
+        // Portfolio
+        pt_title: "محفظتي",
+        pt_open: "المراكز المفتوحة",
+        pt_history: "سجل التداول",
+        pt_stats: "إحصائيات الأداء",
+        pt_symbol: "الرمز",
+        pt_entry_date: "تاريخ الدخول",
+        pt_entry_price: "سعر الدخول",
+        pt_current_price: "السعر الحالي",
+        pt_pnl: "الربح/الخسارة %",
+        pt_days_held: "أيام الاحتفاظ",
+        pt_exit_date: "تاريخ الخروج",
+        pt_exit_price: "سعر الخروج",
+        pt_return: "العائد %",
+        pt_win_rate: "نسبة النجاح",
+        pt_avg_return: "متوسط العائد",
+        pt_total_trades: "إجمالي الصفقات",
+        pt_no_open: "لا توجد مراكز مفتوحة حالياً.",
+        pt_no_history: "لا يوجد سجل تداول متاح.",
+
+        // General
+        loading: "جاري التحميل...",
+        error: "خطأ في تحميل البيانات",
+    }
+};
+
+function tt(key) {
+    const lang = (typeof currentLang !== 'undefined') ? currentLang : 'en';
+    return (tradesText[lang] && tradesText[lang][key]) || tradesText.en[key] || key;
+}
+
+// ============================================
+// API CALLS
+// ============================================
+
+async function listTodayTrades() {
+    // Also attach to window for app.js to call
+    const container = document.getElementById('todayTradesContainer');
+    if (!container) return; // Tab might not exist yet if not in DOM
+
+    if (typeof currentUser === 'undefined' || !currentUser) {
+        container.innerHTML = `<div class="login-wall">
+            <p>${tt('tt_login_required')}</p>
+            <button onclick="showAuthModal('login')" class="auth-trigger-btn">🔐 Login</button>
+        </div>`;
+        return;
+    }
+
+    container.innerHTML = `<p class="loading">${tt('loading')}</p>`;
+
+    try {
+        const res = await fetch('/api/trades/today', { credentials: 'include' });
+        if (!res.ok) throw new Error('Failed to fetch trades');
+        const data = await res.json();
+
+        todayTrades = data.recommendations || [];
+        renderTodayTrades();
+
+        // Update summary stats if elements exist
+        if (data.summary) {
+            updateTradeSummary(data.summary);
+        }
+    } catch (err) {
+        console.error('Error loading today trades:', err);
+        container.innerHTML = `<p class="error-message">${tt('error')}</p>`;
+    }
+}
+
+async function getPortfolio() {
+    const openContainer = document.getElementById('portfolioOpen');
+    const closedContainer = document.getElementById('portfolioHistory');
+
+    if (!openContainer || !closedContainer) return;
+
+    if (typeof currentUser === 'undefined' || !currentUser) {
+        openContainer.innerHTML = `<p class="login-wall">${tt('tt_login_required')}</p>`;
+        closedContainer.innerHTML = '';
+        return;
+    }
+
+    // Set loading state
+    openContainer.innerHTML = `<p class="loading">${tt('loading')}</p>`;
+
+    try {
+        const res = await fetch('/api/trades/portfolio', { credentials: 'include' });
+        if (!res.ok) throw new Error('Failed to fetch portfolio');
+        const data = await res.json();
+
+        portfolioData = data;
+        renderPortfolio();
+    } catch (err) {
+        console.error('Error loading portfolio:', err);
+        openContainer.innerHTML = `<p class="error-message">${tt('error')}</p>`;
+    }
+}
+
+// ============================================
+// RENDER LOGIC
+// ============================================
+
+function renderTodayTrades() {
+    const container = document.getElementById('todayTradesContainer');
+    if (!container) return;
+
+    if (todayTrades.length === 0) {
+        container.innerHTML = `<p class="no-data">${tt('tt_no_trades')}</p>`;
+        return;
+    }
+
+    container.innerHTML = `<div class="trades-grid">
+        ${todayTrades.map(trade => createTradeCard(trade)).join('')}
+    </div>`;
+}
+
+function createTradeCard(trade) {
+    const isAr = (typeof currentLang !== 'undefined' && currentLang === 'ar');
+    const actionClass = `action-${trade.action.toLowerCase()}`; // buy, sell, watch
+
+    const reasonsList = Array.isArray(trade.reasons)
+        ? trade.reasons.map(r => `<li>• ${r}</li>`).join('')
+        : '';
+
+    return `
+    <div class="trade-card ${actionClass}-border">
+        <div class="trade-header">
+            <div class="trade-symbol">
+                <h3>${trade.symbol}</h3>
+                <span class="company-name">${isAr ? (trade.name_ar || trade.name_en) : trade.name_en}</span>
+            </div>
+            <div class="trade-action ${actionClass}">
+                ${tt('tt_' + trade.action.toLowerCase())}
+            </div>
+        </div>
+        
+        <div class="trade-prices">
+            <div class="price-item">
+                <label>${tt('tt_entry')}</label>
+                <span class="val">${trade.close_price.toFixed(2)}</span>
+            </div>
+            <div class="price-item target">
+                <label>${tt('tt_target')}</label>
+                <span class="val">${trade.target_price ? trade.target_price.toFixed(2) : '-'}</span>
+                ${trade.target_pct ? `<small>(+${trade.target_pct}%)</small>` : ''}
+            </div>
+            <div class="price-item stop">
+                <label>${tt('tt_stop')}</label>
+                <span class="val">${trade.stop_loss_price ? trade.stop_loss_price.toFixed(2) : '-'}</span>
+                ${trade.stop_loss_pct ? `<small>(${trade.stop_loss_pct}%)</small>` : ''}
+            </div>
+        </div>
+        
+        <div class="trade-meta">
+            <span class="meta-tag conviction-${trade.conviction ? trade.conviction.toLowerCase() : 'low'}">
+                ${trade.conviction || 'N/A'}
+            </span>
+            <span class="meta-tag">R/R: ${trade.risk_reward_ratio || '-'}</span>
+        </div>
+        
+        <div class="trade-reasoning">
+            <h4>${tt('tt_reasoning')}</h4>
+            <ul>${reasonsList}</ul>
+        </div>
+    </div>
+    `;
+}
+
+function updateTradeSummary(summary) {
+    // If we have summary stats elements in index.html, update them
+    // E.g. <span id="summaryBuy">...</span>
+    // This is optional if we add those elements
+}
+
+function renderPortfolio() {
+    const openContainer = document.getElementById('portfolioOpen');
+    const closedContainer = document.getElementById('portfolioHistory');
+    const statsContainer = document.getElementById('portfolioStats');
+
+    // 1. Stats
+    if (statsContainer && portfolioData.stats) {
+        const s = portfolioData.stats;
+        statsContainer.innerHTML = `
+            <div class="stat-box">
+                <div class="val">${s.total_trades}</div>
+                <div class="lbl">${tt('pt_total_trades')}</div>
+            </div>
+            <div class="stat-box">
+                <div class="val ${s.avg_return >= 0 ? 'pos' : 'neg'}">${s.avg_return}%</div>
+                <div class="lbl">${tt('pt_avg_return')}</div>
+            </div>
+            <div class="stat-box">
+                <div class="val">${s.win_rate}%</div>
+                <div class="lbl">${tt('pt_win_rate')}</div>
+            </div>
+        `;
+    }
+
+    // 2. Open Positions
+    if (openContainer) {
+        const open = portfolioData.open_positions;
+        if (!open || open.length === 0) {
+            openContainer.innerHTML = `<p class="no-data">${tt('pt_no_open')}</p>`;
+        } else {
+            openContainer.innerHTML = `
+             <table class="portfolio-table">
+                <thead>
+                    <tr>
+                        <th>${tt('pt_symbol')}</th>
+                        <th>${tt('pt_entry_date')}</th>
+                        <th>${tt('pt_entry_price')}</th>
+                        <th>${tt('pt_current_price')}</th>
+                        <th>${tt('pt_pnl')}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${open.map(p => `
+                        <tr>
+                            <td><strong>${p.symbol}</strong></td>
+                            <td>${formatDateSimple(p.entry_date)}</td>
+                            <td>${p.entry_price.toFixed(2)}</td>
+                            <td>${p.current_price ? p.current_price.toFixed(2) : '-'}</td>
+                            <td class="${p.unrealized_return_pct >= 0 ? 'pos' : 'neg'}">
+                                ${p.unrealized_return_pct}%
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+             </table>`;
+        }
+    }
+
+    // 3. Closed Positions
+    if (closedContainer) {
+        const closed = portfolioData.closed_positions;
+        if (!closed || closed.length === 0) {
+            closedContainer.innerHTML = `<p class="no-data">${tt('pt_no_history')}</p>`;
+        } else {
+            closedContainer.innerHTML = `
+             <table class="portfolio-table">
+                <thead>
+                    <tr>
+                        <th>${tt('pt_symbol')}</th>
+                        <th>${tt('pt_entry_date')}</th>
+                        <th>${tt('pt_exit_date')}</th>
+                        <th>${tt('pt_return')}</th>
+                    </tr>
+                </thead>
+                <tbody>
+                     ${closed.map(p => `
+                        <tr>
+                            <td><strong>${p.symbol}</strong></td>
+                            <td>${formatDateSimple(p.entry_date)}</td>
+                            <td>${formatDateSimple(p.exit_date)}</td>
+                            <td class="${p.return_pct >= 0 ? 'pos' : 'neg'}">
+                                ${p.return_pct.toFixed(2)}%
+                            </td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+             </table>`;
+        }
+    }
+}
+
+function formatDateSimple(dateStr) {
+    if (!dateStr) return '-';
+    return dateStr.split('T')[0];
+}
+
+// ============================================
+// GLOBAL EXPORTS
+// ============================================
+window.updateTradesLanguage = function () {
+    renderTodayTrades();
+    renderPortfolio();
+
+    // Update static text if any IDs exist
+    const titles = {
+        'tradesTitle': 'tt_title',
+        'tradesSubtitle': 'tt_subtitle',
+        'portfolioTitle': 'pt_title',
+        'portfolioOpenTitle': 'pt_open',
+        'portfolioHistoryTitle': 'pt_history'
+    };
+
+    Object.keys(titles).forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = tt(titles[id]);
+    });
+};
+
+window.loadTrades = function () {
+    listTodayTrades();
+};
+
+window.loadPortfolio = function () {
+    getPortfolio();
+};
+
+// Auto-init specific listeners if needed

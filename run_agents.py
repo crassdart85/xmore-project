@@ -352,11 +352,17 @@ def execute():
                 agreement = consensus_result.get('agent_agreement', 0)
 
                 print(f"  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-                print(f"  🤝 Consensus: {consensus_signal} ({conviction})")
-                print(f"  🐂 Bull: {bull_s}/100  |  🐻 Bear: {bear_s}/100")
                 print(f"  👥 Agreement: {agreement:.0%}  |  🛡️ Risk: {risk_action}")
                 if consensus_result.get('risk_adjusted'):
                     print(f"  ⚠️  RISK-ADJUSTED (original signal was modified)")
+
+        print(f"\n{'='*50}")
+        print("🚀 Generating Daily Trade Recommendations...")
+        try:
+            generate_daily_trade_recommendations(today)
+        except Exception as e:
+            print(f"❌ Error generating trade recommendations: {e}")
+            traceback.print_exc()
 
         print(f"\n{'='*50}")
         print(f"✅ Pipeline complete! Processed {len(config.ALL_STOCKS)} stocks.")
@@ -366,6 +372,321 @@ def execute():
         print(f"\n❌ Error in execute(): {e}")
         traceback.print_exc()
         sys.exit(1)
+
+
+def get_market_data(symbol: str):
+    """Fetch market data for risk calculation."""
+    # Simplified: get latest price and 52w high from DB
+    with database.get_connection() as conn:
+        cursor = conn.cursor()
+        
+        # Latest close
+        if os.getenv('DATABASE_URL'):
+            cursor.execute("SELECT close FROM prices WHERE symbol = %s ORDER BY date DESC LIMIT 1", (symbol,))
+        else:
+            cursor.execute("SELECT close FROM prices WHERE symbol = ? ORDER BY date DESC LIMIT 1", (symbol,))
+        
+        row = cursor.fetchone()
+        close = row['close'] if row else 0
+        
+        # 52w high
+        # Calculate 52w high (approx 252 trading days)
+        if os.getenv('DATABASE_URL'):
+             cursor.execute("SELECT MAX(high) as high_52w FROM prices WHERE symbol = %s AND date >= CURRENT_DATE - INTERVAL '1 year'", (symbol,))
+        else:
+             cursor.execute("SELECT MAX(high) as high_52w FROM prices WHERE symbol = ? AND date >= date('now', '-1 year')", (symbol,))
+        
+        row_high = cursor.fetchone()
+        high_52w = row_high['high_52w'] if row_high else 0
+        
+        # ATR (Simplified: 3% of close if not calculated)
+        # In a real system, features.py would compute ATR and store it.
+        # We'll stick to the default in trade_recommender if 0.
+        atr = close * 0.03
+        
+        return {
+            "close": close,
+            "high_52w": high_52w,
+            "atr": atr
+        }
+
+def open_new_position(user_id, rec, trading_date):
+    """Create a new OPEN position."""
+    with database.get_connection() as conn:
+        cursor = conn.cursor()
+        if os.getenv('DATABASE_URL'):
+            cursor.execute("""
+                INSERT INTO user_positions (user_id, symbol, status, entry_date, entry_price)
+                VALUES (%s, %s, 'OPEN', %s, %s)
+                ON CONFLICT DO NOTHING
+            """, (user_id, rec["symbol"], trading_date, rec.get("close_price")))
+        else:
+            cursor.execute("""
+                INSERT OR IGNORE INTO user_positions (user_id, symbol, status, entry_date, entry_price)
+                VALUES (?, ?, 'OPEN', ?, ?)
+            """, (user_id, rec["symbol"], trading_date, rec.get("close_price")))
+
+def close_position(user_id, rec, trading_date):
+    """Close an OPEN position."""
+    exit_price = rec.get("close_price", 0)
+    with database.get_connection() as conn:
+        cursor = conn.cursor()
+        
+        # Calculate return logic requires reading entry price first or doing it in SQL
+        # Doing in SQL for atomicity
+        if os.getenv('DATABASE_URL'):
+             cursor.execute("""
+                UPDATE user_positions 
+                SET status = 'CLOSED',
+                    exit_date = %s,
+                    exit_price = %s,
+                    return_pct = CASE 
+                        WHEN entry_price > 0 THEN ((%s - entry_price) / entry_price) * 100
+                        ELSE 0
+                    END,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE user_id = %s 
+                AND symbol = %s 
+                AND status = 'OPEN'
+            """, (trading_date, exit_price, exit_price, user_id, rec["symbol"]))
+        else:
+             cursor.execute("""
+                UPDATE user_positions 
+                SET status = 'CLOSED',
+                    exit_date = ?,
+                    exit_price = ?,
+                    return_pct = CASE 
+                        WHEN entry_price > 0 THEN ((? - entry_price) / entry_price) * 100
+                        ELSE 0
+                    END,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE user_id = ? 
+                AND symbol = ? 
+                AND status = 'OPEN'
+            """, (trading_date, exit_price, exit_price, user_id, rec["symbol"]))
+
+def store_trade_recommendation(user_id, rec, trading_date):
+    """Store recommendation to DB."""
+    with database.get_connection() as conn:
+        cursor = conn.cursor()
+        
+        query_pg = """
+            INSERT INTO trade_recommendations (
+                user_id, symbol, recommendation_date, action, signal, 
+                confidence, conviction, risk_action, priority,
+                close_price, stop_loss_pct, target_pct, 
+                stop_loss_price, target_price, risk_reward_ratio,
+                reasons, reasons_ar,
+                bull_score, bear_score, agents_agreeing, agents_total, risk_flags
+            ) VALUES (
+                %s, %s, %s, %s, %s, 
+                %s, %s, %s, %s,
+                %s, %s, %s, 
+                %s, %s, %s,
+                %s, %s,
+                %s, %s, %s, %s, %s
+            )
+            ON CONFLICT (user_id, symbol, recommendation_date) DO UPDATE SET
+                action = EXCLUDED.action,
+                signal = EXCLUDED.signal,
+                confidence = EXCLUDED.confidence,
+                conviction = EXCLUDED.conviction,
+                priority = EXCLUDED.priority,
+                reasons = EXCLUDED.reasons,
+                reasons_ar = EXCLUDED.reasons_ar,
+                updated_at = CURRENT_TIMESTAMP
+        """
+        
+        query_sqlite = """
+            INSERT INTO trade_recommendations (
+                user_id, symbol, recommendation_date, action, signal, 
+                confidence, conviction, risk_action, priority,
+                close_price, stop_loss_pct, target_pct, 
+                stop_loss_price, target_price, risk_reward_ratio,
+                reasons, reasons_ar,
+                bull_score, bear_score, agents_agreeing, agents_total, risk_flags
+            ) VALUES (
+                ?, ?, ?, ?, ?, 
+                ?, ?, ?, ?,
+                ?, ?, ?, 
+                ?, ?, ?,
+                ?, ?,
+                ?, ?, ?, ?, ?
+            )
+            ON CONFLICT (user_id, symbol, recommendation_date) DO UPDATE SET
+                action = excluded.action,
+                signal = excluded.signal,
+                confidence = excluded.confidence,
+                conviction = excluded.conviction,
+                priority = excluded.priority,
+                reasons = excluded.reasons,
+                reasons_ar = excluded.reasons_ar,
+                updated_at = CURRENT_TIMESTAMP
+        """
+        
+        params = (
+            user_id, rec["symbol"], trading_date, rec["action"], rec["signal"],
+            rec["confidence"], rec["conviction"], rec["risk_action"], rec["priority"],
+            rec.get("close_price"), rec.get("stop_loss_pct"), rec.get("target_pct"),
+            rec.get("stop_loss_price"), rec.get("target_price"), rec.get("risk_reward_ratio"),
+            json.dumps(rec["reasons"]), json.dumps(rec["reasons_ar"]),
+            rec["metadata"]["bull_score"], rec["metadata"]["bear_score"],
+            rec["metadata"]["agents_agreeing"], rec["metadata"]["agents_total"],
+            json.dumps(rec["metadata"].get("risk_flags", []))
+        )
+        
+        if os.getenv('DATABASE_URL'):
+            cursor.execute(query_pg, params)
+        else:
+            cursor.execute(query_sqlite, params)
+
+from engines.trade_recommender import (
+    generate_recommendation, 
+    score_recommendation_priority,
+    calculate_risk_levels,
+    TRADE_CONFIG
+)
+from utils.trading_calendar import should_generate_recommendations
+
+def generate_daily_trade_recommendations(trading_date):
+    """Generate trade recommendations."""
+    
+    # 1. Check calendar
+    markets = should_generate_recommendations(datetime.strptime(trading_date, "%Y-%m-%d").date())
+    print(f"  📅 Market Status: EGX={'OPEN' if markets['egx'] else 'CLOSED'}, US={'OPEN' if markets['us'] else 'CLOSED'}")
+    
+    # In this MVP, we process anyway if it's a weekday, but logically strict system would skip.
+    # The prompt implies we should respect it.
+    
+    with database.get_connection() as conn:
+        cursor = conn.cursor()
+        
+        # 2. Get users with watchlists
+        if os.getenv('DATABASE_URL'):
+            cursor.execute("SELECT DISTINCT u.id, u.email FROM users u JOIN user_watchlist w ON u.id = w.user_id WHERE u.is_active = TRUE")
+        else:
+            cursor.execute("SELECT DISTINCT u.id, u.email FROM users u JOIN user_watchlist w ON u.id = w.user_id WHERE u.is_active = 1")
+            
+        users = [dict(row) for row in cursor.fetchall()]
+        print(f"  👥 Generating recommendations for {len(users)} users...")
+        
+        # Pre-fetch today's consensus results for ALL stocks to avoid N+1 queries
+        # (This assumes run_consensus has populated consensus_results table)
+        if os.getenv('DATABASE_URL'):
+            cursor.execute("SELECT * FROM consensus_results WHERE prediction_date = %s", (trading_date,))
+        else:
+            cursor.execute("SELECT * FROM consensus_results WHERE prediction_date = ?", (trading_date,))
+            
+        consensus_rows = [dict(row) for row in cursor.fetchall()]
+        # Map symbol -> consensus dict
+        consensus_map = {}
+        for row in consensus_rows:
+            # Parse JSONs if string
+            for field in ['bull_case_json', 'bear_case_json', 'risk_assessment_json', 'agent_signals_json']:
+                 if isinstance(row.get(field), str):
+                     row[field] = json.loads(row[field])
+            
+            # Reconstruct the dict structure expected by trade_recommender
+            consensus_map[row['symbol']] = {
+                "symbol": row['symbol'],
+                "final_signal": {
+                    "prediction": row['final_signal'],
+                    "confidence": row['confidence'],
+                    "conviction": row['conviction']
+                },
+                "risk_assessment": {
+                    "action": row['risk_action'],
+                    "risk_flags": row.get('risk_assessment_json', {}).get('risk_flags', [])
+                },
+                "bull_case": {"bull_score": row['bull_score']},
+                "bear_case": {"bear_score": row['bear_score']},
+                "agent_agreement": {
+                    "agreeing": row['agents_agreeing'],
+                    "total": row['agents_total']
+                }
+            }
+        
+    for user in users:
+        user_id = user['id']
+        max_positions = TRADE_CONFIG["max_open_positions"] # Default to free tier
+        
+        with database.get_connection() as conn:
+            cursor = conn.cursor()
+            
+            # Get watchlist
+            if os.getenv('DATABASE_URL'):
+                cursor.execute("SELECT s.symbol FROM user_watchlist w JOIN egx30_stocks s ON w.stock_id = s.id WHERE w.user_id = %s", (user_id,))
+            else:
+                cursor.execute("SELECT s.symbol FROM user_watchlist w JOIN egx30_stocks s ON w.stock_id = s.id WHERE w.user_id = ?", (user_id,))
+            watchlist = [row['symbol'] for row in cursor.fetchall()]
+            
+            # Get open positions
+            if os.getenv('DATABASE_URL'):
+                cursor.execute("SELECT symbol, entry_date, entry_price FROM user_positions WHERE user_id = %s AND status = 'OPEN'", (user_id,))
+            else:
+                cursor.execute("SELECT symbol, entry_date, entry_price FROM user_positions WHERE user_id = ? AND status = 'OPEN'", (user_id,))
+            open_positions = [dict(row) for row in cursor.fetchall()]
+            open_positions_map = {p['symbol']: p for p in open_positions}
+            open_count = len(open_positions)
+            
+            # Get recent trades
+            if os.getenv('DATABASE_URL'):
+                 cursor.execute("SELECT symbol, action, recommendation_date as date FROM trade_recommendations WHERE user_id = %s AND recommendation_date >= CURRENT_DATE - INTERVAL '7 days'", (user_id,))
+            else:
+                 cursor.execute("SELECT symbol, action, recommendation_date as date FROM trade_recommendations WHERE user_id = ? AND recommendation_date >= date('now', '-7 days')", (user_id,))
+            recent_trades = [dict(row) for row in cursor.fetchall()]
+            
+            user_recs = []
+            
+            for symbol in watchlist:
+                # Market check
+                mkt = 'egx' if symbol.endswith('.CA') else 'us'
+                if not markets[mkt]:
+                    continue # Skip closed market
+                
+                consensus = consensus_map.get(symbol)
+                if not consensus:
+                    continue
+                
+                market_data = get_market_data(symbol)
+                
+                rec = generate_recommendation(
+                    symbol=symbol,
+                    consensus=consensus,
+                    current_position=open_positions_map.get(symbol),
+                    recent_trades=recent_trades,
+                    open_position_count=open_count,
+                    max_positions=max_positions
+                )
+                
+                # Add risk levels for BUY
+                if rec["action"] == "BUY":
+                    risk_levels = calculate_risk_levels(symbol, consensus, market_data)
+                    rec.update(risk_levels)
+                
+                # Metadata
+                rec["priority"] = score_recommendation_priority(rec)
+                rec["close_price"] = market_data.get("close")
+                user_recs.append(rec)
+            
+            # Sort
+            user_recs.sort(key=lambda r: r["priority"], reverse=True)
+            
+            # Store & Update Positions
+            for rec in user_recs:
+                store_trade_recommendation(user_id, rec, trading_date)
+                
+                if rec["action"] == "BUY":
+                    open_new_position(user_id, rec, trading_date)
+                    open_count += 1
+                elif rec["action"] == "SELL":
+                    close_position(user_id, rec, trading_date)
+                    open_count -= 1
+            
+            # Summary log
+            buys = len([r for r in user_recs if r["action"] == "BUY"])
+            sells = len([r for r in user_recs if r["action"] == "SELL"])
+            print(f"    User {user_id}: {buys} BUY, {sells} SELL, {len(user_recs)-buys-sells} Other")
 
 
 if __name__ == "__main__":
