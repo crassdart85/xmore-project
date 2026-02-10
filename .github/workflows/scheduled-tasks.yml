@@ -9,8 +9,8 @@ on:
     # US + general data collection: 4:30 PM EST = 21:30 UTC (Mon-Fri)
     - cron: '30 21 * * 1-5'
 
-    # Daily predictions: 5:00 PM EST = 22:00 UTC (Mon-Fri, 30 min after data)
-    - cron: '0 22 * * 1-5'
+    # Daily predictions: 5:00 PM EST = 22:00 UTC (Sun-Fri to cover EGX and US)
+    - cron: '0 22 * * 0-5'
 
     # Hourly evaluation: Every hour
     - cron: '0 * * * *'
@@ -97,7 +97,7 @@ jobs:
           python sentiment.py
 
   daily-predictions:
-    if: github.event.schedule == '0 22 * * 1-5' || github.event_name == 'workflow_dispatch'
+    if: github.event.schedule == '0 22 * * 0-5' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
 
     steps:
@@ -120,6 +120,11 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: python run_agents.py
+
+      - name: Evaluate Trade Recommendations
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: python evaluate_trades.py
 
   hourly-evaluation:
     if: github.event.schedule == '0 * * * *' || github.event_name == 'workflow_dispatch'
