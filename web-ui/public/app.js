@@ -3,6 +3,13 @@
 // Phase 1 Upgrade: Performance Dashboard, TradingView, Consensus, Compliance
 // ============================================
 
+// Global error handler — surface JS errors visibly for debugging
+window.onerror = function(msg, url, line, col, error) {
+    console.error('Global error:', msg, url, line, col, error);
+    const el = document.getElementById('predictions');
+    if (el) el.innerHTML = `<p class="error-message">JS Error: ${msg} (line ${line})</p>`;
+};
+
 const API_URL = '/api';
 
 // ============================================
@@ -557,19 +564,31 @@ let agentPerformanceData = {};
 // ============================================
 
 window.addEventListener('load', () => {
-    applyLanguage();
-    initTabs();
-    loadTradingViewTicker();
+    try {
+        applyLanguage();
+        initTabs();
+        loadTradingViewTicker();
 
-    // Load all independent data in parallel
-    loadStats();
-    loadPerformance();
-    loadPerformanceDetailed();
-    loadEvaluations();
-    loadPrices();
+        // Load all independent data in parallel
+        loadStats();
+        loadPerformance();
+        loadPerformanceDetailed();
+        loadEvaluations();
+        loadPrices();
 
-    // Predictions need sentiment data for badges, so chain them
-    loadSentiment().then(() => loadPredictions());
+        // Predictions need sentiment data for badges, so chain them
+        loadSentiment()
+            .then(() => loadPredictions())
+            .catch(err => {
+                console.error('Failed loading predictions chain:', err);
+                const el = document.getElementById('predictions');
+                if (el) el.innerHTML = `<p class="error-message">Failed to load: ${err.message}</p>`;
+            });
+    } catch (err) {
+        console.error('Load handler error:', err);
+        const el = document.getElementById('predictions');
+        if (el) el.innerHTML = `<p class="error-message">Init error: ${err.message}</p>`;
+    }
 });
 
 document.getElementById('langBtn')?.addEventListener('click', switchLanguage);
