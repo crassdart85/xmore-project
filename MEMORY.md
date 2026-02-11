@@ -192,6 +192,28 @@ Stock trading prediction system with web dashboard. Uses multiple AI agents to p
 - Prediction horizon: 1 day (changed from 7 days for faster evaluation)
 
 ## Recent Changes (Feb 2026)
+- **Institutional Dashboard UX Upgrade (Feb 12, 2026)**:
+  - Added **Global Performance Snapshot Bar** under header with live-only badge, 30D alpha vs EGX30, 30D Sharpe, 30D max drawdown, 30D rolling win rate, and 100-trade progress bar
+  - Refactored **Predictions tab** to be **stock-first** (consensus signal, agreement %, conviction, recent symbol accuracy) with expandable per-agent breakdown and structured "Why This Signal?" grid
+  - Rebuilt **Performance tab** into institutional section flow:
+    - Proof of Edge (alpha/sharpe/drawdown + upgraded equity curve)
+    - Stability Metrics (30/60/90 + volatility + profit factor)
+    - Agent Accountability (sortable comparison fields + mini weight visual)
+    - Transparency & Integrity (immutable history table, audit modal, trade-threshold progress)
+    - Since Inception summary block
+  - Added **System Health badge** logic on Performance tab:
+    - Stable: Sharpe > 1, positive alpha, drawdown controlled
+    - Watch: borderline metrics
+    - Degraded: weakening profile
+  - Upgraded **equity curve chart** (canvas) with:
+    - Hover tooltip (Xmore return, EGX30 return, alpha)
+    - Toggle benchmark line on/off
+    - Toggle drawdown shading on/off
+    - Mobile-responsive interaction model
+  - Expanded `/api/performance-v2/summary` output to include:
+    - Global: `sharpe_ratio`, `max_drawdown`, `volatility`, `profit_factor`
+    - Rolling: `30d`, `60d`, `90d` windows with risk and stability fields
+  - Preserved bilingual support (EN/AR), RTL/LTR consistency, dark/light mode behavior, and responsive layout
 - **Bug Fixes (Critical)**:
   - Fixed `init-db.js` missing `sentiment_scores` table creation (sync with `database.py`)
   - Fixed `agents/agent_ma.py` off-by-one error and "fresh crossover" logic flaw
