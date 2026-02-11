@@ -192,6 +192,11 @@ Stock trading prediction system with web dashboard. Uses multiple AI agents to p
 - Prediction horizon: 1 day (changed from 7 days for faster evaluation)
 
 ## Recent Changes (Feb 2026)
+- **Frontend Stability Guard (Feb 12, 2026)**:
+  - Fixed critical browser stack overflow in `web-ui/public/briefing.js` caused by recursive global export (`window.loadBriefing` self-call loop)
+  - Corrected export to direct binding: `window.loadBriefing = loadBriefing;`
+  - Added `web-ui/scripts/check-frontend-exports.js` to fail builds on recursive `window.*` export wrappers
+  - Added `npm run check` in `web-ui/package.json` to run recursion guard + `node --check` on frontend JS files
 - **Institutional Dashboard UX Upgrade (Feb 12, 2026)**:
   - Added **Global Performance Snapshot Bar** under header with live-only badge, 30D alpha vs EGX30, 30D Sharpe, 30D max drawdown, 30D rolling win rate, and 100-trade progress bar
   - Refactored **Predictions tab** to be **stock-first** (consensus signal, agreement %, conviction, recent symbol accuracy) with expandable per-agent breakdown and structured "Why This Signal?" grid

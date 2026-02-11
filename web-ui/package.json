@@ -4,7 +4,8 @@
   "description": "Web UI for Stock Trading System",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "check": "node scripts/check-frontend-exports.js && node --check public/app.js && node --check public/auth.js && node --check public/briefing.js && node --check public/performance-dashboard.js && node --check public/trades.js && node --check public/watchlist.js"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",

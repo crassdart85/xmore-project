@@ -601,9 +601,7 @@ function renderSentimentSnapshot(sentiment) {
 // ============================================
 // GLOBAL EXPORTS
 // ============================================
-window.loadBriefing = function () {
-    loadBriefing();
-};
+window.loadBriefing = loadBriefing;
 
 window.updateBriefingLanguage = function () {
     // Re-render with current language
