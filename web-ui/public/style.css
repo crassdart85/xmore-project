@@ -2503,3 +2503,166 @@ footer {
     font-weight: 600;
     margin: 0 0 12px 0;
 }
+
+/* ============================================
+   GLOBAL PERFORMANCE SNAPSHOT BAR
+   ============================================ */
+.global-snapshot-bar {
+    margin: -14px 0 24px;
+    padding: 14px;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    background: var(--card-bg);
+}
+
+.global-snapshot-head {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 10px;
+}
+
+.live-only-pill {
+    font-size: 12px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 999px;
+    border: 1px solid #16a34a;
+    color: #16a34a;
+    background: rgba(22, 163, 74, 0.12);
+}
+
+.global-snapshot-grid {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(120px, 1fr));
+    gap: 10px;
+}
+
+.global-snapshot-card {
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 10px;
+    background: var(--container-bg);
+}
+
+.global-snapshot-card.positive {
+    border-color: rgba(22, 163, 74, 0.4);
+}
+
+.global-snapshot-card.negative {
+    border-color: rgba(220, 38, 38, 0.4);
+}
+
+.global-snapshot-card.neutral {
+    border-color: rgba(245, 158, 11, 0.4);
+}
+
+.global-snapshot-label {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.global-snapshot-value {
+    margin-top: 6px;
+    font-size: 20px;
+    font-weight: 800;
+    color: var(--text-primary);
+}
+
+.global-snapshot-card.span-2 {
+    grid-column: span 1;
+}
+
+.global-progress-track {
+    margin-top: 8px;
+    height: 8px;
+    background: var(--border-color);
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.global-progress-fill {
+    display: block;
+    height: 100%;
+    background: linear-gradient(90deg, #16a34a, #22c55e);
+}
+
+.global-snapshot-empty {
+    color: var(--text-secondary);
+    font-size: 0.9em;
+}
+
+/* ============================================
+   PREDICTIONS V2
+   ============================================ */
+.predictions-v2-table .pred-stock-row td {
+    vertical-align: middle;
+}
+
+.pred-detail-row td {
+    background: var(--card-bg);
+}
+
+.signal-why-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.signal-why-title {
+    grid-column: 1 / -1;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.signal-why-item {
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 8px;
+}
+
+.signal-why-item span {
+    display: block;
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin-bottom: 4px;
+}
+
+.signal-why-item strong {
+    font-size: 13px;
+    color: var(--text-primary);
+}
+
+.pred-agent-breakdown {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.pred-agent-row {
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 8px;
+    display: grid;
+    grid-template-columns: 1.2fr 0.8fr 2fr;
+    gap: 8px;
+    align-items: center;
+}
+
+.pred-reason {
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+
+@media (max-width: 900px) {
+    .global-snapshot-grid {
+        grid-template-columns: repeat(2, minmax(120px, 1fr));
+    }
+    .signal-why-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+    .pred-agent-row {
+        grid-template-columns: 1fr;
+    }
+}

@@ -1,558 +1,263 @@
-/* ============================================
-   Performance Dashboard Styles
-   Investor-grade, premium look
-   ============================================ */
-
-/* ─── HEADER ──────────────────────────────────────────────── */
-
-.perf-header {
-    margin-bottom: 1.5rem;
-}
-
-.perf-main-title {
-    font-size: 1.6rem;
-    font-weight: 800;
-    margin: 0 0 0.75rem;
-    background: linear-gradient(135deg, #00e676, #00b0ff);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-}
-
-.perf-disclaimer-banner {
-    background: rgba(255, 193, 7, 0.1);
-    border: 1px solid rgba(255, 193, 7, 0.25);
-    border-radius: 8px;
-    padding: 0.6rem 1rem;
-    font-size: 0.82rem;
-    color: var(--text-secondary, #888);
-    line-height: 1.5;
-}
-
-/* ─── SECTIONS ────────────────────────────────────────────── */
-
 .perf-section {
-    margin-bottom: 2rem;
+    margin-bottom: 18px;
 }
 
 .perf-section h3 {
-    font-size: 1.15rem;
-    font-weight: 700;
-    margin: 0 0 1rem;
-    color: var(--text-primary, #eee);
-    padding-bottom: 0.5rem;
-    border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+    margin: 0 0 10px;
+    font-size: 1rem;
+    color: var(--text-primary);
 }
 
-/* ─── KEY METRICS GRID ────────────────────────────────────── */
+.perf-health {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    background: var(--card-bg);
+}
 
-.perf-metrics-grid {
+.perf-health.stable { border-color: rgba(22, 163, 74, 0.45); }
+.perf-health.watch { border-color: rgba(245, 158, 11, 0.45); }
+.perf-health.degraded { border-color: rgba(220, 38, 38, 0.45); }
+
+.perf-health-title {
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.perf-health-state {
+    font-weight: 800;
+}
+
+.perf-health-note {
+    color: var(--text-secondary);
+    font-size: 12px;
+}
+
+.perf-proof-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-    gap: 1rem;
+    grid-template-columns: repeat(4, minmax(140px, 1fr));
+    gap: 10px;
 }
 
 .perf-metric-card {
-    background: var(--card-bg, rgba(255, 255, 255, 0.04));
-    border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
-    border-radius: 12px;
-    padding: 1.25rem 1rem;
-    text-align: center;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-}
-
-.perf-metric-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 20px rgba(0, 230, 118, 0.1);
-}
-
-.perf-metric-card.positive {
-    border-color: rgba(0, 230, 118, 0.3);
-    background: rgba(0, 230, 118, 0.05);
-}
-
-.perf-metric-card.negative {
-    border-color: rgba(255, 82, 82, 0.3);
-    background: rgba(255, 82, 82, 0.05);
-}
-
-.perf-metric-value {
-    font-size: 1.8rem;
-    font-weight: 800;
-    color: var(--text-primary, #fff);
-    line-height: 1.2;
-}
-
-.perf-metric-card.positive .perf-metric-value {
-    color: #00e676;
-}
-
-.perf-metric-card.negative .perf-metric-value {
-    color: #ff5252;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 10px;
+    background: var(--card-bg);
 }
 
 .perf-metric-label {
-    font-size: 0.78rem;
-    color: var(--text-secondary, #888);
-    margin-top: 0.4rem;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    font-weight: 600;
+    font-size: 12px;
+    color: var(--text-secondary);
 }
 
-.perf-min-banner {
-    margin-top: 0.75rem;
-    padding: 0.5rem 0.75rem;
-    background: rgba(255, 193, 7, 0.08);
-    border-radius: 6px;
-    font-size: 0.82rem;
-    color: var(--text-warning, #ffc107);
-    text-align: center;
+.perf-metric-value {
+    margin-top: 4px;
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--text-primary);
 }
 
-/* ─── EQUITY CURVE ────────────────────────────────────────── */
+.perf-metric-card.positive .perf-metric-value { color: #16a34a; }
+.perf-metric-card.negative .perf-metric-value { color: #dc2626; }
+.perf-metric-card.neutral .perf-metric-value { color: #d97706; }
 
-.perf-period-tabs {
+.perf-section-head {
+    margin-top: 12px;
     display: flex;
-    gap: 0.5rem;
-    margin-bottom: 1rem;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.perf-chart-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.perf-chart-controls label {
+    font-size: 12px;
+    color: var(--text-secondary);
 }
 
 .perf-period-btn {
-    padding: 0.35rem 0.75rem;
-    border-radius: 6px;
-    border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 4px 8px;
     background: transparent;
-    color: var(--text-secondary, #888);
-    font-size: 0.82rem;
-    font-weight: 600;
+    color: var(--text-secondary);
     cursor: pointer;
-    transition: all 0.2s;
+    font-weight: 700;
 }
 
-.perf-period-btn.active,
-.perf-period-btn:hover {
-    background: var(--accent, #00e676);
-    color: #000;
-    border-color: var(--accent, #00e676);
+.perf-period-btn.active {
+    background: var(--text-primary);
+    color: var(--container-bg);
 }
 
-.perf-chart-container {
-    background: var(--card-bg, rgba(255, 255, 255, 0.02));
-    border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
-    border-radius: 12px;
-    padding: 1rem;
-    overflow: hidden;
+.perf-chart-wrap {
+    position: relative;
+    margin-top: 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 6px;
+    background: var(--container-bg);
 }
 
-.perf-chart-container canvas {
-    width: 100% !important;
-    height: 350px;
+#equityCurveCanvas {
+    width: 100%;
+    height: 330px;
+    display: block;
+}
+
+.perf-chart-tooltip {
+    display: none;
+    position: absolute;
+    z-index: 2;
+    min-width: 140px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 8px;
+    font-size: 12px;
+    line-height: 1.45;
+    background: var(--container-bg);
+    color: var(--text-primary);
+    pointer-events: none;
 }
 
 .perf-chart-legend {
+    margin-top: 8px;
     display: flex;
-    gap: 1.5rem;
-    justify-content: center;
-    padding: 0.75rem 0 0;
-    font-size: 0.85rem;
-    font-weight: 600;
+    gap: 14px;
+    color: var(--text-secondary);
+    font-size: 12px;
 }
-
-.legend-xmore {
-    color: #00e676;
-}
-
-.legend-egx {
-    color: var(--text-secondary, #888);
-}
-
-.legend-alpha {
-    color: #00b0ff;
-}
-
-/* ─── TABLES ──────────────────────────────────────────────── */
 
 .perf-table-wrapper {
     overflow-x: auto;
+    border: 1px solid var(--border-color);
     border-radius: 10px;
-    border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
 }
 
 .perf-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 0.88rem;
 }
 
-.perf-table thead th {
-    background: var(--card-bg, rgba(255, 255, 255, 0.04));
-    padding: 0.7rem 1rem;
+.perf-table th,
+.perf-table td {
+    padding: 9px 10px;
+    border-bottom: 1px solid var(--border-light);
     text-align: left;
-    font-weight: 600;
-    color: var(--text-secondary, #999);
-    text-transform: uppercase;
-    font-size: 0.75rem;
-    letter-spacing: 0.5px;
-    border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.08));
 }
 
-.perf-table tbody td {
-    padding: 0.65rem 1rem;
-    border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.04));
-    color: var(--text-primary, #eee);
+.perf-table th {
+    background: var(--table-header-bg);
+    color: var(--text-secondary);
+    font-size: 12px;
 }
 
-.perf-table tbody tr:hover {
-    background: rgba(255, 255, 255, 0.02);
+.mini-weight {
+    width: 100%;
+    height: 8px;
+    border-radius: 999px;
+    overflow: hidden;
+    background: var(--border-color);
 }
 
-.perf-table tbody tr:last-child td {
-    border-bottom: none;
+.mini-weight span {
+    display: block;
+    height: 100%;
+    background: #16a34a;
 }
 
-.agent-name-cell {
-    font-weight: 600;
-}
-
-.perf-badge {
-    display: inline-block;
-    padding: 0.2rem 0.5rem;
-    border-radius: 4px;
-    font-size: 0.82rem;
-    font-weight: 700;
-}
-
-.perf-badge.positive {
-    background: rgba(0, 230, 118, 0.12);
-    color: #00e676;
-}
-
-.perf-badge.negative {
-    background: rgba(255, 82, 82, 0.12);
-    color: #ff5252;
-}
-
-.text-positive {
-    color: #00e676 !important;
-}
-
-.text-negative {
-    color: #ff5252 !important;
-}
-
-.perf-table-actions {
-    display: flex;
-    gap: 0.75rem;
-    margin-top: 0.75rem;
-    justify-content: center;
-}
-
-.perf-action-btn {
-    padding: 0.45rem 1.1rem;
+.perf-integrity-banner {
+    margin-bottom: 8px;
+    border: 1px solid rgba(22, 163, 74, 0.4);
+    background: rgba(22, 163, 74, 0.09);
+    color: #15803d;
     border-radius: 8px;
-    border: 1px solid var(--accent, #00e676);
-    background: transparent;
-    color: var(--accent, #00e676);
-    font-size: 0.82rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
+    padding: 8px;
+    font-size: 12px;
 }
 
-.perf-action-btn:hover {
-    background: var(--accent, #00e676);
-    color: #000;
-}
-
-.perf-action-btn.secondary {
-    border-color: var(--text-secondary, #888);
-    color: var(--text-secondary, #888);
-}
-
-.perf-action-btn.secondary:hover {
-    background: var(--text-secondary, #888);
-    color: #000;
-}
-
-/* ─── BEST / WORST STOCKS ─────────────────────────────────── */
-
-.perf-best-worst {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1.5rem;
-}
-
-.perf-best h4,
-.perf-worst h4 {
-    font-size: 0.9rem;
-    font-weight: 600;
-    margin: 0 0 0.5rem;
-    color: var(--text-secondary, #aaa);
-}
-
-.stock-chips {
+.perf-actions {
+    margin-top: 10px;
     display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
+    gap: 8px;
 }
 
-.stock-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    padding: 0.35rem 0.65rem;
-    border-radius: 6px;
-    font-size: 0.82rem;
-    font-weight: 500;
+.integrity-progress {
+    margin-top: 10px;
+    position: relative;
+    height: 10px;
+    border-radius: 999px;
+    background: var(--border-color);
+    overflow: hidden;
 }
 
-.stock-chip.positive {
-    background: rgba(0, 230, 118, 0.08);
-    border: 1px solid rgba(0, 230, 118, 0.2);
-    color: #00e676;
+.integrity-progress span {
+    display: block;
+    height: 100%;
+    background: linear-gradient(90deg, #16a34a, #22c55e);
 }
 
-.stock-chip.negative {
-    background: rgba(255, 82, 82, 0.08);
-    border: 1px solid rgba(255, 82, 82, 0.2);
-    color: #ff5252;
+.integrity-progress em {
+    margin-top: 6px;
+    display: block;
+    font-style: normal;
+    color: var(--text-secondary);
+    font-size: 12px;
 }
-
-/* ─── INTEGRITY ───────────────────────────────────────────── */
-
-.perf-integrity {
-    background: var(--card-bg, rgba(255, 255, 255, 0.02));
-    border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
-    border-radius: 12px;
-    padding: 1.25rem 1.5rem;
-}
-
-.perf-integrity h3 {
-    border-bottom: none;
-    padding-bottom: 0;
-}
-
-.integrity-items p {
-    margin: 0.35rem 0;
-    font-size: 0.88rem;
-    color: var(--text-secondary, #aaa);
-    line-height: 1.6;
-}
-
-/* ─── DISCLAIMER ──────────────────────────────────────────── */
-
-.perf-disclaimer-section {
-    background: rgba(255, 193, 7, 0.04);
-    border: 1px solid rgba(255, 193, 7, 0.12);
-    border-radius: 12px;
-    padding: 1.25rem 1.5rem;
-}
-
-.perf-disclaimer-section h3 {
-    border-bottom: none;
-    padding-bottom: 0;
-    color: rgba(255, 193, 7, 0.9);
-}
-
-.perf-disclaimer-section p {
-    font-size: 0.82rem;
-    color: var(--text-secondary, #888);
-    line-height: 1.6;
-    margin: 0.3rem 0;
-}
-
-.disclaimer-ar {
-    direction: rtl;
-    text-align: right;
-    opacity: 0.8;
-}
-
-/* ─── MODAL ───────────────────────────────────────────────── */
 
 .perf-modal-overlay {
     position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.7);
-    backdrop-filter: blur(4px);
+    inset: 0;
     display: flex;
-    align-items: center;
     justify-content: center;
-    z-index: 10000;
-    animation: fadeIn 0.2s ease;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.55);
+    z-index: 1000;
 }
 
 .perf-modal {
-    background: var(--bg-primary, #1a1a2e);
-    border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
-    border-radius: 16px;
-    padding: 2rem;
-    max-width: 900px;
-    width: 90%;
-    max-height: 80vh;
-    overflow-y: auto;
-    position: relative;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    width: min(980px, 92vw);
+    max-height: 82vh;
+    overflow: auto;
+    border-radius: 10px;
+    background: var(--container-bg);
+    border: 1px solid var(--border-color);
+    padding: 14px;
 }
 
 .perf-modal-close {
-    position: absolute;
-    top: 1rem;
-    right: 1rem;
+    float: right;
+    border: 0;
     background: transparent;
-    border: none;
-    color: var(--text-secondary, #999);
-    font-size: 1.5rem;
+    font-size: 20px;
     cursor: pointer;
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s;
+    color: var(--text-secondary);
 }
 
-.perf-modal-close:hover {
-    background: rgba(255, 255, 255, 0.1);
-    color: var(--text-primary, #fff);
-}
-
-.perf-modal h3 {
-    margin: 0 0 0.5rem;
-}
-
-.perf-modal p {
-    font-size: 0.85rem;
-    color: var(--text-secondary, #888);
-    margin-bottom: 1rem;
-}
-
-/* ─── SIGNAL BADGES ───────────────────────────────────────── */
-
-.signal-badge {
-    display: inline-block;
-    padding: 0.15rem 0.5rem;
-    border-radius: 4px;
-    font-size: 0.78rem;
-    font-weight: 700;
-    text-transform: uppercase;
-}
-
-.signal-bullish,
-.signal-up,
-.signal-buy {
-    background: rgba(0, 230, 118, 0.12);
-    color: #00e676;
-}
-
-.signal-bearish,
-.signal-down,
-.signal-sell {
-    background: rgba(255, 82, 82, 0.12);
-    color: #ff5252;
-}
-
-.signal-neutral,
-.signal-hold,
-.signal-flat {
-    background: rgba(255, 193, 7, 0.12);
-    color: #ffc107;
-}
-
-/* ─── ANIMATIONS ──────────────────────────────────────────── */
-
-@keyframes fadeIn {
-    from {
-        opacity: 0;
+@media (max-width: 900px) {
+    .perf-proof-grid {
+        grid-template-columns: repeat(2, minmax(120px, 1fr));
     }
-
-    to {
-        opacity: 1;
+    #equityCurveCanvas {
+        height: 260px;
     }
-}
-
-/* ─── RESPONSIVE ──────────────────────────────────────────── */
-
-@media (max-width: 768px) {
-    .perf-metrics-grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
-
-    .perf-best-worst {
-        grid-template-columns: 1fr;
-    }
-
-    .perf-modal {
-        padding: 1.25rem;
-        width: 95%;
-    }
-
-    .perf-main-title {
-        font-size: 1.2rem;
-    }
-
-    .perf-metric-value {
-        font-size: 1.4rem;
-    }
-
-    .perf-chart-legend {
+    .perf-actions {
         flex-direction: column;
-        align-items: center;
-        gap: 0.5rem;
     }
 }
 
-/* ─── RTL SUPPORT ─────────────────────────────────────────── */
-
-[dir="rtl"] .perf-table thead th,
-[dir="rtl"] .perf-table tbody td {
+[dir="rtl"] .perf-table th,
+[dir="rtl"] .perf-table td {
     text-align: right;
-}
-
-[dir="rtl"] .perf-modal-close {
-    right: auto;
-    left: 1rem;
-}
-
-/* ─── LIGHT THEME OVERRIDES ───────────────────────────────── */
-
-[data-theme="light"] .perf-metric-card {
-    background: rgba(0, 0, 0, 0.02);
-    border-color: rgba(0, 0, 0, 0.08);
-}
-
-[data-theme="light"] .perf-metric-card:hover {
-    box-shadow: 0 4px 20px rgba(0, 200, 83, 0.1);
-}
-
-[data-theme="light"] .perf-table thead th {
-    background: rgba(0, 0, 0, 0.03);
-}
-
-[data-theme="light"] .perf-table tbody tr:hover {
-    background: rgba(0, 0, 0, 0.02);
-}
-
-[data-theme="light"] .perf-chart-container {
-    background: rgba(0, 0, 0, 0.01);
-}
-
-[data-theme="light"] .perf-integrity {
-    background: rgba(0, 0, 0, 0.02);
-}
-
-[data-theme="light"] .perf-main-title {
-    background: linear-gradient(135deg, #00c853, #0091ea);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-}
-
-[data-theme="light"] .perf-modal {
-    background: #ffffff;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
 }

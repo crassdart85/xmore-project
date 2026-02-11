@@ -53,141 +53,137 @@ function ph(n) { return isPostgres ? `$${n}` : '?'; }
 // ─── PUBLIC: Overall performance summary ──────────────────────
 router.get('/summary', async (req, res) => {
     try {
-        const days = Math.min(parseInt(req.query.days) || 90, 365);
+        const days = Math.min(parseInt(req.query.days) || 365, 365);
         const liveFilter = isPostgres
             ? `is_live = TRUE`
             : `(is_live = 1 OR is_live IS NULL)`;
+        const dateFilter = isPostgres
+            ? `recommendation_date >= CURRENT_DATE - ${ph(1)}`
+            : `recommendation_date >= date('now', '-' || ${ph(1)} || ' days')`;
 
-        // Try materialized view first (faster, PostgreSQL only)
-        let globalData = null;
-        if (isPostgres) {
-            try {
-                const mvRows = await dbAll(`SELECT * FROM mv_performance_global`);
-                if (mvRows.length > 0) globalData = mvRows[0];
-            } catch (e) {
-                // Materialized view may not exist yet
-            }
-        }
-
-        // Fallback: compute live
-        if (!globalData) {
-            try {
-                globalData = await dbGet(`
-                    SELECT
-                        COUNT(*) AS total_predictions,
-                        SUM(CASE WHEN was_correct = ${boolTrue()} THEN 1 ELSE 0 END) AS wins,
-                        SUM(CASE WHEN was_correct = ${boolFalse()} THEN 1 ELSE 0 END) AS losses,
-                        ${isPostgres
-                        ? `ROUND((SUM(CASE WHEN was_correct = TRUE THEN 1 ELSE 0 END))::numeric / NULLIF(COUNT(*), 0) * 100, 1)`
-                        : `ROUND(CAST(SUM(CASE WHEN was_correct = 1 THEN 1 ELSE 0 END) AS REAL) / MAX(COUNT(*), 1) * 100, 1)`
-                    } AS win_rate,
-                        ${isPostgres ? 'ROUND(AVG(actual_next_day_return)::numeric, 3)' : 'ROUND(AVG(actual_next_day_return), 3)'} AS avg_return_1d,
-                        ${isPostgres ? 'ROUND(AVG(actual_5day_return)::numeric, 3)' : 'ROUND(AVG(actual_5day_return), 3)'} AS avg_return_5d,
-                        ${isPostgres ? 'ROUND(AVG(alpha_1d)::numeric, 3)' : 'ROUND(AVG(alpha_1d), 3)'} AS avg_alpha_1d,
-                        ${isPostgres ? 'ROUND(AVG(benchmark_1d_return)::numeric, 3)' : 'ROUND(AVG(benchmark_1d_return), 3)'} AS avg_benchmark_1d,
-                        ${isPostgres ? "COUNT(*) FILTER (WHERE alpha_1d > 0)" : "SUM(CASE WHEN alpha_1d > 0 THEN 1 ELSE 0 END)"} AS beat_benchmark_count,
-                        MIN(recommendation_date) AS first_prediction,
-                        MAX(recommendation_date) AS last_prediction,
-                        COUNT(*) >= 100 AS meets_minimum
-                    FROM trade_recommendations
-                    WHERE was_correct IS NOT NULL
-                    AND ${liveFilter}
-                `);
-            } catch (e) {
-                if (isTableMissing(e)) {
-                    return res.json({ available: false, message: 'No resolved predictions yet.' });
-                }
-                throw e;
-            }
-        }
-
-        if (!globalData || parseInt(globalData.total_predictions || 0) === 0) {
-            return res.json({ available: false, message: 'No resolved predictions yet.' });
-        }
-
-        const g = globalData;
-
-        // Rolling metrics
-        let rolling = {};
+        let rows = [];
         try {
-            const dateFilter30 = isPostgres
-                ? `recommendation_date >= CURRENT_DATE - 30`
-                : `recommendation_date >= date('now', '-30 days')`;
-            const dateFilter90 = isPostgres
-                ? `recommendation_date >= CURRENT_DATE - 90`
-                : `recommendation_date >= date('now', '-90 days')`;
-
-            const rollingData = await dbGet(`
-                SELECT
-                    ${isPostgres
-                    ? `COUNT(*) FILTER (WHERE ${dateFilter30})`
-                    : `SUM(CASE WHEN ${dateFilter30} THEN 1 ELSE 0 END)`
-                } AS trades_30d,
-                    ${isPostgres
-                    ? `ROUND((COUNT(*) FILTER (WHERE was_correct = TRUE AND ${dateFilter30}))::numeric
-                            / NULLIF(COUNT(*) FILTER (WHERE ${dateFilter30}), 0) * 100, 1)`
-                    : `ROUND(CAST(SUM(CASE WHEN was_correct = 1 AND ${dateFilter30} THEN 1 ELSE 0 END) AS REAL)
-                            / MAX(SUM(CASE WHEN ${dateFilter30} THEN 1 ELSE 0 END), 1) * 100, 1)`
-                } AS win_rate_30d,
-                    ${isPostgres
-                    ? `ROUND(AVG(alpha_1d) FILTER (WHERE ${dateFilter30})::numeric, 3)`
-                    : `ROUND(AVG(CASE WHEN ${dateFilter30} THEN alpha_1d ELSE NULL END), 3)`
-                } AS alpha_30d,
-                    ${isPostgres
-                    ? `COUNT(*) FILTER (WHERE ${dateFilter90})`
-                    : `SUM(CASE WHEN ${dateFilter90} THEN 1 ELSE 0 END)`
-                } AS trades_90d,
-                    ${isPostgres
-                    ? `ROUND((COUNT(*) FILTER (WHERE was_correct = TRUE AND ${dateFilter90}))::numeric
-                            / NULLIF(COUNT(*) FILTER (WHERE ${dateFilter90}), 0) * 100, 1)`
-                    : `ROUND(CAST(SUM(CASE WHEN was_correct = 1 AND ${dateFilter90} THEN 1 ELSE 0 END) AS REAL)
-                            / MAX(SUM(CASE WHEN ${dateFilter90} THEN 1 ELSE 0 END), 1) * 100, 1)`
-                } AS win_rate_90d,
-                    ${isPostgres
-                    ? `ROUND(AVG(alpha_1d) FILTER (WHERE ${dateFilter90})::numeric, 3)`
-                    : `ROUND(AVG(CASE WHEN ${dateFilter90} THEN alpha_1d ELSE NULL END), 3)`
-                } AS alpha_90d
+            rows = await dbAll(`
+                SELECT recommendation_date, actual_next_day_return, benchmark_1d_return, alpha_1d, was_correct
                 FROM trade_recommendations
-                WHERE was_correct IS NOT NULL AND ${liveFilter}
-            `);
-
-            if (rollingData) {
-                rolling = {
-                    "30d": {
-                        trades: parseInt(rollingData.trades_30d) || 0,
-                        win_rate: parseFloat(rollingData.win_rate_30d) || 0,
-                        alpha: parseFloat(rollingData.alpha_30d) || 0
-                    },
-                    "90d": {
-                        trades: parseInt(rollingData.trades_90d) || 0,
-                        win_rate: parseFloat(rollingData.win_rate_90d) || 0,
-                        alpha: parseFloat(rollingData.alpha_90d) || 0
-                    }
-                };
-            }
+                WHERE actual_next_day_return IS NOT NULL
+                AND ${liveFilter}
+                AND ${dateFilter}
+                ORDER BY recommendation_date ASC
+            `, [days]);
         } catch (e) {
-            console.warn('Rolling metrics failed:', e.message);
+            if (isTableMissing(e)) return res.json({ available: false, message: 'No resolved predictions yet.' });
+            throw e;
         }
+        if (!rows.length) return res.json({ available: false, message: 'No resolved predictions yet.' });
+
+        const toNum = (v) => Number(v || 0);
+        const asDate = (d) => new Date(d);
+        const mean = (arr) => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : 0;
+        const stdev = (arr) => {
+            if (arr.length < 2) return 0;
+            const m = mean(arr);
+            const variance = arr.reduce((acc, v) => acc + ((v - m) ** 2), 0) / (arr.length - 1);
+            return Math.sqrt(Math.max(variance, 0));
+        };
+        const calcMaxDrawdown = (returnsArr) => {
+            let cum = 0;
+            let peak = 0;
+            let maxDd = 0;
+            returnsArr.forEach(r => {
+                cum += r;
+                if (cum > peak) peak = cum;
+                const dd = peak - cum;
+                if (dd > maxDd) maxDd = dd;
+            });
+            return maxDd;
+        };
+        const calcProfitFactor = (returnsArr) => {
+            const grossProfit = returnsArr.filter(v => v > 0).reduce((a, b) => a + b, 0);
+            const grossLoss = Math.abs(returnsArr.filter(v => v < 0).reduce((a, b) => a + b, 0));
+            if (grossLoss === 0) return grossProfit > 0 ? 99 : 0;
+            return grossProfit / grossLoss;
+        };
+        const buildStats = (subset) => {
+            const total = subset.length;
+            const returnsArr = subset.map(r => toNum(r.actual_next_day_return));
+            const alphaArr = subset.map(r => r.alpha_1d == null ? toNum(r.actual_next_day_return) - toNum(r.benchmark_1d_return) : toNum(r.alpha_1d));
+            const benchArr = subset.map(r => toNum(r.benchmark_1d_return));
+            const wins = subset.filter(r => r.was_correct === true || r.was_correct === 1 || r.was_correct === 't').length;
+            const vol = stdev(returnsArr) * Math.sqrt(252);
+            const sharpe = stdev(alphaArr) > 0 ? (mean(alphaArr) / stdev(alphaArr)) * Math.sqrt(252) : 0;
+            return {
+                trades: total,
+                wins,
+                losses: total - wins,
+                win_rate: total ? (wins / total) * 100 : 0,
+                avg_return_1d: mean(returnsArr),
+                avg_alpha_1d: mean(alphaArr),
+                avg_benchmark_1d: mean(benchArr),
+                beat_benchmark_count: alphaArr.filter(a => a > 0).length,
+                volatility: vol,
+                sharpe_ratio: sharpe,
+                max_drawdown: calcMaxDrawdown(returnsArr),
+                profit_factor: calcProfitFactor(returnsArr)
+            };
+        };
+
+        const allStats = buildStats(rows);
+        const latestDate = asDate(rows[rows.length - 1].recommendation_date);
+        const filterDays = (n) => rows.filter(r => (latestDate - asDate(r.recommendation_date)) <= (n * 24 * 3600 * 1000));
+        const r30 = buildStats(filterDays(30));
+        const r60 = buildStats(filterDays(60));
+        const r90 = buildStats(filterDays(90));
 
         return res.json({
             available: true,
             global: {
-                total_predictions: parseInt(g.total_predictions) || 0,
-                wins: parseInt(g.wins) || 0,
-                losses: parseInt(g.losses) || 0,
-                win_rate: parseFloat(g.win_rate) || 0,
-                avg_return_1d: parseFloat(g.avg_return_1d) || 0,
-                avg_return_5d: parseFloat(g.avg_return_5d) || 0,
-                avg_alpha_1d: parseFloat(g.avg_alpha_1d) || 0,
-                avg_benchmark_1d: parseFloat(g.avg_benchmark_1d) || 0,
-                beat_benchmark_pct: parseInt(g.total_predictions) > 0
-                    ? Math.round((parseInt(g.beat_benchmark_count) || 0) / parseInt(g.total_predictions) * 100)
-                    : 0,
-                meets_minimum: g.meets_minimum === true || g.meets_minimum === 't',
-                first_prediction: g.first_prediction,
-                last_prediction: g.last_prediction
+                total_predictions: allStats.trades,
+                wins: allStats.wins,
+                losses: allStats.losses,
+                win_rate: Number(allStats.win_rate.toFixed(1)),
+                avg_return_1d: Number(allStats.avg_return_1d.toFixed(3)),
+                avg_return_5d: 0,
+                avg_alpha_1d: Number(allStats.avg_alpha_1d.toFixed(3)),
+                avg_benchmark_1d: Number(allStats.avg_benchmark_1d.toFixed(3)),
+                beat_benchmark_pct: allStats.trades ? Math.round((allStats.beat_benchmark_count / allStats.trades) * 100) : 0,
+                meets_minimum: allStats.trades >= 100,
+                first_prediction: rows[0].recommendation_date,
+                last_prediction: rows[rows.length - 1].recommendation_date,
+                sharpe_ratio: Number(allStats.sharpe_ratio.toFixed(3)),
+                max_drawdown: Number(allStats.max_drawdown.toFixed(3)),
+                volatility: Number(allStats.volatility.toFixed(3)),
+                profit_factor: Number(allStats.profit_factor.toFixed(3))
             },
-            rolling,
+            rolling: {
+                "30d": {
+                    trades: r30.trades,
+                    win_rate: Number(r30.win_rate.toFixed(1)),
+                    alpha: Number(r30.avg_alpha_1d.toFixed(3)),
+                    sharpe_ratio: Number(r30.sharpe_ratio.toFixed(3)),
+                    max_drawdown: Number(r30.max_drawdown.toFixed(3)),
+                    volatility: Number(r30.volatility.toFixed(3)),
+                    profit_factor: Number(r30.profit_factor.toFixed(3))
+                },
+                "60d": {
+                    trades: r60.trades,
+                    win_rate: Number(r60.win_rate.toFixed(1)),
+                    alpha: Number(r60.avg_alpha_1d.toFixed(3)),
+                    sharpe_ratio: Number(r60.sharpe_ratio.toFixed(3)),
+                    max_drawdown: Number(r60.max_drawdown.toFixed(3)),
+                    volatility: Number(r60.volatility.toFixed(3)),
+                    profit_factor: Number(r60.profit_factor.toFixed(3))
+                },
+                "90d": {
+                    trades: r90.trades,
+                    win_rate: Number(r90.win_rate.toFixed(1)),
+                    alpha: Number(r90.avg_alpha_1d.toFixed(3)),
+                    sharpe_ratio: Number(r90.sharpe_ratio.toFixed(3)),
+                    max_drawdown: Number(r90.max_drawdown.toFixed(3)),
+                    volatility: Number(r90.volatility.toFixed(3)),
+                    profit_factor: Number(r90.profit_factor.toFixed(3))
+                }
+            },
             disclaimer: "All metrics are from live predictions only. No backfilled or backtested data is included in these figures."
         });
     } catch (err) {

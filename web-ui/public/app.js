@@ -145,6 +145,27 @@ const TRANSLATIONS = {
 
         // Search
         searchPlaceholder: 'Search by stock symbol or company name...',
+        liveOnlyData: 'Live-Only Data',
+        snapshotAlpha30d: '30-Day Alpha vs EGX30',
+        snapshotSharpe30d: 'Sharpe Ratio (30D)',
+        snapshotMaxDd30d: 'Max Drawdown (30D)',
+        snapshotWinRate30d: 'Rolling Win Rate (30D)',
+        snapshotTrades: 'Total Live Trades',
+        consensusSignal: 'Consensus Signal',
+        agreement: 'Agreement',
+        recentAccuracySymbol: 'Recent Accuracy',
+        whySignal: 'Why This Signal?',
+        expandDetails: 'Details',
+        trend: 'Trend',
+        momentum: 'Momentum',
+        volumeState: 'Volume',
+        sentimentState: 'Sentiment',
+        agentAgreement: 'Agent agreement',
+        tooltipAlpha: 'Average 1-day alpha in the latest 30-day live window versus EGX30.',
+        tooltipSharpe: 'Risk-adjusted return quality in the latest 30-day live window.',
+        tooltipMaxDd: 'Largest peak-to-trough decline in cumulative returns over 30 days.',
+        tooltipWinRate: 'Share of correct resolved live predictions over the latest 30 days.',
+        tooltipTrades: 'Resolved live predictions included in public metrics. Target: 100+.',
 
         // Language
         switchLang: 'عربي',
@@ -265,6 +286,27 @@ const TRANSLATIONS = {
         refreshing: 'جاري التحديث...',
 
         searchPlaceholder: 'البحث برمز السهم أو اسم الشركة...',
+        liveOnlyData: 'بيانات حية فقط',
+        snapshotAlpha30d: 'ألفا 30 يوم مقابل EGX30',
+        snapshotSharpe30d: 'نسبة شارب (30 يوم)',
+        snapshotMaxDd30d: 'أقصى تراجع (30 يوم)',
+        snapshotWinRate30d: 'نسبة الفوز المتحركة (30 يوم)',
+        snapshotTrades: 'إجمالي الصفقات الحية',
+        consensusSignal: 'إشارة الإجماع',
+        agreement: 'نسبة الاتفاق',
+        recentAccuracySymbol: 'الدقة الحديثة',
+        whySignal: 'لماذا هذه الإشارة؟',
+        expandDetails: 'التفاصيل',
+        trend: 'الاتجاه',
+        momentum: 'الزخم',
+        volumeState: 'الحجم',
+        sentimentState: 'المشاعر',
+        agentAgreement: 'اتفاق الوكلاء',
+        tooltipAlpha: 'متوسط ألفا يومي خلال آخر 30 يوما حيا مقابل EGX30.',
+        tooltipSharpe: 'جودة العائد المعدل بالمخاطر خلال آخر 30 يوما حيا.',
+        tooltipMaxDd: 'أكبر هبوط من قمة إلى قاع في العائد التراكمي خلال 30 يوما.',
+        tooltipWinRate: 'نسبة الإشارات الحية الصحيحة خلال آخر 30 يوما.',
+        tooltipTrades: 'التنبؤات الحية المحللة ضمن الإحصاءات العامة. الهدف: 100+.',
 
         switchLang: 'English',
 
@@ -402,6 +444,7 @@ async function switchLanguage() {
     loadEvaluations();
     loadPrices();
     loadTradingViewTicker();
+    loadGlobalSnapshotBar();
 }
 
 function applyLanguage() {
@@ -698,6 +741,85 @@ function loadTradingViewChart(symbol, containerId) {
 // ============================================
 
 let agentPerformanceData = {};
+let stockPerformanceMap = {};
+
+function trendFromSignal(signalKey) {
+    if (signalKey === 'up' || signalKey === 'bullish' || signalKey === 'buy') return t('bullish');
+    if (signalKey === 'down' || signalKey === 'bearish' || signalKey === 'sell') return t('bearish');
+    return t('neutral');
+}
+
+function parsePredictionMetadata(metaRaw) {
+    let meta = {};
+    if (typeof metaRaw === 'string') {
+        try { meta = JSON.parse(metaRaw); } catch (e) { meta = {}; }
+    } else if (metaRaw && typeof metaRaw === 'object') {
+        meta = metaRaw;
+    }
+
+    const rsi = meta.rsi || meta.RSI || meta.rsi_value || null;
+    const volume = meta.volume_signal || meta.volume || meta.volume_state || null;
+    const sentiment = meta.sentiment_label || meta.sentiment || null;
+    const momentum = rsi != null ? `RSI ${Number(rsi).toFixed(1)}` : (meta.momentum || 'N/A');
+
+    return {
+        trendPct: meta.trend_score || meta.trend_pct || meta.trend || null,
+        sentiment: sentiment || 'N/A',
+        volume: volume || 'N/A',
+        momentum,
+        reasoning: `Trend ${meta.trend_score ?? meta.trend_pct ?? 'N/A'} | Sentiment ${sentiment || 'N/A'} | Volume ${volume || 'N/A'} | Momentum ${momentum}`
+    };
+}
+
+async function loadGlobalSnapshotBar() {
+    const el = document.getElementById('globalPerfSnapshot');
+    if (!el) return;
+
+    try {
+        const response = await fetch('/api/performance-v2/summary');
+        const data = await response.json();
+        if (!data || !data.available) {
+            el.innerHTML = `<div class="global-snapshot-empty">${t('noPerformance')}</div>`;
+            return;
+        }
+
+        const g = data.global || {};
+        const r30 = data.rolling?.['30d'] || {};
+        const trades = g.total_predictions || 0;
+        const progressPct = Math.min(100, Math.round((trades / 100) * 100));
+        const sharpe = (r30.sharpe_ratio ?? g.sharpe_ratio ?? 0);
+        const maxDd = (r30.max_drawdown ?? g.max_drawdown ?? 0);
+        const alpha30 = (r30.alpha ?? 0);
+        const win30 = (r30.win_rate ?? 0);
+
+        const card = (label, value, cls, tooltip) => `
+            <div class="global-snapshot-card ${cls}" title="${tooltip}">
+                <div class="global-snapshot-label">${label}</div>
+                <div class="global-snapshot-value">${value}</div>
+            </div>
+        `;
+
+        el.innerHTML = `
+            <div class="global-snapshot-head">
+                <span class="live-only-pill">${t('liveOnlyData')}</span>
+            </div>
+            <div class="global-snapshot-grid">
+                ${card(t('snapshotAlpha30d'), `${alpha30 > 0 ? '+' : ''}${alpha30.toFixed(2)}%`, alpha30 > 0 ? 'positive' : alpha30 < 0 ? 'negative' : 'neutral', t('tooltipAlpha'))}
+                ${card(t('snapshotSharpe30d'), `${sharpe > 0 ? '+' : ''}${Number(sharpe).toFixed(2)}`, sharpe >= 1 ? 'positive' : sharpe > 0 ? 'neutral' : 'negative', t('tooltipSharpe'))}
+                ${card(t('snapshotMaxDd30d'), `${Number(maxDd).toFixed(2)}%`, maxDd <= 4 ? 'positive' : maxDd <= 8 ? 'neutral' : 'negative', t('tooltipMaxDd'))}
+                ${card(t('snapshotWinRate30d'), `${Number(win30).toFixed(1)}%`, win30 >= 55 ? 'positive' : win30 >= 45 ? 'neutral' : 'negative', t('tooltipWinRate'))}
+                <div class="global-snapshot-card span-2" title="${t('tooltipTrades')}">
+                    <div class="global-snapshot-label">${t('snapshotTrades')}</div>
+                    <div class="global-snapshot-value">${trades}</div>
+                    <div class="global-progress-track"><span class="global-progress-fill" style="width:${progressPct}%"></span></div>
+                </div>
+            </div>
+        `;
+    } catch (error) {
+        console.error('Error loading global snapshot bar:', error);
+        el.innerHTML = `<div class="global-snapshot-empty">${t('errorPerformance')}</div>`;
+    }
+}
 
 // ============================================
 // LOAD DATA ON PAGE LOAD
@@ -708,6 +830,7 @@ window.addEventListener('load', async () => {
         applyLanguage();
         initTabs();
         loadTradingViewTicker();
+        loadGlobalSnapshotBar();
 
         // Fetch watchlist symbols first (needed for filtering all tabs)
         await fetchUserWatchlistSymbols();
@@ -758,6 +881,7 @@ async function refreshData() {
         await loadSentiment();
         await Promise.all([
             loadStats(),
+            loadGlobalSnapshotBar(),
             loadPredictions(),
             loadConsensus(),
             loadPerformance(),
@@ -805,18 +929,23 @@ async function loadPredictions() {
     const container = document.getElementById('predictions');
 
     try {
-        const response = await fetch(`${API_URL}/predictions`);
-        if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
+        const [predRes, stockPerfRes] = await Promise.all([
+            fetch(`${API_URL}/predictions`),
+            fetch('/api/performance-v2/by-stock?days=90').catch(() => null)
+        ]);
+        if (!predRes.ok) throw new Error(`HTTP error: ${predRes.status}`);
 
-        const result = await response.json();
+        const result = await predRes.json();
         const data = Array.isArray(result) ? result : (result.predictions || []);
+        const stockPerfData = stockPerfRes && stockPerfRes.ok ? await stockPerfRes.json() : { stocks: [] };
+        stockPerformanceMap = {};
+        (stockPerfData.stocks || []).forEach(s => { stockPerformanceMap[s.symbol] = s; });
 
         if (!data || data.length === 0) {
             container.innerHTML = `<p class="no-data">${t('noPredictions')}</p>`;
             return;
         }
 
-        // Group predictions by stock symbol
         const grouped = {};
         data.forEach(pred => {
             if (!grouped[pred.symbol]) grouped[pred.symbol] = [];
@@ -825,23 +954,18 @@ async function loadPredictions() {
 
         const allSymbols = Object.keys(grouped);
 
-        // Logged-in users: show ONLY their watchlist stocks
         if (isLoggedIn()) {
             const watchlistSymbols = allSymbols.filter(s => userWatchlistSymbols.has(s));
-
             if (userWatchlistSymbols.size === 0) {
                 container.innerHTML = getWatchlistEmptyHtml();
                 return;
             }
-
             if (watchlistSymbols.length === 0) {
                 container.innerHTML = `<p class="no-data">${t('noPredictions')}</p>`;
                 return;
             }
-
             container.innerHTML = renderPredictionTable(grouped, watchlistSymbols, 'predictionsTable');
         } else {
-            // Not logged in: show all stocks
             container.innerHTML = renderPredictionTable(grouped, allSymbols, 'predictionsTable');
         }
     } catch (error) {
@@ -853,47 +977,79 @@ async function loadPredictions() {
 function renderPredictionTable(grouped, symbols, tableId) {
     if (symbols.length === 0) return '';
 
-    let html = `<table id="${tableId}"><thead><tr><th>${t('stock')}</th><th>${t('sentiment')}</th><th>${t('agent')}</th><th>${t('signal')}</th><th>${t('date')}</th></tr></thead><tbody>`;
+    let html = `<table id="${tableId}" class="predictions-v2-table"><thead><tr><th>${t('stock')}</th><th>${t('consensusSignal')}</th><th>${t('agreement')}</th><th>${t('conviction')}</th><th>${t('recentAccuracySymbol')}</th><th>${t('expandDetails')}</th></tr></thead><tbody>`;
 
     symbols.forEach(symbol => {
         const predictions = grouped[symbol];
         const companyName = getCompanyName(symbol);
         const searchText = `${symbol} ${companyName}`.toLowerCase();
-        const chartContainerId = `tv-chart-${symbol.replace('.', '-')}`;
+        const tally = { up: 0, down: 0, hold: 0 };
+        let confidenceSum = 0;
 
-        predictions.forEach((pred, index) => {
-            const agentDisplayName = getAgentDisplayName(pred.agent_name);
-            const agentDescription = getAgentDescription(pred.agent_name);
-            const signalKey = pred.prediction.toLowerCase();
-            const signalText = t(signalKey);
-            const agentAcc = agentPerformanceData[pred.agent_name];
-            const accBadge = agentAcc
-                ? `<span class="agent-accuracy-badge" title="${agentAcc.accuracy}% ${t('agentHistoryBadge')}">${agentAcc.accuracy}%</span>`
-                : '';
-
-            html += `<tr data-search="${searchText}" class="${index === 0 ? 'group-start' : 'group-row'}">`;
-
-            if (index === 0) {
-                html += `<td rowspan="${predictions.length}" class="stock-cell">
-                    <strong>${symbol}</strong><br>
-                    <small class="company-name">${companyName}</small>
-                    <div class="tv-chart-mini" id="${chartContainerId}" data-symbol="${symbol}" onclick="loadTradingViewChart('${symbol}', '${chartContainerId}')">
-                        <small class="chart-hint">📊 ${currentLang === 'ar' ? 'اضغط للرسم البياني' : 'Click for chart'}</small>
-                    </div>
-                </td>`;
-                html += `<td rowspan="${predictions.length}" class="sentiment-cell">${getSentimentBadge(symbol)}</td>`;
-            }
-
-            html += `
-                <td><span class="agent-name" title="${agentDescription}">${agentDisplayName}</span> ${accBadge}</td>
-                <td><span class="signal-${signalKey}">${signalText}</span></td>
-                <td>${formatDate(pred.prediction_date)}</td>
-            </tr>`;
+        const agentDetails = predictions.map(pred => {
+            const signalKey = (pred.prediction || 'hold').toLowerCase();
+            if (tally[signalKey] == null) tally[signalKey] = 0;
+            tally[signalKey] += 1;
+            const confidence = Number(pred.confidence || 0);
+            confidenceSum += confidence;
+            return {
+                agentDisplayName: getAgentDisplayName(pred.agent_name),
+                agentDescription: getAgentDescription(pred.agent_name),
+                signalKey,
+                signalText: t(signalKey),
+                confidence,
+                metadata: parsePredictionMetadata(pred.metadata)
+            };
         });
+
+        const consensusKey = Object.keys(tally).sort((a, b) => (tally[b] || 0) - (tally[a] || 0))[0] || 'hold';
+        const agreeCount = tally[consensusKey] || 0;
+        const agreementPct = predictions.length ? Math.round((agreeCount / predictions.length) * 100) : 0;
+        const convictionValue = predictions.length ? confidenceSum / predictions.length : 0;
+        const recentAcc = stockPerformanceMap[symbol]?.win_rate;
+        const detailsId = `pred-details-${symbol.replace('.', '-')}`;
+
+        html += `
+            <tr data-search="${searchText}" class="group-start pred-stock-row">
+                <td class="stock-cell"><strong>${symbol}</strong><br><small class="company-name">${companyName}</small></td>
+                <td><span class="signal-${consensusKey}">${t(consensusKey)}</span></td>
+                <td>${agreeCount}/${predictions.length} (${agreementPct}%)</td>
+                <td>${convictionValue.toFixed(1)}%</td>
+                <td>${recentAcc == null ? 'N/A' : `${Number(recentAcc).toFixed(1)}%`}</td>
+                <td><button class="perf-action-btn secondary" onclick="togglePredictionDetails('${detailsId}')">${t('expandDetails')}</button></td>
+            </tr>
+            <tr data-search="${searchText}" class="group-row hidden-row pred-detail-row" id="${detailsId}">
+                <td colspan="6">
+                    <div class="signal-why-grid">
+                        <div class="signal-why-title">${t('whySignal')}</div>
+                        <div class="signal-why-item"><span>${t('trend')}</span><strong>${trendFromSignal(consensusKey)}</strong></div>
+                        <div class="signal-why-item"><span>${t('momentum')}</span><strong>${agentDetails[0]?.metadata?.momentum || 'N/A'}</strong></div>
+                        <div class="signal-why-item"><span>${t('volumeState')}</span><strong>${agentDetails[0]?.metadata?.volume || 'N/A'}</strong></div>
+                        <div class="signal-why-item"><span>${t('sentimentState')}</span><strong>${agentDetails[0]?.metadata?.sentiment || 'N/A'}</strong></div>
+                        <div class="signal-why-item"><span>${t('agentAgreement')}</span><strong>${agreementPct}%</strong></div>
+                    </div>
+                    <div class="pred-agent-breakdown">
+                        ${agentDetails.map(d => `
+                            <div class="pred-agent-row">
+                                <div><span class="agent-name" title="${d.agentDescription}">${d.agentDisplayName}</span> <span class="signal-${d.signalKey}">${d.signalText}</span></div>
+                                <div>${t('conf')}: ${d.confidence.toFixed(1)}%</div>
+                                <div class="pred-reason">${d.metadata.reasoning}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </td>
+            </tr>
+        `;
     });
 
     html += '</tbody></table>';
     return html;
+}
+
+function togglePredictionDetails(id) {
+    const row = document.getElementById(id);
+    if (!row) return;
+    row.classList.toggle('hidden-row');
 }
 
 // ============================================
@@ -903,7 +1059,6 @@ function renderPredictionTable(grouped, symbols, tableId) {
 function filterPredictions() {
     const searchValue = document.getElementById('predictionsSearch').value.toLowerCase().trim();
 
-    // Search across both watchlist and main prediction tables
     ['predictionsTable', 'watchlistPredictionsTable'].forEach(tableId => {
         const table = document.getElementById(tableId);
         if (!table) return;
@@ -914,7 +1069,15 @@ function filterPredictions() {
         rows.forEach(row => {
             const searchText = row.getAttribute('data-search') || '';
             const isGroupStart = row.classList.contains('group-start');
-            if (isGroupStart) currentGroupVisible = searchText.includes(searchValue);
+            if (isGroupStart) {
+                currentGroupVisible = searchText.includes(searchValue);
+                row.classList.toggle('hidden-row', !currentGroupVisible);
+                return;
+            }
+            if (row.classList.contains('pred-detail-row')) {
+                if (!currentGroupVisible) row.classList.add('hidden-row');
+                return;
+            }
             row.classList.toggle('hidden-row', !currentGroupVisible);
         });
     });
