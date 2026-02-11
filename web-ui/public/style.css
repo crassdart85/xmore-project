@@ -2666,3 +2666,75 @@ footer {
         grid-template-columns: 1fr;
     }
 }
+
+/* ============================================
+   RESULTS TAB (STOCK-GROUPED)
+   ============================================ */
+.section-header-centered {
+    text-align: center;
+}
+
+.results-stock-list {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 14px;
+}
+
+.result-stock-card {
+    border: 1px solid var(--border-color);
+    border-left-width: 6px;
+    border-radius: 12px;
+    background: var(--container-bg);
+    overflow: hidden;
+}
+
+.result-stock-card.tone-1 {
+    border-left-color: #2563eb;
+}
+
+.result-stock-card.tone-2 {
+    border-left-color: #0891b2;
+}
+
+.result-stock-card.tone-3 {
+    border-left-color: #16a34a;
+}
+
+.result-stock-header {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border-color);
+    background: var(--card-bg);
+}
+
+.result-stock-symbol {
+    font-weight: 800;
+    color: var(--text-primary);
+    font-size: 1rem;
+}
+
+.result-stock-company {
+    margin-top: 2px;
+    color: var(--text-secondary);
+    font-size: 0.85rem;
+}
+
+.result-stock-table-wrap {
+    overflow-x: auto;
+}
+
+.result-stock-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.result-stock-table th,
+.result-stock-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border-color);
+    text-align: left;
+    white-space: nowrap;
+}
+
+.result-stock-table tbody tr:last-child td {
+    border-bottom: none;
+}

@@ -479,6 +479,8 @@ function applyLanguage() {
     if (perfStockTitle) perfStockTitle.textContent = t('stockPerformance');
     const perfMonthlyTitle = document.getElementById('perfMonthlyTitle');
     if (perfMonthlyTitle) perfMonthlyTitle.textContent = t('monthlyTrend');
+    const resultsTitle = document.getElementById('resultsTitle');
+    if (resultsTitle) resultsTitle.textContent = t('tabResults');
 
     // Accuracy definition tooltip
     const accDef = document.getElementById('accuracyDefinition');
@@ -1369,40 +1371,73 @@ async function loadEvaluations() {
             }
         }
 
-        let html = `<table><thead><tr>
-            <th>${t('stock')}</th>
-            <th>${t('agent')}</th>
-            <th>${t('signal')}</th>
-            <th>${t('actualOutcome')}</th>
-            <th>${t('priceChange')}</th>
-            <th>${t('result')}</th>
-            <th>${t('targetDate')}</th>
-        </tr></thead><tbody>`;
-
+        const groupedBySymbol = {};
         filteredData.forEach(item => {
-            const companyName = getCompanyName(item.symbol);
-            const agentDisplayName = getAgentDisplayName(item.agent_name);
-            const predictionText = t(item.prediction.toLowerCase());
-            const actualText = t(item.actual_outcome.toLowerCase());
-            const changePercent = item.actual_change_pct ? item.actual_change_pct.toFixed(2) : '0.00';
-            const changeClass = parseFloat(changePercent) >= 0 ? 'positive-change' : 'negative-change';
-            const resultClass = item.was_correct ? 'result-correct' : 'result-wrong';
-            const resultIcon = item.was_correct ? '✓' : '✗';
+            if (!groupedBySymbol[item.symbol]) groupedBySymbol[item.symbol] = [];
+            groupedBySymbol[item.symbol].push(item);
+        });
+
+        const symbols = Object.keys(groupedBySymbol).sort((a, b) => a.localeCompare(b));
+        let html = '<div class="results-stock-list">';
+
+        symbols.forEach((symbol, index) => {
+            const rows = groupedBySymbol[symbol].slice().sort((a, b) => {
+                return new Date(b.target_date) - new Date(a.target_date);
+            });
+            const companyName = getCompanyName(symbol);
+            const toneClass = `tone-${(index % 3) + 1}`;
 
             html += `
-                <tr>
-                    <td><strong>${item.symbol}</strong><br><small class="company-name">${companyName}</small></td>
-                    <td>${agentDisplayName}</td>
-                    <td><span class="signal-${item.prediction.toLowerCase()}">${predictionText}</span></td>
-                    <td><span class="signal-${item.actual_outcome.toLowerCase()}">${actualText}</span></td>
-                    <td class="${changeClass}">${changePercent}%</td>
-                    <td><span class="${resultClass}">${resultIcon}</span></td>
-                    <td>${formatDate(item.target_date)}</td>
-                </tr>
+                <article class="result-stock-card ${toneClass}">
+                    <div class="result-stock-header">
+                        <div class="result-stock-symbol">${symbol}</div>
+                        <div class="result-stock-company">${companyName}</div>
+                    </div>
+                    <div class="result-stock-table-wrap">
+                        <table class="result-stock-table">
+                            <thead>
+                                <tr>
+                                    <th>${t('agent')}</th>
+                                    <th>${t('signal')}</th>
+                                    <th>${t('actualOutcome')}</th>
+                                    <th>${t('priceChange')}</th>
+                                    <th>${t('result')}</th>
+                                    <th>${t('targetDate')}</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+            `;
+
+            rows.forEach(item => {
+                const agentDisplayName = getAgentDisplayName(item.agent_name);
+                const predictionText = t(item.prediction.toLowerCase());
+                const actualText = t(item.actual_outcome.toLowerCase());
+                const changePercent = item.actual_change_pct ? item.actual_change_pct.toFixed(2) : '0.00';
+                const changeClass = parseFloat(changePercent) >= 0 ? 'positive-change' : 'negative-change';
+                const resultClass = item.was_correct ? 'result-correct' : 'result-wrong';
+                const resultIcon = item.was_correct ? '&#10003;' : '&#10007;';
+
+                html += `
+                    <tr>
+                        <td>${agentDisplayName}</td>
+                        <td><span class="signal-${item.prediction.toLowerCase()}">${predictionText}</span></td>
+                        <td><span class="signal-${item.actual_outcome.toLowerCase()}">${actualText}</span></td>
+                        <td class="${changeClass}">${changePercent}%</td>
+                        <td><span class="${resultClass}">${resultIcon}</span></td>
+                        <td>${formatDate(item.target_date)}</td>
+                    </tr>
+                `;
+            });
+
+            html += `
+                            </tbody>
+                        </table>
+                    </div>
+                </article>
             `;
         });
 
-        html += '</tbody></table>';
+        html += '</div>';
         container.innerHTML = html;
     } catch (error) {
         console.error('Error loading evaluations:', error);
@@ -1642,3 +1677,4 @@ function renderConsensusCard(item) {
         </div>
     </div>`;
 }
+

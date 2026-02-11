@@ -192,6 +192,12 @@ Stock trading prediction system with web dashboard. Uses multiple AI agents to p
 - Prediction horizon: 1 day (changed from 7 days for faster evaluation)
 
 ## Recent Changes (Feb 2026)
+- **Results Tab UX Refresh (Feb 12, 2026)**:
+  - Added a single centered Results tab heading (`resultsTitle`) for cleaner section framing
+  - Reworked `/api/evaluations` rendering from one flat table to **stock-grouped cards** in `web-ui/public/app.js`
+  - Each stock now has a distinct visual card (accent tone, symbol/company header) to avoid similar-looking rows
+  - Kept per-agent evaluation details inside each stock card and sorted rows by **newest `target_date` first**
+  - Added dedicated styles in `web-ui/public/style.css` for grouped Results layout and responsive table wrapping
 - **Frontend Stability Guard (Feb 12, 2026)**:
   - Fixed critical browser stack overflow in `web-ui/public/briefing.js` caused by recursive global export (`window.loadBriefing` self-call loop)
   - Corrected export to direct binding: `window.loadBriefing = loadBriefing;`
