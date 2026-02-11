@@ -174,7 +174,13 @@ async function handleAuthSubmit(e) {
             currentUser = data.user;
             hideAuthModal();
             setLoggedInState(data.user);
-            // Reload watchlist if on that tab
+            // Reset watchlist cache and reload all data for the logged-in user
+            if (typeof resetWatchlistCache === 'function') resetWatchlistCache();
+            if (typeof fetchUserWatchlistSymbols === 'function') {
+                fetchUserWatchlistSymbols().then(() => {
+                    if (typeof refreshData === 'function') refreshData();
+                });
+            }
             if (typeof loadWatchlist === 'function') loadWatchlist();
         } else {
             // Map server errors to localized messages
@@ -266,6 +272,9 @@ async function handleLogout() {
         console.error('Logout error:', err);
     }
     setLoggedOutState();
+    // Reset watchlist cache and reload data (now unfiltered)
+    if (typeof resetWatchlistCache === 'function') resetWatchlistCache();
+    if (typeof refreshData === 'function') refreshData();
 }
 
 // ============================================

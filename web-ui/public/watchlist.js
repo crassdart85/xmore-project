@@ -25,7 +25,7 @@ const wlText = {
         wl_remove: 'Remove',
         wl_empty: 'No stocks in your watchlist yet. Search above to add some!',
         wl_login_required: 'Login to create your watchlist',
-        wl_max_reached: 'Maximum 30 stocks reached',
+        wl_max_reached: 'Watchlist limit reached',
         wl_no_prediction: 'No prediction yet',
         signal_bullish: 'Bullish',
         signal_bearish: 'Bearish',
@@ -47,7 +47,7 @@ const wlText = {
         wl_remove: 'إزالة',
         wl_empty: 'لا توجد أسهم في قائمتك بعد. ابحث أعلاه لإضافة أسهم!',
         wl_login_required: 'سجّل دخولك لإنشاء قائمة متابعة',
-        wl_max_reached: 'تم الوصول للحد الأقصى (30 سهم)',
+        wl_max_reached: 'تم الوصول للحد الأقصى',
         wl_no_prediction: 'لا يوجد تنبؤ بعد',
         signal_bullish: 'صاعد',
         signal_bearish: 'هابط',
@@ -190,6 +190,8 @@ async function addToWatchlist(stockId, buttonEl) {
         if (res.ok) {
             buttonEl.className = 'wl-follow-btn following';
             buttonEl.textContent = wt('wl_following');
+            // Invalidate watchlist cache so other tabs re-filter
+            if (typeof resetWatchlistCache === 'function') resetWatchlistCache();
             // Reload watchlist to get latest data
             await loadWatchlist();
             // Update search results to reflect new state
@@ -199,9 +201,6 @@ async function addToWatchlist(stockId, buttonEl) {
                 renderSearchResults(results);
             }
         } else {
-            if (data.error && data.error.includes('Maximum')) {
-                alert(wt('wl_max_reached'));
-            }
             buttonEl.disabled = false;
         }
     } catch (err) {
@@ -218,6 +217,8 @@ async function removeFromWatchlist(stockId) {
         });
 
         if (res.ok) {
+            // Invalidate watchlist cache so other tabs re-filter
+            if (typeof resetWatchlistCache === 'function') resetWatchlistCache();
             await loadWatchlist();
             // Update search results if visible
             const searchInput = document.getElementById('wlSearchInput');

@@ -3,7 +3,7 @@
 ## Project Overview
 Stock trading prediction system with web dashboard. Uses multiple AI agents to predict stock movements.
 
-**Last Updated**: February 10, 2026
+**Last Updated**: February 11, 2026
 
 ## Deployment Architecture
 - **Render.com** - Hosts web dashboard + PostgreSQL database
@@ -11,6 +11,10 @@ Stock trading prediction system with web dashboard. Uses multiple AI agents to p
 - **GitHub** - Source code repository
 
 ## Key Files
+- `engines/trade_recommender.py` - Daily trade signal generator (Phase 2)
+- `evaluate_trades.py` - Trade recommendation accuracy tracker
+- `web-ui/routes/trades.js` - API routes for trades and portfolio
+- `web-ui/public/trades.js` - Frontend logic for trades dashboard
 - `web-ui/public/app.js` - Frontend JavaScript (tabs, performance dashboard, TradingView, bilingual)
 - `web-ui/public/style.css` - Dashboard styling with tabs, perf dashboard, RTL, responsive
 - `web-ui/public/index.html` - Dashboard HTML (tabs, TradingView ticker, performance section)
@@ -30,7 +34,8 @@ Stock trading prediction system with web dashboard. Uses multiple AI agents to p
 |------|----------|---------|
 | EGX Data Collection | Sun-Thu 12:30 PM EST | `collect_data.py` (EGX live → yfinance) |
 | US Data + Sentiment | Mon-Fri 4:30 PM EST | `collect_data.py` + `sentiment.py` |
-| Predictions | Mon-Fri 5:00 PM EST (daily, 1-day horizon) | `run_agents.py` (incl. Consensus) |
+| Predictions | Sun-Fri 5:00 PM EST (daily, 1-day) | `run_agents.py` (incl. Consensus & Trades) |
+| Trade Evaluation | Daily (after predictions) | `evaluate_trades.py` |
 | Evaluation | Every hour | `evaluate.py` |
 
 > **Note (Feb 2026):** Predictions changed from weekly (7-day) to daily (1-day) horizon for faster evaluation turnaround. GitHub Actions checkout upgraded to `actions/checkout@v4` with explicit `ref: main` and `fetch-depth: 1`.
@@ -52,6 +57,7 @@ Stock trading prediction system with web dashboard. Uses multiple AI agents to p
 - `RSI_Agent` - Momentum indicator (RSI)
 - `Volume_Spike_Agent` - Volume analysis
 - `Consensus` - Accuracy-weighted vote across all agents (Phase 1)
+- **Trade Recommendation Engine** - Generates actionable Buy/Sell signals with entry/exit targets (Phase 2)
 
 ## UI Features (Updated Feb 2026 — Phase 1)
 1. **Tab Navigation** - Predictions, Performance, Results, Prices tabs
@@ -73,6 +79,10 @@ Stock trading prediction system with web dashboard. Uses multiple AI agents to p
 17. **Print Styles** - Clean printing without TradingView/tabs/buttons
 18. **Skeleton Loader** - Animated placeholder rows while predictions load
 19. **Parallel Data Loading** - All API calls fire simultaneously on page load
+20. **Trades Dashboard** - "Today's Recommendations" tab with actionable signals (Phase 2)
+21. **Portfolio Tracker** - "Portfolio" tab showing open positions and history (Phase 2)
+22. **Trade Cards** - detailed visual cards with Conviction, R/R ratio, and bilingual reasoning
+23. **Portfolio Performance** - Real-time P&L tracking for virtual portfolio
 
 ## Sentiment Analysis (Phase 1 Upgrade)
 - **Dual Engine**: VADER (fast, 1000+ headlines/sec) + FinBERT (deep accuracy)
@@ -91,6 +101,9 @@ Stock trading prediction system with web dashboard. Uses multiple AI agents to p
 - `/api/evaluations` - Prediction results (predicted vs actual)
 - `/api/sentiment` - Latest sentiment scores per stock
 - `/api/prices` - Latest stock prices
+- `/api/trades/today` - Today's active trade recommendations
+- `/api/trades/history` - Historical trade recommendations
+- `/api/portfolio` - User portfolio (open positions, performance stats)
 - `/api/stats` - System statistics
 
 ## Common Tasks
@@ -98,6 +111,7 @@ Stock trading prediction system with web dashboard. Uses multiple AI agents to p
 - Start server: `cd web-ui && npm install && node server.js`
 - Run agents: `python run_agents.py`
 - Evaluate predictions: `python evaluate.py`
+- Evaluate trades: `python evaluate_trades.py`
 - Collect data: `python collect_data.py`
 - Collect sentiment: `python sentiment.py` (requires FINNHUB_API_KEY)
 

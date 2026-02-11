@@ -57,9 +57,9 @@ router.get('/today', authMiddleware, async (req, res) => {
         // However, SQLite doesn't use $1, $2. We handle that in queryAll.
 
         const sql = `
-            SELECT 
+            SELECT
                 tr.symbol,
-                s.name_en, s.name_ar, s.sector,
+                s.name_en, s.name_ar, s.sector_en, s.sector_ar,
                 tr.action, tr.signal, tr.confidence, tr.conviction,
                 tr.risk_action, tr.priority,
                 tr.close_price, tr.stop_loss_pct, tr.target_pct,
@@ -72,9 +72,9 @@ router.get('/today', authMiddleware, async (req, res) => {
                 up.entry_date, up.entry_price
             FROM trade_recommendations tr
             JOIN egx30_stocks s ON tr.symbol = s.symbol
-            LEFT JOIN user_positions up 
-                ON up.user_id = tr.user_id 
-                AND up.symbol = tr.symbol 
+            LEFT JOIN user_positions up
+                ON up.user_id = tr.user_id
+                AND up.symbol = tr.symbol
                 AND up.status = 'OPEN'
             WHERE tr.user_id = $1
             AND tr.recommendation_date = CURRENT_DATE
@@ -105,7 +105,7 @@ router.get('/today', authMiddleware, async (req, res) => {
         });
     } catch (err) {
         console.error('Error fetching today trades:', err);
-        res.status(500).json({ error: 'Server error' });
+        res.status(500).json({ error: 'Failed to fetch trades', details: err.message });
     }
 });
 
@@ -182,12 +182,16 @@ router.get('/portfolio', authMiddleware, async (req, res) => {
         // Re-write query to avoid LATERAL for better SQLite compat if needed, 
         // but for now let's stick to the prompt's SQL and assume Postgres (Production) or decent SQLite.
         // Actually, let's use a subquery in SELECT join which is safer.
+        const daysHeldExpr = db._isPostgres
+            ? "(CURRENT_DATE - up.entry_date)"
+            : "CAST(julianday('now') - julianday(up.entry_date) AS INTEGER)";
+
         const openSql = `
-            SELECT 
-                up.symbol, s.name_en, s.name_ar, s.sector,
+            SELECT
+                up.symbol, s.name_en, s.name_ar, s.sector_en, s.sector_ar,
                 up.entry_date, up.entry_price,
                 (SELECT close FROM prices WHERE symbol = up.symbol ORDER BY date DESC LIMIT 1) AS current_price,
-                (CURRENT_DATE - up.entry_date) AS days_held
+                ${daysHeldExpr} AS days_held
             FROM user_positions up
             JOIN egx30_stocks s ON up.symbol = s.symbol
             WHERE up.user_id = $1 AND up.status = 'OPEN'
@@ -203,13 +207,17 @@ router.get('/portfolio', authMiddleware, async (req, res) => {
         });
 
         // Closed positions
+        const closedDaysExpr = db._isPostgres
+            ? "(up.exit_date - up.entry_date)"
+            : "CAST(julianday(up.exit_date) - julianday(up.entry_date) AS INTEGER)";
+
         const closedSql = `
-            SELECT 
+            SELECT
                 up.symbol, s.name_en, s.name_ar,
                 up.entry_date, up.entry_price,
                 up.exit_date, up.exit_price,
                 up.return_pct,
-                (up.exit_date - up.entry_date) AS days_held
+                ${closedDaysExpr} AS days_held
             FROM user_positions up
             JOIN egx30_stocks s ON up.symbol = s.symbol
             WHERE up.user_id = $1 AND up.status = 'CLOSED'

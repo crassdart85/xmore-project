@@ -2078,3 +2078,32 @@ footer {
         print-color-adjust: exact;
     }
 }
+
+/* ============================================
+   WATCHLIST-FIRST PREDICTIONS SECTION
+   ============================================ */
+
+.wl-predictions-section {
+    background: var(--card-bg);
+    border: 2px solid var(--accent);
+    border-radius: 14px;
+    padding: 16px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 12px rgba(102, 126, 234, 0.1);
+}
+
+.wl-predictions-title {
+    color: var(--accent);
+    font-size: 1.1em;
+    font-weight: 700;
+    margin: 0 0 12px 0;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.all-predictions-title {
+    color: var(--text-secondary);
+    font-size: 1em;
+    font-weight: 600;
+    margin: 0 0 12px 0;
+}

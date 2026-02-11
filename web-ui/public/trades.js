@@ -126,7 +126,11 @@ async function listTodayTrades() {
 
     try {
         const res = await fetch('/api/trades/today', { credentials: 'include' });
-        if (!res.ok) throw new Error('Failed to fetch trades');
+        // Parse error response if not OK
+        if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            throw new Error(errData.details || errData.error || 'Failed to fetch trades');
+        }
         const data = await res.json();
 
         todayTrades = data.recommendations || [];
@@ -138,7 +142,7 @@ async function listTodayTrades() {
         }
     } catch (err) {
         console.error('Error loading today trades:', err);
-        container.innerHTML = `<p class="error-message">${tt('error')}</p>`;
+        renderError(container, err.message);
     }
 }
 
@@ -166,7 +170,7 @@ async function getPortfolio() {
         renderPortfolio();
     } catch (err) {
         console.error('Error loading portfolio:', err);
-        openContainer.innerHTML = `<p class="error-message">${tt('error')}</p>`;
+        renderError(openContainer, err.message);
     }
 }
 
@@ -244,6 +248,18 @@ function updateTradeSummary(summary) {
     // If we have summary stats elements in index.html, update them
     // E.g. <span id="summaryBuy">...</span>
     // This is optional if we add those elements
+}
+
+function renderError(container, message) {
+    if (!container) return;
+    const title = (typeof tt === 'function') ? tt('error') : 'Error';
+    container.innerHTML = `
+        <div class="error-message">
+            <strong>${title}</strong><br>
+            <small>${message}</small><br>
+            <button onclick="window.loadTrades()" class="refresh-btn" style="margin-top:10px; padding:6px 15px; font-size:0.85em; cursor:pointer">Retry</button>
+        </div>
+    `;
 }
 
 function renderPortfolio() {

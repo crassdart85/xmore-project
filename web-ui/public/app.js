@@ -175,7 +175,11 @@ const TRANSLATIONS = {
         convictionLow: 'Low',
         convictionBlocked: 'Blocked',
         riskWarnings: 'Risk Warnings',
-        agentSignals: 'Agent Signals'
+        agentSignals: 'Agent Signals',
+        yourWatchlist: 'Your Watchlist',
+        allPredictions: 'All EGX Predictions',
+        followStocksPrompt: 'Follow stocks from the Watchlist tab to see personalized data here.',
+        noWatchlistLogin: 'Login to see personalized data for your followed stocks.'
     },
     ar: {
         title: 'إكسمور',
@@ -285,7 +289,11 @@ const TRANSLATIONS = {
         convictionLow: 'منخفضة',
         convictionBlocked: 'محظور',
         riskWarnings: 'تحذيرات المخاطر',
-        agentSignals: 'إشارات الوكلاء'
+        agentSignals: 'إشارات الوكلاء',
+        yourWatchlist: 'أسهمك المتابعة',
+        allPredictions: 'جميع تنبؤات البورصة',
+        followStocksPrompt: 'تابع أسهمك من تبويب المتابعة لعرض البيانات المخصصة هنا.',
+        noWatchlistLogin: 'سجّل دخولك لعرض بيانات الأسهم التي تتابعها.'
     }
 };
 
@@ -324,6 +332,51 @@ function getAgentDisplayName(agentName) {
 
 function getAgentDescription(agentName) {
     return AGENT_INFO[agentName]?.[currentLang]?.description || AGENT_INFO[agentName]?.en?.description || '';
+}
+
+// ============================================
+// WATCHLIST FILTER CACHE
+// ============================================
+
+let userWatchlistSymbols = new Set();
+let watchlistCacheFetched = false;
+
+async function fetchUserWatchlistSymbols() {
+    if (typeof currentUser === 'undefined' || !currentUser) {
+        userWatchlistSymbols = new Set();
+        watchlistCacheFetched = false;
+        return;
+    }
+    if (watchlistCacheFetched) return;
+    try {
+        const res = await fetch('/api/watchlist', { credentials: 'include' });
+        if (res.ok) {
+            const data = await res.json();
+            userWatchlistSymbols = new Set((data.watchlist || []).map(w => w.symbol));
+        }
+    } catch (e) {
+        console.warn('Failed to fetch watchlist for filtering:', e);
+    }
+    watchlistCacheFetched = true;
+}
+
+function resetWatchlistCache() {
+    watchlistCacheFetched = false;
+    userWatchlistSymbols = new Set();
+}
+
+function isLoggedIn() {
+    return typeof currentUser !== 'undefined' && currentUser;
+}
+
+function getWatchlistEmptyHtml() {
+    if (!isLoggedIn()) {
+        return `<p class="no-data">${t('noWatchlistLogin')}</p>`;
+    }
+    return `<div class="no-data watchlist-prompt">
+        <p>${t('followStocksPrompt')}</p>
+        <button class="wl-add-btn" onclick="document.querySelector('[data-tab=watchlist]').click()">${t('tabWatchlist')}</button>
+    </div>`;
 }
 
 // ============================================
@@ -637,11 +690,14 @@ let agentPerformanceData = {};
 // LOAD DATA ON PAGE LOAD
 // ============================================
 
-window.addEventListener('load', () => {
+window.addEventListener('load', async () => {
     try {
         applyLanguage();
         initTabs();
         loadTradingViewTicker();
+
+        // Fetch watchlist symbols first (needed for filtering all tabs)
+        await fetchUserWatchlistSymbols();
 
         // Load all independent data in parallel
         loadStats();
@@ -682,6 +738,10 @@ async function refreshData() {
     }
 
     try {
+        // Re-fetch watchlist cache in case user followed/unfollowed stocks
+        resetWatchlistCache();
+        await fetchUserWatchlistSymbols();
+
         await loadSentiment();
         await Promise.all([
             loadStats(),
@@ -736,7 +796,6 @@ async function loadPredictions() {
         if (!response.ok) throw new Error(`HTTP error: ${response.status}`);
 
         const result = await response.json();
-        // Handle new API format with disclaimer wrapper
         const data = Array.isArray(result) ? result : (result.predictions || []);
 
         if (!data || data.length === 0) {
@@ -751,53 +810,77 @@ async function loadPredictions() {
             grouped[pred.symbol].push(pred);
         });
 
-        let html = `<table id="predictionsTable"><thead><tr><th>${t('stock')}</th><th>${t('sentiment')}</th><th>${t('agent')}</th><th>${t('signal')}</th><th>${t('date')}</th></tr></thead><tbody>`;
+        const allSymbols = Object.keys(grouped);
 
-        Object.keys(grouped).forEach(symbol => {
-            const predictions = grouped[symbol];
-            const companyName = getCompanyName(symbol);
-            const searchText = `${symbol} ${companyName}`.toLowerCase();
-            const chartContainerId = `tv-chart-${symbol.replace('.', '-')}`;
+        // Logged-in users: show ONLY their watchlist stocks
+        if (isLoggedIn()) {
+            const watchlistSymbols = allSymbols.filter(s => userWatchlistSymbols.has(s));
 
-            predictions.forEach((pred, index) => {
-                const agentDisplayName = getAgentDisplayName(pred.agent_name);
-                const agentDescription = getAgentDescription(pred.agent_name);
-                // Task 6: Signal instead of prediction
-                const signalKey = pred.prediction.toLowerCase();
-                const signalText = t(signalKey);
-                // Agent accuracy badge
-                const agentAcc = agentPerformanceData[pred.agent_name];
-                const accBadge = agentAcc
-                    ? `<span class="agent-accuracy-badge" title="${agentAcc.accuracy}% ${t('agentHistoryBadge')}">${agentAcc.accuracy}%</span>`
-                    : '';
+            if (userWatchlistSymbols.size === 0) {
+                container.innerHTML = getWatchlistEmptyHtml();
+                return;
+            }
 
-                html += `<tr data-search="${searchText}" class="${index === 0 ? 'group-start' : 'group-row'}">`;
+            if (watchlistSymbols.length === 0) {
+                container.innerHTML = `<p class="no-data">${t('noPredictions')}</p>`;
+                return;
+            }
 
-                if (index === 0) {
-                    html += `<td rowspan="${predictions.length}" class="stock-cell">
-                        <strong>${symbol}</strong><br>
-                        <small class="company-name">${companyName}</small>
-                        <div class="tv-chart-mini" id="${chartContainerId}" data-symbol="${symbol}" onclick="loadTradingViewChart('${symbol}', '${chartContainerId}')">
-                            <small class="chart-hint">📊 ${currentLang === 'ar' ? 'اضغط للرسم البياني' : 'Click for chart'}</small>
-                        </div>
-                    </td>`;
-                    html += `<td rowspan="${predictions.length}" class="sentiment-cell">${getSentimentBadge(symbol)}</td>`;
-                }
-
-                html += `
-                    <td><span class="agent-name" title="${agentDescription}">${agentDisplayName}</span> ${accBadge}</td>
-                    <td><span class="signal-${signalKey}">${signalText}</span></td>
-                    <td>${formatDate(pred.prediction_date)}</td>
-                </tr>`;
-            });
-        });
-
-        html += '</tbody></table>';
-        container.innerHTML = html;
+            container.innerHTML = renderPredictionTable(grouped, watchlistSymbols, 'predictionsTable');
+        } else {
+            // Not logged in: show all stocks
+            container.innerHTML = renderPredictionTable(grouped, allSymbols, 'predictionsTable');
+        }
     } catch (error) {
         console.error('Error loading predictions:', error);
         container.innerHTML = `<p class="error-message">${t('errorPredictions')}</p>`;
     }
+}
+
+function renderPredictionTable(grouped, symbols, tableId) {
+    if (symbols.length === 0) return '';
+
+    let html = `<table id="${tableId}"><thead><tr><th>${t('stock')}</th><th>${t('sentiment')}</th><th>${t('agent')}</th><th>${t('signal')}</th><th>${t('date')}</th></tr></thead><tbody>`;
+
+    symbols.forEach(symbol => {
+        const predictions = grouped[symbol];
+        const companyName = getCompanyName(symbol);
+        const searchText = `${symbol} ${companyName}`.toLowerCase();
+        const chartContainerId = `tv-chart-${symbol.replace('.', '-')}`;
+
+        predictions.forEach((pred, index) => {
+            const agentDisplayName = getAgentDisplayName(pred.agent_name);
+            const agentDescription = getAgentDescription(pred.agent_name);
+            const signalKey = pred.prediction.toLowerCase();
+            const signalText = t(signalKey);
+            const agentAcc = agentPerformanceData[pred.agent_name];
+            const accBadge = agentAcc
+                ? `<span class="agent-accuracy-badge" title="${agentAcc.accuracy}% ${t('agentHistoryBadge')}">${agentAcc.accuracy}%</span>`
+                : '';
+
+            html += `<tr data-search="${searchText}" class="${index === 0 ? 'group-start' : 'group-row'}">`;
+
+            if (index === 0) {
+                html += `<td rowspan="${predictions.length}" class="stock-cell">
+                    <strong>${symbol}</strong><br>
+                    <small class="company-name">${companyName}</small>
+                    <div class="tv-chart-mini" id="${chartContainerId}" data-symbol="${symbol}" onclick="loadTradingViewChart('${symbol}', '${chartContainerId}')">
+                        <small class="chart-hint">📊 ${currentLang === 'ar' ? 'اضغط للرسم البياني' : 'Click for chart'}</small>
+                    </div>
+                </td>`;
+                html += `<td rowspan="${predictions.length}" class="sentiment-cell">${getSentimentBadge(symbol)}</td>`;
+            }
+
+            html += `
+                <td><span class="agent-name" title="${agentDescription}">${agentDisplayName}</span> ${accBadge}</td>
+                <td><span class="signal-${signalKey}">${signalText}</span></td>
+                <td>${formatDate(pred.prediction_date)}</td>
+            </tr>`;
+        });
+    });
+
+    html += '</tbody></table>';
+    return html;
 }
 
 // ============================================
@@ -806,17 +889,21 @@ async function loadPredictions() {
 
 function filterPredictions() {
     const searchValue = document.getElementById('predictionsSearch').value.toLowerCase().trim();
-    const table = document.getElementById('predictionsTable');
-    if (!table) return;
 
-    const rows = table.querySelectorAll('tbody tr');
-    let currentGroupVisible = false;
+    // Search across both watchlist and main prediction tables
+    ['predictionsTable', 'watchlistPredictionsTable'].forEach(tableId => {
+        const table = document.getElementById(tableId);
+        if (!table) return;
 
-    rows.forEach(row => {
-        const searchText = row.getAttribute('data-search') || '';
-        const isGroupStart = row.classList.contains('group-start');
-        if (isGroupStart) currentGroupVisible = searchText.includes(searchValue);
-        row.classList.toggle('hidden-row', !currentGroupVisible);
+        const rows = table.querySelectorAll('tbody tr');
+        let currentGroupVisible = false;
+
+        rows.forEach(row => {
+            const searchText = row.getAttribute('data-search') || '';
+            const isGroupStart = row.classList.contains('group-start');
+            if (isGroupStart) currentGroupVisible = searchText.includes(searchValue);
+            row.classList.toggle('hidden-row', !currentGroupVisible);
+        });
     });
 }
 
@@ -949,7 +1036,13 @@ function renderPerStockTable(perStock) {
     const container = document.getElementById('perfStocks');
     if (!container) return;
 
-    const entries = Object.entries(perStock || {});
+    let entries = Object.entries(perStock || {});
+
+    // Filter to watchlist stocks for logged-in users
+    if (isLoggedIn() && userWatchlistSymbols.size > 0) {
+        entries = entries.filter(([symbol]) => userWatchlistSymbols.has(symbol));
+    }
+
     if (entries.length === 0) {
         container.innerHTML = `<p class="no-data">${t('noDetailedPerformance')}</p>`;
         return;
@@ -1086,6 +1179,20 @@ async function loadEvaluations() {
             return;
         }
 
+        // Filter to watchlist stocks for logged-in users
+        let filteredData = data;
+        if (isLoggedIn()) {
+            if (userWatchlistSymbols.size === 0) {
+                container.innerHTML = getWatchlistEmptyHtml();
+                return;
+            }
+            filteredData = data.filter(item => userWatchlistSymbols.has(item.symbol));
+            if (filteredData.length === 0) {
+                container.innerHTML = `<p class="no-data">${t('noEvaluations')}</p>`;
+                return;
+            }
+        }
+
         let html = `<table><thead><tr>
             <th>${t('stock')}</th>
             <th>${t('agent')}</th>
@@ -1096,7 +1203,7 @@ async function loadEvaluations() {
             <th>${t('targetDate')}</th>
         </tr></thead><tbody>`;
 
-        data.forEach(item => {
+        filteredData.forEach(item => {
             const companyName = getCompanyName(item.symbol);
             const agentDisplayName = getAgentDisplayName(item.agent_name);
             const predictionText = t(item.prediction.toLowerCase());
@@ -1145,9 +1252,23 @@ async function loadPrices() {
             return;
         }
 
+        // Filter to watchlist stocks for logged-in users
+        let filteredData = data;
+        if (isLoggedIn()) {
+            if (userWatchlistSymbols.size === 0) {
+                container.innerHTML = getWatchlistEmptyHtml();
+                return;
+            }
+            filteredData = data.filter(stock => userWatchlistSymbols.has(stock.symbol));
+            if (filteredData.length === 0) {
+                container.innerHTML = `<p class="no-data">${t('noPrices')}</p>`;
+                return;
+            }
+        }
+
         let html = `<table><thead><tr><th>${t('stock')}</th><th>${t('date')}</th><th>${t('closePrice')}</th><th>${t('volume')}</th></tr></thead><tbody>`;
 
-        data.forEach(stock => {
+        filteredData.forEach(stock => {
             const companyName = getCompanyName(stock.symbol);
             html += `
                 <tr>
@@ -1207,9 +1328,23 @@ async function loadConsensus() {
             return;
         }
 
+        // Filter to watchlist stocks for logged-in users
+        let filteredConsensus = consensusData;
+        if (isLoggedIn()) {
+            if (userWatchlistSymbols.size === 0) {
+                cardsContainer.innerHTML = getWatchlistEmptyHtml();
+                return;
+            }
+            filteredConsensus = consensusData.filter(item => userWatchlistSymbols.has(item.symbol));
+            if (filteredConsensus.length === 0) {
+                cardsContainer.innerHTML = `<p class="no-data">${t('noConsensus')}</p>`;
+                return;
+            }
+        }
+
         // Render consensus cards
         let html = '';
-        consensusData.forEach(item => {
+        filteredConsensus.forEach(item => {
             html += renderConsensusCard(item);
         });
         cardsContainer.innerHTML = html;

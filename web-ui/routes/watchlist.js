@@ -145,15 +145,6 @@ router.post('/watchlist/:stockId', authMiddleware, async (req, res) => {
             return res.status(404).json({ error: 'Stock not found' });
         }
 
-        // Check watchlist count
-        const countRow = await dbGet(
-            `SELECT COUNT(*) AS count FROM user_watchlist WHERE user_id = ${ph(1)}`,
-            [req.userId]
-        );
-        if (parseInt(countRow.count) >= 30) {
-            return res.status(400).json({ error: 'Maximum 30 stocks in watchlist' });
-        }
-
         // Add (ignore duplicate via ON CONFLICT or catch unique violation)
         if (isPostgres) {
             await dbRun(

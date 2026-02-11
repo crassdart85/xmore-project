@@ -9,6 +9,7 @@ const jwt = require('jsonwebtoken');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production-64chars-minimum-abcdef1234567890';
 const JWT_EXPIRES_IN = '7d';
+const JWT_REFRESH_THRESHOLD = 3 * 24 * 60 * 60; // Refresh if less than 3 days remaining
 
 const COOKIE_OPTIONS = {
     httpOnly: true,
@@ -38,6 +39,14 @@ function authMiddleware(req, res, next) {
     try {
         const decoded = jwt.verify(token, JWT_SECRET);
         req.userId = decoded.userId;
+
+        // Auto-refresh: if token has less than 3 days remaining, issue a new one
+        const now = Math.floor(Date.now() / 1000);
+        if (decoded.exp && (decoded.exp - now) < JWT_REFRESH_THRESHOLD) {
+            const newToken = generateToken(decoded.userId);
+            res.cookie('xmore_token', newToken, COOKIE_OPTIONS);
+        }
+
         next();
     } catch (err) {
         res.clearCookie('xmore_token', COOKIE_OPTIONS);
