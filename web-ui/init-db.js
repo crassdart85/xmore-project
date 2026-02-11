@@ -301,6 +301,22 @@ async function initializeDatabase() {
     `);
     await pool.query("CREATE INDEX IF NOT EXISTS idx_trade_rec_user_date ON trade_recommendations(user_id, recommendation_date DESC)");
 
+    // Table: Daily Briefings (one global row per date)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS daily_briefings (
+        id SERIAL PRIMARY KEY,
+        briefing_date DATE NOT NULL UNIQUE,
+        market_pulse_json TEXT,
+        sector_breakdown_json TEXT,
+        risk_alerts_json TEXT,
+        sentiment_snapshot_json TEXT,
+        stocks_processed INTEGER,
+        generation_time_seconds REAL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    await pool.query("CREATE INDEX IF NOT EXISTS idx_briefings_date ON daily_briefings(briefing_date DESC)");
+
     // Seed ALL EGX stocks (~190)
     console.log('🌱 Seeding EGX stocks...');
     await pool.query(`

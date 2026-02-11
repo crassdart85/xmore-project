@@ -31,6 +31,14 @@ const tradesText = {
         tt_execute: "Trade",
         tt_no_trades: "No trade recommendations generated for today yet.",
         tt_login_required: "Login to view personalized trade recommendations.",
+        tt_login_btn: "Login",
+        tt_retry: "Retry",
+        tt_conviction_very_high: "Very High",
+        tt_conviction_high: "High",
+        tt_conviction_moderate: "Moderate",
+        tt_conviction_low: "Low",
+        tt_conviction_blocked: "Blocked",
+        tt_sector: "Sector",
 
         // Portfolio
         pt_title: "My Portfolio",
@@ -73,6 +81,14 @@ const tradesText = {
         tt_execute: "تداول",
         tt_no_trades: "لم يتم إنشاء توصيات لهذا اليوم بعد.",
         tt_login_required: "سجّل دخولك لعرض التوصيات المخصصة.",
+        tt_login_btn: "تسجيل الدخول",
+        tt_retry: "إعادة المحاولة",
+        tt_conviction_very_high: "عالية جداً",
+        tt_conviction_high: "عالية",
+        tt_conviction_moderate: "متوسطة",
+        tt_conviction_low: "منخفضة",
+        tt_conviction_blocked: "محظور",
+        tt_sector: "القطاع",
 
         // Portfolio
         pt_title: "محفظتي",
@@ -105,6 +121,24 @@ function tt(key) {
     return (tradesText[lang] && tradesText[lang][key]) || tradesText.en[key] || key;
 }
 
+function isArabic() {
+    return (typeof currentLang !== 'undefined') && currentLang === 'ar';
+}
+
+function translateConviction(conviction) {
+    if (!conviction) return 'N/A';
+    const map = {
+        'VERY_HIGH': 'tt_conviction_very_high',
+        'VERY HIGH': 'tt_conviction_very_high',
+        'HIGH': 'tt_conviction_high',
+        'MODERATE': 'tt_conviction_moderate',
+        'LOW': 'tt_conviction_low',
+        'BLOCKED': 'tt_conviction_blocked',
+    };
+    const key = map[conviction.toUpperCase()];
+    return key ? tt(key) : conviction;
+}
+
 // ============================================
 // API CALLS
 // ============================================
@@ -117,7 +151,7 @@ async function listTodayTrades() {
     if (typeof currentUser === 'undefined' || !currentUser) {
         container.innerHTML = `<div class="login-wall">
             <p>${tt('tt_login_required')}</p>
-            <button onclick="showAuthModal('login')" class="auth-trigger-btn">🔐 Login</button>
+            <button onclick="showAuthModal('login')" class="auth-trigger-btn">🔐 ${tt('tt_login_btn')}</button>
         </div>`;
         return;
     }
@@ -129,7 +163,7 @@ async function listTodayTrades() {
         // Parse error response if not OK
         if (!res.ok) {
             const errData = await res.json().catch(() => ({}));
-            throw new Error(errData.details || errData.error || 'Failed to fetch trades');
+            throw new Error(errData.details || errData.error || tt('error'));
         }
         const data = await res.json();
 
@@ -163,7 +197,7 @@ async function getPortfolio() {
 
     try {
         const res = await fetch('/api/trades/portfolio', { credentials: 'include' });
-        if (!res.ok) throw new Error('Failed to fetch portfolio');
+        if (!res.ok) throw new Error(tt('error'));
         const data = await res.json();
 
         portfolioData = data;
@@ -193,8 +227,11 @@ function renderTodayTrades() {
 }
 
 function createTradeCard(trade) {
-    const isAr = (typeof currentLang !== 'undefined' && currentLang === 'ar');
+    const isAr = isArabic();
     const actionClass = `action-${trade.action.toLowerCase()}`; // buy, sell, watch
+
+    const name = isAr ? (trade.name_ar || trade.name_en) : trade.name_en;
+    const sector = isAr ? (trade.sector_ar || trade.sector_en || '') : (trade.sector_en || '');
 
     const reasonsList = Array.isArray(trade.reasons)
         ? trade.reasons.map(r => `<li>• ${r}</li>`).join('')
@@ -205,7 +242,8 @@ function createTradeCard(trade) {
         <div class="trade-header">
             <div class="trade-symbol">
                 <h3>${trade.symbol}</h3>
-                <span class="company-name">${isAr ? (trade.name_ar || trade.name_en) : trade.name_en}</span>
+                <span class="company-name">${name}</span>
+                ${sector ? `<span class="wl-card-sector">${sector}</span>` : ''}
             </div>
             <div class="trade-action ${actionClass}">
                 ${tt('tt_' + trade.action.toLowerCase())}
@@ -231,9 +269,9 @@ function createTradeCard(trade) {
         
         <div class="trade-meta">
             <span class="meta-tag conviction-${trade.conviction ? trade.conviction.toLowerCase() : 'low'}">
-                ${trade.conviction || 'N/A'}
+                ${translateConviction(trade.conviction)}
             </span>
-            <span class="meta-tag">R/R: ${trade.risk_reward_ratio || '-'}</span>
+            <span class="meta-tag">${tt('tt_risk_reward')}: ${trade.risk_reward_ratio || '-'}</span>
         </div>
         
         <div class="trade-reasoning">
@@ -257,7 +295,7 @@ function renderError(container, message) {
         <div class="error-message">
             <strong>${title}</strong><br>
             <small>${message}</small><br>
-            <button onclick="window.loadTrades()" class="refresh-btn" style="margin-top:10px; padding:6px 15px; font-size:0.85em; cursor:pointer">Retry</button>
+            <button onclick="window.loadTrades()" class="refresh-btn" style="margin-top:10px; padding:6px 15px; font-size:0.85em; cursor:pointer">${tt('tt_retry')}</button>
         </div>
     `;
 }
@@ -304,17 +342,19 @@ function renderPortfolio() {
                     </tr>
                 </thead>
                 <tbody>
-                    ${open.map(p => `
+                    ${open.map(p => {
+                        const name = isArabic() ? (p.name_ar || p.name_en) : p.name_en;
+                        return `
                         <tr>
-                            <td><strong>${p.symbol}</strong></td>
+                            <td><strong>${p.symbol}</strong>${name ? `<br><small class="company-name">${name}</small>` : ''}</td>
                             <td>${formatDateSimple(p.entry_date)}</td>
                             <td>${p.entry_price.toFixed(2)}</td>
                             <td>${p.current_price ? p.current_price.toFixed(2) : '-'}</td>
                             <td class="${p.unrealized_return_pct >= 0 ? 'pos' : 'neg'}">
                                 ${p.unrealized_return_pct}%
                             </td>
-                        </tr>
-                    `).join('')}
+                        </tr>`;
+                    }).join('')}
                 </tbody>
              </table>`;
         }
@@ -337,16 +377,18 @@ function renderPortfolio() {
                     </tr>
                 </thead>
                 <tbody>
-                     ${closed.map(p => `
+                     ${closed.map(p => {
+                        const name = isArabic() ? (p.name_ar || p.name_en) : p.name_en;
+                        return `
                         <tr>
-                            <td><strong>${p.symbol}</strong></td>
+                            <td><strong>${p.symbol}</strong>${name ? `<br><small class="company-name">${name}</small>` : ''}</td>
                             <td>${formatDateSimple(p.entry_date)}</td>
                             <td>${formatDateSimple(p.exit_date)}</td>
                             <td class="${p.return_pct >= 0 ? 'pos' : 'neg'}">
                                 ${p.return_pct.toFixed(2)}%
                             </td>
-                        </tr>
-                    `).join('')}
+                        </tr>`;
+                    }).join('')}
                 </tbody>
              </table>`;
         }
@@ -371,7 +413,8 @@ window.updateTradesLanguage = function () {
         'tradesSubtitle': 'tt_subtitle',
         'portfolioTitle': 'pt_title',
         'portfolioOpenTitle': 'pt_open',
-        'portfolioHistoryTitle': 'pt_history'
+        'portfolioHistoryTitle': 'pt_history',
+        'portfolioStatsTitle': 'pt_stats'
     };
 
     Object.keys(titles).forEach(id => {

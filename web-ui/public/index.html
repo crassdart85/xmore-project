@@ -59,6 +59,7 @@
         <!-- Tab Navigation -->
         <nav class="tab-nav" id="tabNav">
             <button class="tab-btn active" data-tab="predictions" id="tabPredictions">Predictions</button>
+            <button class="tab-btn" data-tab="briefing" id="tabBriefing">Briefing</button>
             <button class="tab-btn" data-tab="trades" id="tabTrades">Trades</button>
             <button class="tab-btn" data-tab="portfolio" id="tabPortfolio">Portfolio</button>
             <button class="tab-btn" data-tab="watchlist" id="tabWatchlist" style="display:none;">Watchlist</button>
@@ -210,6 +211,17 @@
             </div>
         </section>
 
+        <!-- Tab: Daily Market Briefing -->
+        <section class="tab-content" id="tab-briefing">
+            <div class="section-header">
+                <h2 id="briefingTitle">Daily Market Briefing</h2>
+                <p class="section-subtitle" id="briefingSubtitle">AI-generated market overview and personalized action items.</p>
+            </div>
+            <div id="briefingContainer">
+                <p class="loading">Loading briefing...</p>
+            </div>
+        </section>
+
         <!-- Tab: Trades (Today) -->
         <section class="tab-content" id="tab-trades">
             <div class="section-header">
@@ -292,6 +304,7 @@
     <script src="auth.js?v=20260211a"></script>
     <script src="watchlist.js?v=20260211a"></script>
     <script src="trades.js?v=20260211a"></script>
+    <script src="briefing.js?v=20260211b"></script>
 </body>
 
 </html>

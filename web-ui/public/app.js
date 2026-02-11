@@ -65,6 +65,9 @@ const TRANSLATIONS = {
 
         // Tabs
         tabPredictions: 'Predictions',
+        tabBriefing: 'Briefing',
+        tabTrades: 'Trades',
+        tabPortfolio: 'Portfolio',
         tabWatchlist: 'Watchlist',
         tabPerformance: 'Performance',
         tabResults: 'Results',
@@ -191,6 +194,9 @@ const TRANSLATIONS = {
         latestData: 'آخر تحديث',
 
         tabPredictions: 'التنبؤات',
+        tabBriefing: 'النشرة',
+        tabTrades: 'التداول',
+        tabPortfolio: 'المحفظة',
         tabWatchlist: 'المتابعة',
         tabPerformance: 'الأداء',
         tabResults: 'النتائج',
@@ -417,7 +423,7 @@ function applyLanguage() {
     });
 
     // Tab buttons
-    const tabs = ['tabPredictions', 'tabWatchlist', 'tabConsensus', 'tabPerformance', 'tabResults', 'tabPrices'];
+    const tabs = ['tabPredictions', 'tabBriefing', 'tabTrades', 'tabPortfolio', 'tabWatchlist', 'tabConsensus', 'tabPerformance', 'tabResults', 'tabPrices'];
     tabs.forEach(id => {
         const btn = document.getElementById(id);
         if (btn) btn.textContent = t(id);
@@ -463,6 +469,7 @@ function applyLanguage() {
     if (typeof updateAuthLanguage === 'function') updateAuthLanguage();
     if (typeof updateWatchlistLanguage === 'function') updateWatchlistLanguage();
     if (typeof updateTradesLanguage === 'function') updateTradesLanguage();
+    if (typeof updateBriefingLanguage === 'function') updateBriefingLanguage();
 }
 
 // ============================================
@@ -492,6 +499,9 @@ function initTabs() {
             // Lazy-load watchlist data on first visit
             if (tabId === 'watchlist' && typeof loadWatchlist === 'function') {
                 loadWatchlist();
+            }
+            if (tabId === 'briefing' && typeof loadBriefing === 'function') {
+                loadBriefing();
             }
             if (tabId === 'trades' && typeof loadTrades === 'function') {
                 loadTrades();

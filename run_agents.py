@@ -365,6 +365,14 @@ def execute():
             traceback.print_exc()
 
         print(f"\n{'='*50}")
+        print("📋 Generating Daily Market Briefing...")
+        try:
+            generate_and_store_briefing(today)
+        except Exception as e:
+            print(f"❌ Error generating briefing: {e}")
+            traceback.print_exc()
+
+        print(f"\n{'='*50}")
         print(f"✅ Pipeline complete! Processed {len(config.ALL_STOCKS)} stocks.")
         print(f"{'='*50}")
 
@@ -541,12 +549,155 @@ def store_trade_recommendation(user_id, rec, trading_date):
             cursor.execute(query_sqlite, params)
 
 from engines.trade_recommender import (
-    generate_recommendation, 
+    generate_recommendation,
     score_recommendation_priority,
     calculate_risk_levels,
     TRADE_CONFIG
 )
+from engines.briefing_generator import generate_daily_briefing
 from utils.trading_calendar import should_generate_recommendations
+
+
+def generate_and_store_briefing(trading_date):
+    """Gather data from DB, generate the daily briefing, and store it."""
+    import time as _time
+    start = _time.time()
+
+    with database.get_connection() as conn:
+        cursor = conn.cursor()
+
+        # 1. Rebuild consensus_map from DB (same pattern as trade recommendations)
+        if os.getenv('DATABASE_URL'):
+            cursor.execute("SELECT * FROM consensus_results WHERE prediction_date = %s", (trading_date,))
+        else:
+            cursor.execute("SELECT * FROM consensus_results WHERE prediction_date = ?", (trading_date,))
+
+        consensus_rows = [dict(row) for row in cursor.fetchall()]
+        if not consensus_rows:
+            print("  ⚠️  No consensus results found — skipping briefing.")
+            return
+
+        consensus_map = {}
+        for row in consensus_rows:
+            for field in ['bull_case_json', 'bear_case_json', 'risk_assessment_json', 'agent_signals_json']:
+                if isinstance(row.get(field), str):
+                    try:
+                        row[field] = json.loads(row[field])
+                    except (json.JSONDecodeError, TypeError):
+                        row[field] = {}
+
+            consensus_map[row['symbol']] = {
+                "final_signal": {
+                    "prediction": row['final_signal'],
+                    "confidence": row.get('confidence', 0),
+                    "conviction": row.get('conviction')
+                },
+                "risk_assessment": {
+                    "action": row.get('risk_action', 'PASS'),
+                    "risk_score": row.get('risk_score', 0),
+                    "risk_flags": (row.get('risk_assessment_json') or {}).get('risk_flags', [])
+                },
+                "bull_case": {"bull_score": row.get('bull_score', 0)},
+                "bear_case": {"bear_score": row.get('bear_score', 0)},
+                "bull_score": row.get('bull_score', 0),
+                "bear_score": row.get('bear_score', 0),
+                "risk_action": row.get('risk_action', 'PASS'),
+                "risk_score": row.get('risk_score', 0),
+                "confidence": row.get('confidence', 0)
+            }
+
+        # 2. Fetch stock metadata
+        cursor.execute("SELECT symbol, name_en, name_ar, sector_en, sector_ar FROM egx30_stocks")
+        stocks_metadata = {row['symbol']: dict(row) for row in cursor.fetchall()}
+
+        # 3. Fetch latest 2 prices per stock
+        prices_map = {}
+        prev_prices_map = {}
+        for symbol in consensus_map:
+            if os.getenv('DATABASE_URL'):
+                cursor.execute(
+                    "SELECT date, close, volume FROM prices WHERE symbol = %s ORDER BY date DESC LIMIT 2",
+                    (symbol,)
+                )
+            else:
+                cursor.execute(
+                    "SELECT date, close, volume FROM prices WHERE symbol = ? ORDER BY date DESC LIMIT 2",
+                    (symbol,)
+                )
+            rows = [dict(r) for r in cursor.fetchall()]
+            if rows:
+                prices_map[symbol] = rows[0]
+            if len(rows) > 1:
+                prev_prices_map[symbol] = rows[1]
+
+        # 4. Fetch latest sentiment
+        sentiment_data = {}
+        for symbol in consensus_map:
+            if os.getenv('DATABASE_URL'):
+                cursor.execute(
+                    "SELECT avg_sentiment, sentiment_label, article_count FROM sentiment_scores WHERE symbol = %s ORDER BY date DESC LIMIT 1",
+                    (symbol,)
+                )
+            else:
+                cursor.execute(
+                    "SELECT avg_sentiment, sentiment_label, article_count FROM sentiment_scores WHERE symbol = ? ORDER BY date DESC LIMIT 1",
+                    (symbol,)
+                )
+            row = cursor.fetchone()
+            if row:
+                sentiment_data[symbol] = dict(row)
+
+        # 5. Generate briefing
+        briefing = generate_daily_briefing(
+            consensus_map, prices_map, prev_prices_map,
+            stocks_metadata, sentiment_data
+        )
+
+        elapsed = round(_time.time() - start, 2)
+
+        # 6. Store to DB
+        if os.getenv('DATABASE_URL'):
+            cursor.execute("""
+                INSERT INTO daily_briefings
+                (briefing_date, market_pulse_json, sector_breakdown_json,
+                 risk_alerts_json, sentiment_snapshot_json,
+                 stocks_processed, generation_time_seconds)
+                VALUES (%s, %s, %s, %s, %s, %s, %s)
+                ON CONFLICT (briefing_date)
+                DO UPDATE SET
+                    market_pulse_json = EXCLUDED.market_pulse_json,
+                    sector_breakdown_json = EXCLUDED.sector_breakdown_json,
+                    risk_alerts_json = EXCLUDED.risk_alerts_json,
+                    sentiment_snapshot_json = EXCLUDED.sentiment_snapshot_json,
+                    stocks_processed = EXCLUDED.stocks_processed,
+                    generation_time_seconds = EXCLUDED.generation_time_seconds
+            """, (
+                trading_date,
+                json.dumps(briefing['market_pulse']),
+                json.dumps(briefing['sector_breakdown']),
+                json.dumps(briefing['risk_alerts']),
+                json.dumps(briefing['sentiment_snapshot']),
+                briefing['stocks_processed'],
+                elapsed
+            ))
+        else:
+            cursor.execute("""
+                INSERT OR REPLACE INTO daily_briefings
+                (briefing_date, market_pulse_json, sector_breakdown_json,
+                 risk_alerts_json, sentiment_snapshot_json,
+                 stocks_processed, generation_time_seconds)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (
+                trading_date,
+                json.dumps(briefing['market_pulse']),
+                json.dumps(briefing['sector_breakdown']),
+                json.dumps(briefing['risk_alerts']),
+                json.dumps(briefing['sentiment_snapshot']),
+                briefing['stocks_processed'],
+                elapsed
+            ))
+
+        print(f"  ✅ Briefing stored ({briefing['stocks_processed']} stocks, {elapsed}s)")
 
 def generate_daily_trade_recommendations(trading_date):
     """Generate trade recommendations."""
