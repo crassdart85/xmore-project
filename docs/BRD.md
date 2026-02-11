@@ -9,7 +9,7 @@
 |-------|---------|
 | **Document Title** | Xmore Stock Prediction System - BRD |
 | **Version** | 1.1 |
-| **Date** | February 10, 2026 |
+| **Date** | February 11, 2026 |
 | **Author** | Project Team |
 | **Status** | Active Development |
 | **Repository** | [github.com/crassdart85/xmore-project](https://github.com/crassdart85/xmore-project) |
@@ -159,6 +159,8 @@ To provide retail and institutional investors with an intelligent, data-driven d
 | **FR-API-005** | `/api/sentiment` | Latest sentiment scores per stock | ✅ Implemented |
 | **FR-API-006** | `/api/prices` | Latest stock prices | ✅ Implemented |
 | **FR-API-007** | `/api/stats` | System statistics | ✅ Implemented |
+| **FR-API-008** | `/api/trades/today` | Active trade recommendations | ✅ Implemented |
+| **FR-API-009** | `/api/portfolio` | Virtual portfolio positions & history | ✅ Implemented |
 
 ### 4.7 Automation & Scheduling
 
@@ -168,6 +170,18 @@ To provide retail and institutional investors with an intelligent, data-driven d
 | **FR-AU-002** | Automated prediction generation | Mon-Fri 5:00 PM EST | ✅ Fixed (removed broken `needs` dependency) |
 | **FR-AU-003** | Automated evaluation of past predictions | Every hour | ✅ Implemented |
 | **FR-AU-004** | GitHub Actions workflow orchestration | As scheduled | ✅ Implemented |
+
+### 4.8 Trade Recommendations & Portfolio (Phase 2)
+
+| ID | Requirement | Priority | Status |
+|----|-------------|----------|--------|
+| **FR-TR-001** | System shall generate actionable Buy/Sell/Watch trade signals | High | ✅ Implemented |
+| **FR-TR-002** | System shall provide entry price, target price, and stop-loss levels | High | ✅ Implemented |
+| **FR-TR-003** | System shall display "Trade Cards" with conviction, risk, and reasoning | High | ✅ Implemented |
+| **FR-TR-004** | Dashboard shall include a "Trades" tab for active recommendations | High | ✅ Implemented |
+| **FR-TR-005** | Dashboard shall include a "Portfolio" tab to track virtual positions | High | ✅ Implemented |
+| **FR-TR-006** | System shall track simulated performance (P&L, win rate) of recommendations | High | ✅ Implemented |
+| **FR-TR-007** | Trade reasoning shall be bilingual (English/Arabic) | High | ✅ Implemented |
 
 ---
 
@@ -380,10 +394,12 @@ To provide retail and institutional investors with an intelligent, data-driven d
 
 | Feature | Description |
 |---------|-------------|
-| LSTM/Transformer Models | Deep learning for improved sequence modeling |
-| Hyperparameter Tuning | GridSearch optimization for Random Forest |
-| Social Media Integration | Twitter/X sentiment from Arabic fintwit |
-| Macro-Economic Indicators | Fed rates, inflation data integration |
+| Trade Recommendations | Actionable signals with Entry/Target/Stop-loss | ✅ Implemented |
+| Portfolio Tracker | Virtual portfolio tracking with P&L | ✅ Implemented |
+| LSTM/Transformer Models | Deep learning for improved sequence modeling | Planned |
+| Hyperparameter Tuning | GridSearch optimization for Random Forest | Planned |
+| Social Media Integration | Twitter/X sentiment from Arabic fintwit | Planned |
+| Macro-Economic Indicators | Fed rates, inflation data integration | Planned |
 
 ### Phase 3 (Future Vision)
 
@@ -439,5 +455,5 @@ To provide retail and institutional investors with an intelligent, data-driven d
 
 *Document End*
 
-**Last Updated**: February 10, 2026
-**Next Review**: March 10, 2026
+**Last Updated**: February 11, 2026
+**Next Review**: March 11, 2026
