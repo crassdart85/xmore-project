@@ -9,6 +9,7 @@
         content="Xmore is an AI-powered stock prediction system for the Egyptian Exchange (EGX) and US markets. Live performance tracking, multi-agent consensus signals.">
     <link rel="stylesheet" href="style.css?v=20260211a">
     <link rel="stylesheet" href="auth.css?v=20260211a">
+    <link rel="stylesheet" href="performance-dashboard.css?v=20260211a">
 </head>
 
 <body>
@@ -131,42 +132,10 @@
             </div>
         </section>
 
-        <!-- Tab: Performance Dashboard -->
+        <!-- Tab: Performance Dashboard (Investor-Grade) -->
         <section class="tab-content" id="tab-performance">
-            <!-- Overall Stats -->
-            <div class="perf-overall" id="perfOverall">
+            <div id="perfDashboard">
                 <p class="loading">Loading performance data...</p>
-            </div>
-
-            <!-- Per-Agent Accuracy Bars -->
-            <div class="section-inner">
-                <h3 id="perfAgentTitle">Agent Accuracy</h3>
-                <div class="accuracy-definition-tooltip" id="accuracyTooltip">
-                    <span class="tooltip-icon">ℹ️</span>
-                    <div class="tooltip-content" id="accuracyDefinition">
-                        Directional Accuracy: Percentage of predictions where the predicted direction (UP/DOWN) matched
-                        the actual 5-day price movement exceeding ±0.5% threshold.
-                    </div>
-                </div>
-                <div id="perfAgents">
-                    <p class="loading">Loading agent data...</p>
-                </div>
-            </div>
-
-            <!-- Per-Stock Breakdown -->
-            <div class="section-inner">
-                <h3 id="perfStockTitle">Stock Performance</h3>
-                <div id="perfStocks">
-                    <p class="loading">Loading stock data...</p>
-                </div>
-            </div>
-
-            <!-- Monthly Accuracy Chart -->
-            <div class="section-inner">
-                <h3 id="perfMonthlyTitle">Monthly Accuracy Trend</h3>
-                <div id="perfMonthly" class="chart-container">
-                    <canvas id="monthlyChart" width="800" height="300"></canvas>
-                </div>
             </div>
         </section>
 
@@ -215,7 +184,8 @@
         <section class="tab-content" id="tab-briefing">
             <div class="section-header">
                 <h2 id="briefingTitle">Daily Market Briefing</h2>
-                <p class="section-subtitle" id="briefingSubtitle">AI-generated market overview and personalized action items.</p>
+                <p class="section-subtitle" id="briefingSubtitle">AI-generated market overview and personalized action
+                    items.</p>
             </div>
             <div id="briefingContainer">
                 <p class="loading">Loading briefing...</p>
@@ -305,6 +275,7 @@
     <script src="watchlist.js?v=20260211a"></script>
     <script src="trades.js?v=20260211a"></script>
     <script src="briefing.js?v=20260211b"></script>
+    <script src="performance-dashboard.js?v=20260211a"></script>
 </body>
 
 </html>

@@ -373,6 +373,15 @@ def execute():
             traceback.print_exc()
 
         print(f"\n{'='*50}")
+        print("📊 Running Performance Evaluation...")
+        try:
+            from engines.evaluate_performance import run_evaluation
+            run_evaluation(pipeline_run_id=f"run_{today}")
+        except Exception as e:
+            print(f"❌ Error running performance evaluation: {e}")
+            traceback.print_exc()
+
+        print(f"\n{'='*50}")
         print(f"✅ Pipeline complete! Processed {len(config.ALL_STOCKS)} stocks.")
         print(f"{'='*50}")
 

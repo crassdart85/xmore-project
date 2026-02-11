@@ -509,6 +509,9 @@ function initTabs() {
             if (tabId === 'portfolio' && typeof loadPortfolio === 'function') {
                 loadPortfolio();
             }
+            if (tabId === 'performance' && typeof loadPerformanceDashboard === 'function') {
+                loadPerformanceDashboard();
+            }
         });
     });
 }

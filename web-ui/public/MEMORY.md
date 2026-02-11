@@ -3,27 +3,26 @@
 ## Project Overview
 Stock trading prediction system with web dashboard. Uses multiple AI agents to predict stock movements.
 
+**Last Updated**: February 12, 2026
+
+> **Note**: The primary MEMORY.md is at the project root (`/MEMORY.md`). This file is kept for quick reference within the web-ui directory.
+
 ## Deployment Architecture
 - **Render.com** - Hosts web dashboard + PostgreSQL database
 - **GitHub Actions** - Runs scheduled automation tasks
 - **GitHub** - Source code repository
 
-## Key Files
-- `web-ui/public/app.js` - Frontend JavaScript (API calls, bilingual support, grouped predictions, sentiment badges)
-- `web-ui/public/style.css` - Dashboard styling with RTL and responsive support
-- `web-ui/public/index.html` - Dashboard HTML structure
-- `web-ui/server.js` - Express API server (SQLite local, PostgreSQL production)
-- `sentiment.py` - Finnhub news + FinBERT sentiment analysis
-- `render.yaml` - Render deployment configuration
-- `.github/workflows/scheduled-tasks.yml` - GitHub Actions automation
-- `stocks.db` - SQLite database (local only)
-
-## GitHub Actions Schedule
-| Task | Schedule | Script |
-|------|----------|--------|
-| Data Collection + Sentiment | Mon-Fri 4:30 PM EST | `collect_data.py` + `sentiment.py` |
-| Predictions | Friday 6 PM EST | `run_agents.py` |
-| Evaluation | Every hour | `evaluate.py` |
+## Key Files (Web UI)
+- `public/app.js` - Frontend JavaScript (tabs, TradingView, bilingual)
+- `public/performance-dashboard.js` - **NEW** Performance dashboard UI (canvas chart, agent table, audit modal)
+- `public/performance-dashboard.css` - **NEW** Performance dashboard styling (dark/light, RTL, responsive)
+- `public/trades.js` - Frontend logic for trades dashboard
+- `public/style.css` - Dashboard styling with tabs, RTL, responsive
+- `public/index.html` - Dashboard HTML (tabs, TradingView ticker, performance section)
+- `server.js` - Express API server (SQLite local, PostgreSQL production)
+- `routes/trades.js` - API routes for trades and portfolio
+- `routes/performance.js` - **NEW** Investor-grade performance API routes (`/api/performance-v2/*`)
+- `migrations/007_performance_benchmark.sql` - **NEW** Performance schema migration
 
 ## Environment Variables (Secrets)
 - `DATABASE_URL` - PostgreSQL connection string (Render)
@@ -34,72 +33,57 @@ Stock trading prediction system with web dashboard. Uses multiple AI agents to p
 - **Backend**: Node.js/Express (web-ui), Python (agents)
 - **Database**: SQLite (local), PostgreSQL (production/Render)
 - **Frontend**: Vanilla JS, CSS with animations
-- **CI/CD**: GitHub Actions, Render auto-deploy
+- **CI/CD**: GitHub Actions (`actions/checkout@v4`), Render auto-deploy
 
 ## Agents
 - `MA_Crossover_Agent` - Moving average trend analysis
-- `ML_RandomForest` - Machine learning price predictor
+- `ML_RandomForest` - Machine learning with 40+ TA-Lib features, walk-forward validation
 - `RSI_Agent` - Momentum indicator (RSI)
 - `Volume_Spike_Agent` - Volume analysis
-
-## UI Features (Feb 2025)
-1. **Bilingual Support (EN/AR)** - Language switcher with RTL support
-2. **Grouped Predictions** - Stock shown once with rowspan for multiple agents
-3. **Agent Tooltips** - Hover descriptions explaining each agent (bilingual)
-4. **Company Name Mapping** - US and EGX stocks with full names (bilingual)
-5. **Color-coded Accuracy** - Green (60%+), Yellow (40-60%), Red (<40%)
-6. **Responsive Design** - Breakpoints: 1024px, 768px, 480px, 360px
-7. **Touch Optimized** - 44px+ touch targets, no hover on touch devices
-8. **Print Styles** - Clean printing without buttons
-9. **Sentiment Badges** - Bullish/Neutral/Bearish badges per stock (color-coded)
-10. **User-Friendly Messages** - Friendly status messages instead of technical errors
-11. **Prediction Results Tab** - Compare agent predictions vs actual price movements
-
-## Sentiment Analysis (Feb 2025)
-- **Source**: Finnhub API for company news
-- **Model**: FinBERT (ProsusAI/finbert) for financial sentiment
-- **Storage**: `sentiment_scores` table with avg_sentiment, label, article counts
-- **Integration**: Agents receive sentiment data to confirm/adjust signals
-- **Display**: Color-coded badges (green=Bullish, gray=Neutral, red=Bearish)
-- **API**: `/api/sentiment` endpoint returns latest sentiment per stock
+- `Consensus` - Accuracy-weighted vote across all agents (Phase 1)
+- **Trade Recommendation Engine** - Generates actionable Buy/Sell signals with entry/exit targets (Phase 2)
+- **Performance Evaluation Engine** - Resolves outcomes, calculates alpha vs EGX30 benchmark, agent accuracy (Phase 3)
 
 ## API Endpoints
-- `/api/predictions` - Latest predictions from all agents
-- `/api/performance` - Agent accuracy statistics
+- `/api/predictions` - Latest predictions from all agents (includes disclaimer)
+- `/api/performance` - Agent accuracy statistics (legacy)
+- `/api/performance/detailed` - Full breakdown (per-agent, per-stock, monthly trend) (legacy)
+- `/api/performance-v2/summary` - **NEW** Investor-grade overall performance + rolling metrics
+- `/api/performance-v2/by-agent` - **NEW** Per-agent accuracy comparison
+- `/api/performance-v2/by-stock?days=N` - **NEW** Per-stock performance breakdown
+- `/api/performance-v2/equity-curve?days=N` - **NEW** Cumulative return series (Xmore vs EGX30)
+- `/api/performance-v2/predictions/open` - **NEW** Currently open predictions
+- `/api/performance-v2/predictions/history?page=N&limit=N` - **NEW** Auditable prediction history
+- `/api/performance-v2/audit?limit=N` - **NEW** Prediction modification audit trail
 - `/api/evaluations` - Prediction results (predicted vs actual)
 - `/api/sentiment` - Latest sentiment scores per stock
 - `/api/prices` - Latest stock prices
+- `/api/trades/today` - Today's active trade recommendations
+- `/api/trades/history` - Historical trade recommendations
+- `/api/portfolio` - User portfolio (open positions, performance stats)
 - `/api/stats` - System statistics
 
 ## Common Tasks
 **Local Development:**
 - Start server: `cd web-ui && npm install && node server.js`
-- Run agents: `python run_agents.py`
-- Evaluate predictions: `python evaluate.py`
+- Run agents: `python run_agents.py` (includes performance evaluation as Step 8)
+- Evaluate performance: `python -c "from engines.evaluate_performance import run_evaluation; run_evaluation()"`
 - Collect data: `python collect_data.py`
 - Collect sentiment: `python sentiment.py` (requires FINNHUB_API_KEY)
-
-**Production (Render):**
-- Auto-deploys on push to main branch
-- Dashboard: trading-dashboard service
-- Database: trading-db PostgreSQL
-
-## Troubleshooting
-- **"Performance tracking will begin..."** - Normal message when no evaluations exist yet. Wait for hourly GitHub Action
-- **"N/A" sentiment badges** - Run `python sentiment.py` or check FINNHUB_API_KEY secret
-- **Server errors** - Run `npm install` in web-ui folder, then restart server
-- **Browser cache** - Hard refresh (Ctrl+Shift+R) after code changes
-- **GitHub Actions failing** - Check secrets: DATABASE_URL, NEWS_API_KEY, FINNHUB_API_KEY
-- **Render not updating** - Wait 2-3 minutes after push for auto-deploy
 
 ## Database Compatibility
 - **Boolean handling**: PostgreSQL uses `true/false`, SQLite uses `1/0`
 - **Missing tables**: API returns empty array `[]` instead of 500 error
 - **DISTINCT ON**: PostgreSQL-specific syntax for latest records per symbol
+- **Immutability triggers**: PostgreSQL only (prevents core prediction field mutations)
+- **Materialized views**: PostgreSQL only (`mv_performance_global`); SQLite computes on-the-fly
 
 ## Notes
 - EGX stocks use `.CA` suffix (e.g., `COMI.CA`)
 - Language preference stored in localStorage
+- Dark mode preference stored in localStorage (key: `theme`)
 - Server runs on port 3000 locally
 - Production uses Render's DATABASE_URL for PostgreSQL
 - Dashboard auto-refreshes data on language switch
+- Prediction horizon: 1 day (changed from 7 days for faster evaluation)
+- See root `MEMORY.md` and `docs/PERFORMANCE_SYSTEM.md` for full details

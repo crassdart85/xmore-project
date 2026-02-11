@@ -10,6 +10,7 @@ const { router: stocksRouter, attachDb: attachStocksDb } = require('./routes/sto
 const { router: watchlistRouter, attachDb: attachWatchlistDb } = require('./routes/watchlist');
 const { router: tradesRouter, attachDb: attachTradesDb } = require('./routes/trades');
 const { router: briefingRouter, attachDb: attachBriefingDb } = require('./routes/briefing');
+const { router: performanceRouter, attachDb: attachPerformanceDb } = require('./routes/performance');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -103,12 +104,14 @@ attachStocksDb(db);
 attachWatchlistDb(db, isPostgres);
 attachTradesDb(db);
 attachBriefingDb(db, isPostgres);
+attachPerformanceDb(db, isPostgres);
 
 app.use('/api', authRouter);
 app.use('/api', stocksRouter);
 app.use('/api', watchlistRouter);
 app.use('/api/trades', tradesRouter);
 app.use('/api/briefing', briefingRouter);
+app.use('/api/performance-v2', performanceRouter);
 
 // ============================================
 // API ENDPOINTS

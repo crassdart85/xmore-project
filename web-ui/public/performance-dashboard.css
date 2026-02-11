@@ -1,0 +1,558 @@
+/* ============================================
+   Performance Dashboard Styles
+   Investor-grade, premium look
+   ============================================ */
+
+/* ─── HEADER ──────────────────────────────────────────────── */
+
+.perf-header {
+    margin-bottom: 1.5rem;
+}
+
+.perf-main-title {
+    font-size: 1.6rem;
+    font-weight: 800;
+    margin: 0 0 0.75rem;
+    background: linear-gradient(135deg, #00e676, #00b0ff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.perf-disclaimer-banner {
+    background: rgba(255, 193, 7, 0.1);
+    border: 1px solid rgba(255, 193, 7, 0.25);
+    border-radius: 8px;
+    padding: 0.6rem 1rem;
+    font-size: 0.82rem;
+    color: var(--text-secondary, #888);
+    line-height: 1.5;
+}
+
+/* ─── SECTIONS ────────────────────────────────────────────── */
+
+.perf-section {
+    margin-bottom: 2rem;
+}
+
+.perf-section h3 {
+    font-size: 1.15rem;
+    font-weight: 700;
+    margin: 0 0 1rem;
+    color: var(--text-primary, #eee);
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+}
+
+/* ─── KEY METRICS GRID ────────────────────────────────────── */
+
+.perf-metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 1rem;
+}
+
+.perf-metric-card {
+    background: var(--card-bg, rgba(255, 255, 255, 0.04));
+    border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+    border-radius: 12px;
+    padding: 1.25rem 1rem;
+    text-align: center;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.perf-metric-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 20px rgba(0, 230, 118, 0.1);
+}
+
+.perf-metric-card.positive {
+    border-color: rgba(0, 230, 118, 0.3);
+    background: rgba(0, 230, 118, 0.05);
+}
+
+.perf-metric-card.negative {
+    border-color: rgba(255, 82, 82, 0.3);
+    background: rgba(255, 82, 82, 0.05);
+}
+
+.perf-metric-value {
+    font-size: 1.8rem;
+    font-weight: 800;
+    color: var(--text-primary, #fff);
+    line-height: 1.2;
+}
+
+.perf-metric-card.positive .perf-metric-value {
+    color: #00e676;
+}
+
+.perf-metric-card.negative .perf-metric-value {
+    color: #ff5252;
+}
+
+.perf-metric-label {
+    font-size: 0.78rem;
+    color: var(--text-secondary, #888);
+    margin-top: 0.4rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+}
+
+.perf-min-banner {
+    margin-top: 0.75rem;
+    padding: 0.5rem 0.75rem;
+    background: rgba(255, 193, 7, 0.08);
+    border-radius: 6px;
+    font-size: 0.82rem;
+    color: var(--text-warning, #ffc107);
+    text-align: center;
+}
+
+/* ─── EQUITY CURVE ────────────────────────────────────────── */
+
+.perf-period-tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.perf-period-btn {
+    padding: 0.35rem 0.75rem;
+    border-radius: 6px;
+    border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+    background: transparent;
+    color: var(--text-secondary, #888);
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.perf-period-btn.active,
+.perf-period-btn:hover {
+    background: var(--accent, #00e676);
+    color: #000;
+    border-color: var(--accent, #00e676);
+}
+
+.perf-chart-container {
+    background: var(--card-bg, rgba(255, 255, 255, 0.02));
+    border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+    border-radius: 12px;
+    padding: 1rem;
+    overflow: hidden;
+}
+
+.perf-chart-container canvas {
+    width: 100% !important;
+    height: 350px;
+}
+
+.perf-chart-legend {
+    display: flex;
+    gap: 1.5rem;
+    justify-content: center;
+    padding: 0.75rem 0 0;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.legend-xmore {
+    color: #00e676;
+}
+
+.legend-egx {
+    color: var(--text-secondary, #888);
+}
+
+.legend-alpha {
+    color: #00b0ff;
+}
+
+/* ─── TABLES ──────────────────────────────────────────────── */
+
+.perf-table-wrapper {
+    overflow-x: auto;
+    border-radius: 10px;
+    border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+}
+
+.perf-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.88rem;
+}
+
+.perf-table thead th {
+    background: var(--card-bg, rgba(255, 255, 255, 0.04));
+    padding: 0.7rem 1rem;
+    text-align: left;
+    font-weight: 600;
+    color: var(--text-secondary, #999);
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+}
+
+.perf-table tbody td {
+    padding: 0.65rem 1rem;
+    border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.04));
+    color: var(--text-primary, #eee);
+}
+
+.perf-table tbody tr:hover {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.perf-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.agent-name-cell {
+    font-weight: 600;
+}
+
+.perf-badge {
+    display: inline-block;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.82rem;
+    font-weight: 700;
+}
+
+.perf-badge.positive {
+    background: rgba(0, 230, 118, 0.12);
+    color: #00e676;
+}
+
+.perf-badge.negative {
+    background: rgba(255, 82, 82, 0.12);
+    color: #ff5252;
+}
+
+.text-positive {
+    color: #00e676 !important;
+}
+
+.text-negative {
+    color: #ff5252 !important;
+}
+
+.perf-table-actions {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 0.75rem;
+    justify-content: center;
+}
+
+.perf-action-btn {
+    padding: 0.45rem 1.1rem;
+    border-radius: 8px;
+    border: 1px solid var(--accent, #00e676);
+    background: transparent;
+    color: var(--accent, #00e676);
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.perf-action-btn:hover {
+    background: var(--accent, #00e676);
+    color: #000;
+}
+
+.perf-action-btn.secondary {
+    border-color: var(--text-secondary, #888);
+    color: var(--text-secondary, #888);
+}
+
+.perf-action-btn.secondary:hover {
+    background: var(--text-secondary, #888);
+    color: #000;
+}
+
+/* ─── BEST / WORST STOCKS ─────────────────────────────────── */
+
+.perf-best-worst {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+}
+
+.perf-best h4,
+.perf-worst h4 {
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin: 0 0 0.5rem;
+    color: var(--text-secondary, #aaa);
+}
+
+.stock-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.stock-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.35rem 0.65rem;
+    border-radius: 6px;
+    font-size: 0.82rem;
+    font-weight: 500;
+}
+
+.stock-chip.positive {
+    background: rgba(0, 230, 118, 0.08);
+    border: 1px solid rgba(0, 230, 118, 0.2);
+    color: #00e676;
+}
+
+.stock-chip.negative {
+    background: rgba(255, 82, 82, 0.08);
+    border: 1px solid rgba(255, 82, 82, 0.2);
+    color: #ff5252;
+}
+
+/* ─── INTEGRITY ───────────────────────────────────────────── */
+
+.perf-integrity {
+    background: var(--card-bg, rgba(255, 255, 255, 0.02));
+    border: 1px solid var(--border, rgba(255, 255, 255, 0.08));
+    border-radius: 12px;
+    padding: 1.25rem 1.5rem;
+}
+
+.perf-integrity h3 {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.integrity-items p {
+    margin: 0.35rem 0;
+    font-size: 0.88rem;
+    color: var(--text-secondary, #aaa);
+    line-height: 1.6;
+}
+
+/* ─── DISCLAIMER ──────────────────────────────────────────── */
+
+.perf-disclaimer-section {
+    background: rgba(255, 193, 7, 0.04);
+    border: 1px solid rgba(255, 193, 7, 0.12);
+    border-radius: 12px;
+    padding: 1.25rem 1.5rem;
+}
+
+.perf-disclaimer-section h3 {
+    border-bottom: none;
+    padding-bottom: 0;
+    color: rgba(255, 193, 7, 0.9);
+}
+
+.perf-disclaimer-section p {
+    font-size: 0.82rem;
+    color: var(--text-secondary, #888);
+    line-height: 1.6;
+    margin: 0.3rem 0;
+}
+
+.disclaimer-ar {
+    direction: rtl;
+    text-align: right;
+    opacity: 0.8;
+}
+
+/* ─── MODAL ───────────────────────────────────────────────── */
+
+.perf-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    animation: fadeIn 0.2s ease;
+}
+
+.perf-modal {
+    background: var(--bg-primary, #1a1a2e);
+    border: 1px solid var(--border, rgba(255, 255, 255, 0.12));
+    border-radius: 16px;
+    padding: 2rem;
+    max-width: 900px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+    position: relative;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.perf-modal-close {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background: transparent;
+    border: none;
+    color: var(--text-secondary, #999);
+    font-size: 1.5rem;
+    cursor: pointer;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.perf-modal-close:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-primary, #fff);
+}
+
+.perf-modal h3 {
+    margin: 0 0 0.5rem;
+}
+
+.perf-modal p {
+    font-size: 0.85rem;
+    color: var(--text-secondary, #888);
+    margin-bottom: 1rem;
+}
+
+/* ─── SIGNAL BADGES ───────────────────────────────────────── */
+
+.signal-badge {
+    display: inline-block;
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.signal-bullish,
+.signal-up,
+.signal-buy {
+    background: rgba(0, 230, 118, 0.12);
+    color: #00e676;
+}
+
+.signal-bearish,
+.signal-down,
+.signal-sell {
+    background: rgba(255, 82, 82, 0.12);
+    color: #ff5252;
+}
+
+.signal-neutral,
+.signal-hold,
+.signal-flat {
+    background: rgba(255, 193, 7, 0.12);
+    color: #ffc107;
+}
+
+/* ─── ANIMATIONS ──────────────────────────────────────────── */
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+/* ─── RESPONSIVE ──────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+    .perf-metrics-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .perf-best-worst {
+        grid-template-columns: 1fr;
+    }
+
+    .perf-modal {
+        padding: 1.25rem;
+        width: 95%;
+    }
+
+    .perf-main-title {
+        font-size: 1.2rem;
+    }
+
+    .perf-metric-value {
+        font-size: 1.4rem;
+    }
+
+    .perf-chart-legend {
+        flex-direction: column;
+        align-items: center;
+        gap: 0.5rem;
+    }
+}
+
+/* ─── RTL SUPPORT ─────────────────────────────────────────── */
+
+[dir="rtl"] .perf-table thead th,
+[dir="rtl"] .perf-table tbody td {
+    text-align: right;
+}
+
+[dir="rtl"] .perf-modal-close {
+    right: auto;
+    left: 1rem;
+}
+
+/* ─── LIGHT THEME OVERRIDES ───────────────────────────────── */
+
+[data-theme="light"] .perf-metric-card {
+    background: rgba(0, 0, 0, 0.02);
+    border-color: rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="light"] .perf-metric-card:hover {
+    box-shadow: 0 4px 20px rgba(0, 200, 83, 0.1);
+}
+
+[data-theme="light"] .perf-table thead th {
+    background: rgba(0, 0, 0, 0.03);
+}
+
+[data-theme="light"] .perf-table tbody tr:hover {
+    background: rgba(0, 0, 0, 0.02);
+}
+
+[data-theme="light"] .perf-chart-container {
+    background: rgba(0, 0, 0, 0.01);
+}
+
+[data-theme="light"] .perf-integrity {
+    background: rgba(0, 0, 0, 0.02);
+}
+
+[data-theme="light"] .perf-main-title {
+    background: linear-gradient(135deg, #00c853, #0091ea);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+[data-theme="light"] .perf-modal {
+    background: #ffffff;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+}

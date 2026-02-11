@@ -385,6 +385,65 @@ def create_tables():
         """)
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_sentiment_symbol_date ON sentiment_scores(symbol, date)")
 
+        # Table 15: Prediction Audit Log (track changes for transparency)
+        cursor.execute(f"""
+            CREATE TABLE IF NOT EXISTS prediction_audit_log (
+                id {auto_id},
+                table_name TEXT NOT NULL,
+                record_id INTEGER NOT NULL,
+                field_changed TEXT NOT NULL,
+                old_value TEXT,
+                new_value TEXT,
+                changed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_audit_changed_at ON prediction_audit_log(changed_at DESC)")
+
+        # Table 16: Agent Performance Daily (per-agent accuracy snapshots)
+        cursor.execute(f"""
+            CREATE TABLE IF NOT EXISTS agent_performance_daily (
+                id {auto_id},
+                snapshot_date DATE NOT NULL,
+                agent_name TEXT NOT NULL,
+                win_rate_30d REAL,
+                win_rate_90d REAL,
+                predictions_30d INTEGER DEFAULT 0,
+                predictions_90d INTEGER DEFAULT 0,
+                avg_confidence_30d REAL,
+                avg_confidence_90d REAL,
+                avg_alpha_30d REAL,
+                avg_alpha_90d REAL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(snapshot_date, agent_name)
+            )
+        """)
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_agent_perf_date ON agent_performance_daily(snapshot_date DESC)")
+
+        # Add benchmark columns to trade_recommendations (safe ALTER TABLE)
+        benchmark_columns = [
+            ("benchmark_1d_return", "REAL"),
+            ("alpha_1d", "REAL"),
+            ("benchmark_5d_return", "REAL"),
+            ("alpha_5d", "REAL"),
+            ("is_live", f"{bool_default}"),
+        ]
+        for col_name, col_type in benchmark_columns:
+            try:
+                cursor.execute(f"ALTER TABLE trade_recommendations ADD COLUMN {col_name} {col_type}")
+            except Exception:
+                pass  # Column already exists
+
+        # Add benchmark columns to user_positions
+        position_columns = [
+            ("benchmark_return_pct", "REAL"),
+            ("alpha_pct", "REAL"),
+        ]
+        for col_name, col_type in position_columns:
+            try:
+                cursor.execute(f"ALTER TABLE user_positions ADD COLUMN {col_name} {col_type}")
+            except Exception:
+                pass  # Column already exists
+
         # Seed EGX 30 stocks (insert or ignore for SQLite)
         egx30_stocks = [
             ('COMI.CA', 'Commercial International Bank', 'البنك التجاري الدولي', 'Banking', 'البنوك'),

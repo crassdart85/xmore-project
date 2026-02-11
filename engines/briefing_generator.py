@@ -279,6 +279,45 @@ def generate_sentiment_snapshot(sentiment_data, stocks_metadata):
     }
 
 
+def get_briefing_performance_snippet() -> dict:
+    """
+    Fetch 30-day rolling performance metrics for inclusion in the daily briefing.
+    Returns a lightweight summary suitable for the briefing card.
+    
+    This function accesses the database, so it CAN fail gracefully if the 
+    performance engine hasn't run yet.
+    """
+    try:
+        from engines.performance_metrics import get_performance_summary
+        metrics = get_performance_summary(days=30, live_only=True)
+        
+        if metrics.get("total_predictions", 0) == 0:
+            return {
+                "available": False,
+                "message_en": "Track record in progress — not enough data yet.",
+                "message_ar": "السجل قيد التكوين — ليس هناك بيانات كافية بعد."
+            }
+        
+        return {
+            "available": True,
+            "period": "30d",
+            "total_trades": metrics.get("total_predictions", 0),
+            "win_rate": metrics.get("win_rate", 0),
+            "avg_alpha": metrics.get("avg_alpha_1d", 0),
+            "sharpe_ratio": metrics.get("sharpe_ratio", 0),
+            "max_drawdown": metrics.get("max_drawdown", 0),
+            "meets_minimum": metrics.get("meets_minimum", False),
+            "message_en": f"30-day record: {metrics.get('win_rate', 0)}% win rate, {'+' if metrics.get('avg_alpha_1d', 0) > 0 else ''}{metrics.get('avg_alpha_1d', 0)}% avg alpha.",
+            "message_ar": f"سجل 30 يوم: نسبة فوز {metrics.get('win_rate', 0)}%، ألفا متوسط {'+' if metrics.get('avg_alpha_1d', 0) > 0 else ''}{metrics.get('avg_alpha_1d', 0)}%."
+        }
+    except Exception as e:
+        return {
+            "available": False,
+            "message_en": "Track record unavailable.",
+            "message_ar": "السجل غير متاح."
+        }
+
+
 def generate_daily_briefing(consensus_map, prices_map, prev_prices_map, stocks_metadata, sentiment_data):
     """
     Orchestrator: build the complete daily briefing from all data sources.
@@ -289,6 +328,7 @@ def generate_daily_briefing(consensus_map, prices_map, prev_prices_map, stocks_m
             'sector_breakdown': [...],
             'risk_alerts': [...],
             'sentiment_snapshot': {...},
+            'track_record': {...},
             'stocks_processed': int
         }
     """
@@ -296,11 +336,14 @@ def generate_daily_briefing(consensus_map, prices_map, prev_prices_map, stocks_m
     sector_breakdown = generate_sector_breakdown(consensus_map, stocks_metadata)
     risk_alerts = generate_risk_alerts(consensus_map, stocks_metadata)
     sentiment_snapshot = generate_sentiment_snapshot(sentiment_data, stocks_metadata)
+    track_record = get_briefing_performance_snippet()
 
     return {
         "market_pulse": market_pulse,
         "sector_breakdown": sector_breakdown,
         "risk_alerts": risk_alerts,
         "sentiment_snapshot": sentiment_snapshot,
+        "track_record": track_record,
         "stocks_processed": len(consensus_map)
     }
+

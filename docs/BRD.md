@@ -8,8 +8,8 @@
 | Field | Details |
 |-------|---------|
 | **Document Title** | Xmore Stock Prediction System - BRD |
-| **Version** | 1.1 |
-| **Date** | February 11, 2026 |
+| **Version** | 1.2 |
+| **Date** | February 12, 2026 |
 | **Author** | Project Team |
 | **Status** | Active Development |
 | **Repository** | [github.com/crassdart85/xmore-project](https://github.com/crassdart85/xmore-project) |
@@ -130,6 +130,12 @@ To provide retail and institutional investors with an intelligent, data-driven d
 | **FR-EV-003** | System shall use 0.5% minimum move threshold for evaluation | Medium | ✅ Implemented |
 | **FR-EV-004** | System shall display historical accuracy on dashboard | Medium | ✅ Implemented |
 | **FR-EV-005** | System shall support TimeSeriesSplit validation for model training | Medium | ✅ Implemented |
+| **FR-EV-006** | System shall calculate alpha against EGX30 benchmark | High | ✅ Implemented |
+| **FR-EV-007** | System shall enforce prediction immutability (no post-hoc modifications) | High | ✅ Implemented (PG triggers) |
+| **FR-EV-008** | System shall maintain an audit trail for all outcome changes | High | ✅ Implemented |
+| **FR-EV-009** | System shall separate live predictions from backtested data | High | ✅ Implemented |
+| **FR-EV-010** | System shall calculate professional metrics (Sharpe, Sortino, max drawdown) | Medium | ✅ Implemented |
+| **FR-EV-011** | System shall require 100+ trades before claiming statistical significance | Medium | ✅ Implemented |
 
 ### 4.5 Web Dashboard
 
@@ -161,6 +167,13 @@ To provide retail and institutional investors with an intelligent, data-driven d
 | **FR-API-007** | `/api/stats` | System statistics | ✅ Implemented |
 | **FR-API-008** | `/api/trades/today` | Active trade recommendations | ✅ Implemented |
 | **FR-API-009** | `/api/portfolio` | Virtual portfolio positions & history | ✅ Implemented |
+| **FR-API-010** | `/api/performance-v2/summary` | Investor-grade performance stats + rolling metrics | ✅ Implemented |
+| **FR-API-011** | `/api/performance-v2/by-agent` | Per-agent accuracy comparison | ✅ Implemented |
+| **FR-API-012** | `/api/performance-v2/by-stock` | Per-stock performance breakdown | ✅ Implemented |
+| **FR-API-013** | `/api/performance-v2/equity-curve` | Cumulative return chart data (Xmore vs EGX30) | ✅ Implemented |
+| **FR-API-014** | `/api/performance-v2/predictions/open` | Currently open predictions | ✅ Implemented |
+| **FR-API-015** | `/api/performance-v2/predictions/history` | Auditable prediction history (paginated) | ✅ Implemented |
+| **FR-API-016** | `/api/performance-v2/audit` | Prediction modification audit trail | ✅ Implemented |
 
 ### 4.7 Automation & Scheduling
 
@@ -296,6 +309,10 @@ To provide retail and institutional investors with an intelligent, data-driven d
 | `predictions` | Agent predictions | symbol, agent_name, prediction, confidence, target_date |
 | `evaluations` | Prediction outcomes | prediction_id, actual_outcome, is_correct |
 | `sentiment_scores` | Aggregated sentiment | symbol, avg_sentiment, label, article_count |
+| `trade_recommendations` | Trade signals | symbol, action, confidence, actual_return, benchmark, alpha, is_live |
+| `user_positions` | Virtual portfolio | symbol, status, return_pct, benchmark_return_pct, alpha_pct |
+| `prediction_audit_log` | Audit trail | table_name, record_id, field_changed, old_value, new_value |
+| `agent_performance_daily` | Agent accuracy | snapshot_date, agent_name, win_rate_30d/90d, avg_alpha |
 
 ### 7.2 Data Flow
 
@@ -396,6 +413,9 @@ To provide retail and institutional investors with an intelligent, data-driven d
 |---------|-------------|
 | Trade Recommendations | Actionable signals with Entry/Target/Stop-loss | ✅ Implemented |
 | Portfolio Tracker | Virtual portfolio tracking with P&L | ✅ Implemented |
+| Performance Evaluation Engine | Benchmark comparison, alpha calculation, agent accuracy | ✅ Implemented |
+| Investor-Grade Performance API | Public transparency endpoints with audit trail | ✅ Implemented |
+| Performance Dashboard | Premium dark/light UI with equity curve, agent table, integrity | ✅ Implemented |
 | LSTM/Transformer Models | Deep learning for improved sequence modeling | Planned |
 | Hyperparameter Tuning | GridSearch optimization for Random Forest | Planned |
 | Social Media Integration | Twitter/X sentiment from Arabic fintwit | Planned |
@@ -455,5 +475,5 @@ To provide retail and institutional investors with an intelligent, data-driven d
 
 *Document End*
 
-**Last Updated**: February 11, 2026
-**Next Review**: March 11, 2026
+**Last Updated**: February 12, 2026
+**Next Review**: March 12, 2026

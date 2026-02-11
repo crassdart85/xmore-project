@@ -121,10 +121,10 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: python run_agents.py
 
-      - name: Evaluate Trade Recommendations
+      - name: Evaluate Performance & Benchmarks
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        run: python evaluate_trades.py
+        run: python -c "from engines.evaluate_performance import run_evaluation; run_evaluation()"
 
   hourly-evaluation:
     if: github.event.schedule == '0 * * * *' || github.event_name == 'workflow_dispatch'
