@@ -81,6 +81,7 @@
                     <h2 id="wlTitle">⭐ My Watchlist</h2>
                     <button id="wlAddBtn" class="wl-add-btn">+ Add Stock</button>
                 </div>
+                <p class="section-subtitle" id="watchlistBrief">Track the stocks you care about so the app can personalize signals, briefing, and performance for you.</p>
                 <!-- Stock Search -->
                 <div id="wlSearchBox" class="wl-search-box" style="display:none;">
                     <input type="text" id="wlSearchInput" placeholder="Search by name, symbol, or sector..."
@@ -96,6 +97,9 @@
 
         <!-- Tab: Predictions -->
         <section class="tab-content active" id="tab-predictions">
+            <div class="section-header">
+                <p class="section-subtitle" id="predictionsBrief">Start here: see today's AI signals by stock and scan for bullish, bearish, or neutral direction.</p>
+            </div>
             <div class="search-box">
                 <input type="text" id="predictionsSearch" placeholder="Search by stock symbol or company name..."
                     onkeyup="filterPredictions()">
@@ -138,6 +142,9 @@
 
         <!-- Tab: Performance Dashboard (Investor-Grade) -->
         <section class="tab-content" id="tab-performance">
+            <div class="section-header">
+                <p class="section-subtitle" id="performanceBrief">Review strategy quality over time, including win rate, drawdown, and benchmark-relative performance.</p>
+            </div>
             <div id="perfDashboard">
                 <p class="loading">Loading performance data...</p>
             </div>
@@ -145,6 +152,9 @@
 
         <!-- Tab: Consensus (3-Layer Pipeline) -->
         <section class="tab-content" id="tab-consensus">
+            <div class="section-header">
+                <p class="section-subtitle" id="consensusBrief">See where multiple agents agree, plus risk filters, to spot the strongest shared setup.</p>
+            </div>
             <!-- Risk Overview Summary -->
             <div class="consensus-overview" id="consensusOverview">
                 <div class="risk-stat-card">
@@ -174,6 +184,7 @@
         <section class="tab-content" id="tab-results">
             <div class="section-header section-header-centered">
                 <h2 id="resultsTitle">Results</h2>
+                <p class="section-subtitle" id="resultsBrief">Compare past predictions with real outcomes to understand what the model got right or wrong.</p>
             </div>
             <div id="evaluations" class="scrollable-container">
                 <p class="loading">Loading prediction results...</p>
@@ -182,6 +193,9 @@
 
         <!-- Tab: Latest Prices -->
         <section class="tab-content" id="tab-prices">
+            <div class="section-header">
+                <p class="section-subtitle" id="pricesBrief">Check the latest market prices and volume for each tracked stock in one quick table.</p>
+            </div>
             <div id="prices">
                 <p class="loading">Loading prices...</p>
             </div>
@@ -193,6 +207,7 @@
                 <h2 id="briefingTitle">Daily Market Briefing</h2>
                 <p class="section-subtitle" id="briefingSubtitle">AI-generated market overview and personalized action
                     items.</p>
+                <p class="section-subtitle" id="briefingBrief">Use this as your daily summary: key market context, priority signals, and suggested next actions.</p>
             </div>
             <div id="briefingContainer">
                 <p class="loading">Loading briefing...</p>
@@ -205,6 +220,7 @@
                 <h2 id="tradesTitle">Today's Recommendations</h2>
                 <p class="section-subtitle" id="tradesSubtitle">AI-generated trade signals for today's market session.
                 </p>
+                <p class="section-subtitle" id="tradesBrief">View executable trade ideas with direction and rationale for the current session.</p>
             </div>
             <div id="todayTradesContainer">
                 <p class="loading">Loading trades...</p>
@@ -215,6 +231,7 @@
         <section class="tab-content" id="tab-portfolio">
             <div class="section-header">
                 <h2 id="portfolioTitle">My Portfolio</h2>
+                <p class="section-subtitle" id="portfolioBrief">Monitor open positions, recent trade history, and high-level portfolio health in one place.</p>
             </div>
 
             <div id="portfolioStats" class="stats-grid-mini">

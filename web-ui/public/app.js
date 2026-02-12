@@ -72,6 +72,15 @@ const TRANSLATIONS = {
         tabPerformance: 'Performance',
         tabResults: 'Results',
         tabPrices: 'Prices',
+        predictionsBrief: "Start here: see today's AI signals by stock and scan for bullish, bearish, or neutral direction.",
+        watchlistBrief: 'Track the stocks you care about so the app can personalize signals, briefing, and performance for you.',
+        performanceBrief: 'Review strategy quality over time, including win rate, drawdown, and benchmark-relative performance.',
+        consensusBrief: 'See where multiple agents agree, plus risk filters, to spot the strongest shared setup.',
+        resultsBrief: 'Compare past predictions with real outcomes to understand what the model got right or wrong.',
+        pricesBrief: 'Check the latest market prices and volume for each tracked stock in one quick table.',
+        briefingBrief: 'Use this as your daily summary: key market context, priority signals, and suggested next actions.',
+        tradesBrief: 'View executable trade ideas with direction and rationale for the current session.',
+        portfolioBrief: 'Monitor open positions, recent trade history, and high-level portfolio health in one place.',
 
         // Section titles
         latestPredictions: 'Latest Predictions',
@@ -222,6 +231,15 @@ const TRANSLATIONS = {
         tabPerformance: 'الأداء',
         tabResults: 'النتائج',
         tabPrices: 'الأسعار',
+        predictionsBrief: 'ابدأ من هنا: راجع إشارات الذكاء الاصطناعي اليومية لكل سهم (صاعد/هابط/محايد).',
+        watchlistBrief: 'تابع الأسهم التي تهمك ليخصص النظام الإشارات والنشرة والأداء لك.',
+        performanceBrief: 'تابع جودة الاستراتيجية عبر الوقت، بما في ذلك نسبة الفوز والسحب الأقصى والأداء مقابل المؤشر.',
+        consensusBrief: 'اطلع على الأسهم التي يتفق عليها عدة وكلاء مع فلاتر المخاطر لتحديد أقوى الفرص.',
+        resultsBrief: 'قارن التوقعات السابقة بالنتائج الفعلية لفهم ما أصابه النظام وما أخطأ فيه.',
+        pricesBrief: 'راجع أحدث الأسعار وأحجام التداول للأسهم المتابعة في جدول واحد.',
+        briefingBrief: 'استخدمها كملخص يومي: سياق السوق، أولويات الإشارات، والخطوات المقترحة.',
+        tradesBrief: 'اطلع على أفكار تداول قابلة للتنفيذ مع الاتجاه والمبرر خلال جلسة اليوم.',
+        portfolioBrief: 'راقب المراكز المفتوحة وتاريخ الصفقات ومؤشرات صحة المحفظة في مكان واحد.',
 
         latestPredictions: 'أحدث التنبؤات',
         agentPerformance: 'أداء الوكلاء',
@@ -481,6 +499,11 @@ function applyLanguage() {
     if (perfMonthlyTitle) perfMonthlyTitle.textContent = t('monthlyTrend');
     const resultsTitle = document.getElementById('resultsTitle');
     if (resultsTitle) resultsTitle.textContent = t('tabResults');
+    const briefIds = ['predictionsBrief', 'watchlistBrief', 'performanceBrief', 'consensusBrief', 'resultsBrief', 'pricesBrief', 'briefingBrief', 'tradesBrief', 'portfolioBrief'];
+    briefIds.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.textContent = t(id);
+    });
 
     // Accuracy definition tooltip
     const accDef = document.getElementById('accuracyDefinition');
