@@ -3,7 +3,7 @@
 ## Project Overview
 Stock trading prediction system with web dashboard. Uses multiple AI agents to predict stock movements.
 
-**Last Updated**: February 12, 2026
+**Last Updated**: February 14, 2026
 
 ## Deployment Architecture
 - **Render.com** - Hosts web dashboard + PostgreSQL database
@@ -15,6 +15,10 @@ Stock trading prediction system with web dashboard. Uses multiple AI agents to p
 - `engines/evaluate_performance.py` - **NEW** Performance evaluation engine (replaces `evaluate_trades.py`)
 - `engines/performance_metrics.py` - **NEW** Professional financial metrics calculator (Sharpe, alpha, drawdown)
 - `engines/briefing_generator.py` - Daily market briefing generator (now includes track record snippet)
+- `engines/portfolio_config.py` - **NEW** Portfolio archetype configurations (Conservative/Balanced/Aggressive)
+- `engines/portfolio_engine.py` - **NEW** Signal-to-allocation pipeline (5-step: collect ? filter ? score ? allocate ? publish)
+- `engines/circuit_breaker.py` - **NEW** Drawdown circuit breaker (increases cash when drawdown exceeds threshold)
+- `engines/generate_portfolios.py` - **NEW** Cron orchestrator for portfolio generation (runs after daily predictions)
 - `evaluate_trades.py` - Trade recommendation accuracy tracker (legacy — superseded by `evaluate_performance.py`)
 - `web-ui/routes/trades.js` - API routes for trades and portfolio
 - `web-ui/routes/performance.js` - **NEW** Investor-grade performance API routes (`/api/performance-v2/*`)
@@ -26,6 +30,7 @@ Stock trading prediction system with web dashboard. Uses multiple AI agents to p
 - `web-ui/public/index.html` - Dashboard HTML (tabs, TradingView ticker, performance section)
 - `web-ui/server.js` - Express API server (SQLite local, PostgreSQL production)
 - `web-ui/migrations/007_performance_benchmark.sql` - **NEW** Performance schema migration
+- `web-ui/migrations/008_model_portfolios.sql` - **NEW** Portfolio tables migration (model_portfolios, portfolio_allocations, portfolio_performance)
 - `sentiment.py` - Finnhub news + FinBERT + VADER dual-engine sentiment
 - `features.py` - 40+ TA-Lib technical indicators with pure Python fallback
 - `data/egx_live_scraper.py` - EGX live feed scraper with yfinance fallback
@@ -36,6 +41,7 @@ Stock trading prediction system with web dashboard. Uses multiple AI agents to p
 - `docs/PERFORMANCE_SYSTEM.md` - **NEW** Performance system architecture document
 - `render.yaml` - Render deployment configuration
 - `.github/workflows/scheduled-tasks.yml` - GitHub Actions automation
+- `tests/test_portfolio_engine.py` - **NEW** Portfolio engine unit tests (constraints, allocation math, edge cases)
 - `stocks.db` - SQLite database (local only)
 
 ## GitHub Actions Schedule
@@ -44,6 +50,7 @@ Stock trading prediction system with web dashboard. Uses multiple AI agents to p
 | EGX Data Collection | Sun-Thu 12:30 PM EST | `collect_data.py` (EGX live → yfinance) |
 | US Data + Sentiment | Mon-Fri 4:30 PM EST | `collect_data.py` + `sentiment.py` |
 | Predictions | Sun-Fri 5:00 PM EST (daily, 1-day) | `run_agents.py` (incl. Consensus, Trades, Performance Eval) |
+| Portfolio Generation | Daily (after predictions) | `engines/generate_portfolios.py` (needs: daily-predictions) |
 | Performance Eval | Daily (Step 8 in pipeline) | `engines/evaluate_performance.py` (called by `run_agents.py`) |
 | Evaluation | Every hour | `evaluate.py` |
 
@@ -127,12 +134,23 @@ Stock trading prediction system with web dashboard. Uses multiple AI agents to p
 - `/api/portfolio` - User portfolio (open positions, performance stats)
 - `/api/stats` - System statistics
 
+### Portfolio Endpoints (Phase 2 � Planned)
+- `GET /api/portfolios` - List portfolio types with latest snapshot
+- `GET /api/portfolios/:type` - Full allocation detail for a portfolio type (preview: free / full: auth)
+- `GET /api/portfolios/:type/performance` - Historical performance + metrics
+- `GET /api/portfolios/:type/history` - All past snapshots and rebalances (auth)
+- `GET /api/portfolios/:type/compare` - Side-by-side with EGX30
+- `POST /api/portfolios/simulate` - Simulate allocation with custom amount (auth)
+- `GET /api/portfolios/changes` - Latest rebalance changes (auth)
+
 ## Common Tasks
 **Local Development:**
 - Start server: `cd web-ui && npm install && node server.js`
 - Run agents: `python run_agents.py` (includes performance evaluation as Step 8)
 - Evaluate predictions: `python evaluate.py`
 - Evaluate performance: `python -c "from engines.evaluate_performance import run_evaluation; run_evaluation()"`
+- Generate portfolios: `python engines/generate_portfolios.py`
+- Run portfolio tests: `python -m pytest tests/test_portfolio_engine.py -v`
 - Evaluate trades (legacy): `python evaluate_trades.py`
 - Collect data: `python collect_data.py`
 - Collect sentiment: `python sentiment.py` (requires FINNHUB_API_KEY)
@@ -167,6 +185,9 @@ Stock trading prediction system with web dashboard. Uses multiple AI agents to p
 | `daily_briefings` | Generated daily briefings |
 | `prediction_audit_log` | **NEW** Audit trail for outcome changes |
 | `agent_performance_daily` | **NEW** Per-agent rolling accuracy snapshots |
+| `model_portfolios` | **NEW** Portfolio snapshots per archetype (immutable once deactivated) |
+| `portfolio_allocations` | **NEW** Per-stock allocation weights within a portfolio snapshot |
+| `portfolio_performance` | **NEW** Daily performance tracking (return, alpha, Sharpe, drawdown) |
 
 ### Performance Columns Added
 - `trade_recommendations`: `benchmark_1d_return`, `alpha_1d`, `benchmark_5d_return`, `alpha_5d`, `is_live`
@@ -181,6 +202,8 @@ Stock trading prediction system with web dashboard. Uses multiple AI agents to p
 - **Materialized views**: PostgreSQL only (`mv_performance_global`); SQLite computes on-the-fly
 - **FILTER clause**: PostgreSQL uses `FILTER (WHERE ...)`, SQLite uses `CASE WHEN` equivalent
 - **ALTER TABLE**: Wrapped in try/except for safe column additions on both engines
+- **Portfolio immutability triggers**: PostgreSQL only (prevents UPDATE/DELETE on deactivated portfolio snapshots)
+- **Auto-deactivation**: PostgreSQL trigger deactivates previous active portfolio of same type on new insert
 
 ## Notes
 - EGX stocks use `.CA` suffix (e.g., `COMI.CA`)
@@ -192,6 +215,59 @@ Stock trading prediction system with web dashboard. Uses multiple AI agents to p
 - Prediction horizon: 1 day (changed from 7 days for faster evaluation)
 
 ## Recent Changes (Feb 2026)
+- **Security + Reliability Hardening (Feb 14, 2026)**:
+  - Enforced required `JWT_SECRET` in `web-ui/middleware/auth.js` (removed insecure default fallback)
+  - Tightened CORS behavior in `web-ui/server.js` to support explicit allowlist via `CORS_ALLOWED_ORIGINS`
+  - Fixed fragile SQLite placeholder conversion (`$1..$N` ? `?`) in `web-ui/routes/trades.js` and `web-ui/routes/briefing.js`
+  - Added safe JSON parsing guard for trade reasons in `web-ui/routes/trades.js`
+  - Reduced broad `SELECT *` usage in `web-ui/routes/performance.js` and `web-ui/server.js` consensus detail endpoint
+- **Portfolio Engine Data Quality Improvements (Feb 14, 2026)**:
+  - Deduplicated portfolio signal collection by symbol in `engines/portfolio_engine.py`
+  - Updated `engines/generate_portfolios.py` to compute portfolio-specific daily performance snapshots using allocation-weighted returns (instead of copying global metrics)
+- **Frontend Safety + UX Improvements (Feb 14, 2026)**:
+  - Added HTML escaping helpers in `web-ui/public/trades.js` and `web-ui/public/watchlist.js` to reduce XSS risk from rendered dynamic values
+  - Improved watchlist empty state with actionable "Add Stock" CTA
+  - Added accessibility `aria-label` on watchlist remove button
+  - Added lightweight loading placeholders for trades/portfolio views
+- **Portfolio Engine Phase 1 (Feb 14, 2026)**:
+  - Added migration `web-ui/migrations/008_model_portfolios.sql` with new tables:
+    - `model_portfolios` (portfolio snapshots)
+    - `portfolio_allocations` (per-stock weights)
+    - `portfolio_performance` (daily performance tracking)
+  - Added PostgreSQL trigger/function protections in migration:
+    - Prevent UPDATE/DELETE for inactive portfolio snapshots (`is_active = FALSE`)
+    - Auto-deactivate previous active portfolio of same `portfolio_type` when inserting a new active one
+  - Added archetype configuration module `engines/portfolio_config.py`:
+    - `CONSERVATIVE_CONFIG` (Al-Aman)
+    - `BALANCED_CONFIG` (Al-Mizan)
+    - `AGGRESSIVE_CONFIG` (Al-Numu)
+  - Added signal-to-allocation engine `engines/portfolio_engine.py` with 5-step pipeline:
+    - collect active signals
+    - filter by archetype rules
+    - score/rank
+    - constrained weight allocation
+    - validate/publish to portfolio tables
+  - Added drawdown protection in `engines/circuit_breaker.py`:
+    - Increases cash allocation when latest drawdown exceeds archetype threshold
+  - Added cron orchestrator `engines/generate_portfolios.py`:
+    - Rebalance cadence by archetype (30/14/7 days)
+    - Runs full generation flow and writes daily `portfolio_performance` snapshots
+  - Added test suite `tests/test_portfolio_engine.py`:
+    - constraint enforcement
+    - total allocation integrity
+    - cash floor checks
+    - edge cases (no signals, single signal)
+  - Updated workflow `.github/workflows/scheduled-tasks.yml`:
+    - Added `portfolio-generation` job
+    - Runs after `daily-predictions` (`needs: daily-predictions`)
+    - Executes `python engines/generate_portfolios.py`
+- **Screen Briefs + Translation Coverage (Feb 12, 2026)**:
+  - Added short novice-friendly "what this screen does" briefs across all major tabs in `web-ui/public/index.html`:
+    - Predictions, Briefing, Trades, Portfolio, Watchlist, Consensus, Performance, Results, Prices
+  - Added stable IDs for each brief line so copy can be language-switched dynamically
+  - Added EN + AR translation keys in `web-ui/public/app.js`:
+    - `predictionsBrief`, `briefingBrief`, `tradesBrief`, `portfolioBrief`, `watchlistBrief`, `consensusBrief`, `performanceBrief`, `resultsBrief`, `pricesBrief`
+  - Updated `applyLanguage()` in `web-ui/public/app.js` to map all new brief keys to DOM on language toggle (EN/AR)
 - **Results Tab UX Refresh (Feb 12, 2026)**:
   - Added a single centered Results tab heading (`resultsTitle`) for cleaner section framing
   - Reworked `/api/evaluations` rendering from one flat table to **stock-grouped cards** in `web-ui/public/app.js`
@@ -258,3 +334,5 @@ Stock trading prediction system with web dashboard. Uses multiple AI agents to p
 - **Briefing Track Record** (`engines/briefing_generator.py`): Daily briefing now includes 30-day rolling performance snippet
 - **Data Integrity**: Core predictions immutable (PostgreSQL triggers), all outcome changes audited, live-only metrics, 100-trade minimum threshold
 - **See**: `docs/PERFORMANCE_SYSTEM.md` for full architecture documentation
+
+
