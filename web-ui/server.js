@@ -16,7 +16,19 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Middleware
-app.use(cors({ origin: true, credentials: true }));
+const corsAllowedOrigins = (process.env.CORS_ALLOWED_ORIGINS || '')
+  .split(',')
+  .map(s => s.trim())
+  .filter(Boolean);
+app.use(cors({
+  origin: (origin, cb) => {
+    if (!origin) return cb(null, true);
+    if (!corsAllowedOrigins.length && process.env.NODE_ENV !== 'production') return cb(null, true);
+    if (corsAllowedOrigins.includes(origin)) return cb(null, true);
+    return cb(new Error('CORS origin not allowed'));
+  },
+  credentials: true
+}));
 app.use(express.json());
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
@@ -119,7 +131,6 @@ app.use('/api/performance-v2', performanceRouter);
 
 // 1. Get latest predictions
 app.get('/api/predictions', (req, res) => {
-  console.log('Received request for /api/predictions');
   const query = `
     SELECT symbol, agent_name, prediction, confidence, metadata, prediction_date, target_date
     FROM predictions
@@ -127,13 +138,11 @@ app.get('/api/predictions', (req, res) => {
     ORDER BY symbol, agent_name
   `;
 
-  console.log('Executing query for /api/predictions');
   db.all(query, [], (err, rows) => {
     if (err) {
       console.error('Error executing query for /api/predictions:', err);
       res.status(500).json({ error: err.message });
     } else {
-      console.log('Successfully executed query for /api/predictions');
       res.json({
         disclaimer: 'Xmore is an information and analytics tool, not a licensed investment advisor. This is not financial advice. Past performance does not guarantee future results.',
         predictions: rows || []
@@ -464,7 +473,12 @@ app.get('/api/consensus/:symbol', (req, res) => {
   const placeholder = DATABASE_URL ? '$1' : '?';
 
   const query = `
-    SELECT *
+    SELECT
+      symbol, prediction_date, final_signal, conviction, confidence,
+      risk_adjusted, agent_agreement, agents_agreeing, agents_total,
+      majority_direction, bull_score, bear_score, risk_action, risk_score,
+      bull_case_json, bear_case_json, risk_assessment_json,
+      agent_signals_json, reasoning_chain_json, display_json
     FROM consensus_results
     WHERE symbol = ${placeholder}
     ORDER BY prediction_date DESC

@@ -125,6 +125,15 @@ function isArabic() {
     return (typeof currentLang !== 'undefined') && currentLang === 'ar';
 }
 
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 function translateConviction(conviction) {
     if (!conviction) return 'N/A';
     const map = {
@@ -156,7 +165,12 @@ async function listTodayTrades() {
         return;
     }
 
-    container.innerHTML = `<p class="loading">${tt('loading')}</p>`;
+    container.innerHTML = `
+      <div class="trades-grid">
+        <div class="trade-card"><p class="loading">${tt('loading')}</p></div>
+        <div class="trade-card"><p class="loading">${tt('loading')}</p></div>
+      </div>
+    `;
 
     try {
         const res = await fetch('/api/trades/today', { credentials: 'include' });
@@ -194,6 +208,7 @@ async function getPortfolio() {
 
     // Set loading state
     openContainer.innerHTML = `<p class="loading">${tt('loading')}</p>`;
+    closedContainer.innerHTML = `<p class="loading">${tt('loading')}</p>`;
 
     try {
         const res = await fetch('/api/trades/portfolio', { credentials: 'include' });
@@ -234,16 +249,16 @@ function createTradeCard(trade) {
     const sector = isAr ? (trade.sector_ar || trade.sector_en || '') : (trade.sector_en || '');
 
     const reasonsList = Array.isArray(trade.reasons)
-        ? trade.reasons.map(r => `<li>• ${r}</li>`).join('')
+        ? trade.reasons.map(r => `<li>• ${escapeHtml(r)}</li>`).join('')
         : '';
 
     return `
     <div class="trade-card ${actionClass}-border">
         <div class="trade-header">
             <div class="trade-symbol">
-                <h3>${trade.symbol}</h3>
-                <span class="company-name">${name}</span>
-                ${sector ? `<span class="wl-card-sector">${sector}</span>` : ''}
+                <h3>${escapeHtml(trade.symbol)}</h3>
+                <span class="company-name">${escapeHtml(name)}</span>
+                ${sector ? `<span class="wl-card-sector">${escapeHtml(sector)}</span>` : ''}
             </div>
             <div class="trade-action ${actionClass}">
                 ${tt('tt_' + trade.action.toLowerCase())}
@@ -293,8 +308,8 @@ function renderError(container, message) {
     const title = (typeof tt === 'function') ? tt('error') : 'Error';
     container.innerHTML = `
         <div class="error-message">
-            <strong>${title}</strong><br>
-            <small>${message}</small><br>
+            <strong>${escapeHtml(title)}</strong><br>
+            <small>${escapeHtml(message)}</small><br>
             <button onclick="window.loadTrades()" class="refresh-btn" style="margin-top:10px; padding:6px 15px; font-size:0.85em; cursor:pointer">${tt('tt_retry')}</button>
         </div>
     `;
@@ -346,7 +361,7 @@ function renderPortfolio() {
                         const name = isArabic() ? (p.name_ar || p.name_en) : p.name_en;
                         return `
                         <tr>
-                            <td><strong>${p.symbol}</strong>${name ? `<br><small class="company-name">${name}</small>` : ''}</td>
+                            <td><strong>${escapeHtml(p.symbol)}</strong>${name ? `<br><small class="company-name">${escapeHtml(name)}</small>` : ''}</td>
                             <td>${formatDateSimple(p.entry_date)}</td>
                             <td>${p.entry_price.toFixed(2)}</td>
                             <td>${p.current_price ? p.current_price.toFixed(2) : '-'}</td>
@@ -381,7 +396,7 @@ function renderPortfolio() {
                         const name = isArabic() ? (p.name_ar || p.name_en) : p.name_en;
                         return `
                         <tr>
-                            <td><strong>${p.symbol}</strong>${name ? `<br><small class="company-name">${name}</small>` : ''}</td>
+                            <td><strong>${escapeHtml(p.symbol)}</strong>${name ? `<br><small class="company-name">${escapeHtml(name)}</small>` : ''}</td>
                             <td>${formatDateSimple(p.entry_date)}</td>
                             <td>${formatDateSimple(p.exit_date)}</td>
                             <td class="${p.return_pct >= 0 ? 'pos' : 'neg'}">

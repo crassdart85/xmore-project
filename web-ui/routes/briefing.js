@@ -14,11 +14,7 @@ function attachDb(_db, _isPostgres) {
 function queryAll(sql, params = []) {
     return new Promise((resolve, reject) => {
         if (!db._isPostgres) {
-            let i = 1;
-            while (sql.includes(`$${i}`)) {
-                sql = sql.replace(`$${i}`, '?');
-                i++;
-            }
+            sql = sql.replace(/\$\d+\b/g, '?');
         }
         db.all(sql, params, (err, rows) => {
             if (err) reject(err);
@@ -31,11 +27,7 @@ function queryAll(sql, params = []) {
 function queryOne(sql, params = []) {
     return new Promise((resolve, reject) => {
         if (!db._isPostgres) {
-            let i = 1;
-            while (sql.includes(`$${i}`)) {
-                sql = sql.replace(`$${i}`, '?');
-                i++;
-            }
+            sql = sql.replace(/\$\d+\b/g, '?');
         }
         db.get(sql, params, (err, row) => {
             if (err) reject(err);

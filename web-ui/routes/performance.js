@@ -197,7 +197,10 @@ router.get('/summary', async (req, res) => {
 router.get('/by-agent', async (req, res) => {
     try {
         const rows = await dbAll(`
-            SELECT *
+            SELECT
+                snapshot_date, agent_name,
+                predictions_30d, correct_30d, win_rate_30d, avg_confidence_30d,
+                predictions_90d, correct_90d, win_rate_90d
             FROM agent_performance_daily
             WHERE snapshot_date = (SELECT MAX(snapshot_date) FROM agent_performance_daily)
             ORDER BY win_rate_30d DESC NULLS LAST
@@ -403,7 +406,8 @@ router.get('/audit', async (req, res) => {
         const limit = Math.min(parseInt(req.query.limit) || 50, 200);
 
         const rows = await dbAll(`
-            SELECT * FROM prediction_audit_log
+            SELECT id, table_name, record_id, field_changed, old_value, new_value, changed_at
+            FROM prediction_audit_log
             ORDER BY changed_at DESC
             LIMIT ${ph(1)}
         `, [limit]);

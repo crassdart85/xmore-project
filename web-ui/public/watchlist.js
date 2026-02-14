@@ -66,6 +66,15 @@ function wt(key) {
     return (wlText[lang] && wlText[lang][key]) || wlText.en[key] || key;
 }
 
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 // ============================================
 // LOAD STOCKS (for search)
 // ============================================
@@ -126,9 +135,9 @@ function renderSearchResults(stocks) {
         return `
       <div class="wl-search-item">
         <div class="wl-search-item-info">
-          <span class="wl-search-symbol">${stock.symbol}</span>
-          <span class="wl-search-name">${name}</span>
-          <span class="wl-search-sector">${sector}</span>
+          <span class="wl-search-symbol">${escapeHtml(stock.symbol)}</span>
+          <span class="wl-search-name">${escapeHtml(name)}</span>
+          <span class="wl-search-sector">${escapeHtml(sector)}</span>
         </div>
         <button class="wl-follow-btn ${btnClass}"
                 data-stock-id="${stock.id}"
@@ -242,7 +251,14 @@ function renderEmptyWatchlist(loginRequired) {
 
     if (titleEl) titleEl.textContent = wt('wl_title');
 
-    container.innerHTML = `<p class="no-data">${loginRequired ? wt('wl_login_required') : wt('wl_empty')}</p>`;
+    if (loginRequired) {
+        container.innerHTML = `<p class="no-data">${wt('wl_login_required')}</p>`;
+        return;
+    }
+    container.innerHTML = `
+      <p class="no-data">${wt('wl_empty')}</p>
+      <button class="wl-follow-btn follow" onclick="document.getElementById('wlAddBtn')?.click()">${wt('wl_add_stock')}</button>
+    `;
 }
 
 function renderWatchlist() {
@@ -284,13 +300,13 @@ function renderWatchlist() {
 
         return `
       <div class="wl-card">
-        <button class="wl-remove-btn" onclick="removeFromWatchlist(${item.id})" title="${wt('wl_remove')}">✕</button>
+        <button class="wl-remove-btn" onclick="removeFromWatchlist(${item.id})" title="${wt('wl_remove')}" aria-label="${escapeHtml(wt('wl_remove'))}">✕</button>
         <div class="wl-card-header">
           <div class="wl-card-stock">
-            <strong>${item.symbol}</strong>
-            <span class="company-name">${name}</span>
+            <strong>${escapeHtml(item.symbol)}</strong>
+            <span class="company-name">${escapeHtml(name)}</span>
           </div>
-          <span class="wl-card-sector">${sector}</span>
+          <span class="wl-card-sector">${escapeHtml(sector)}</span>
         </div>
         ${signalHtml}
       </div>

@@ -13,14 +13,7 @@ function queryAll(sql, params = []) {
     return new Promise((resolve, reject) => {
         // Adjust params placeholder if SQLite
         if (!db._isPostgres) {
-            // Very basic param replacement $1 -> ?
-            // Note: This is a simple regex replacement, might break if $1 is in strings
-            // But for our controlled queries it's likely fine or we write specific logic
-            let i = 1;
-            while (sql.includes(`$${i}`)) {
-                sql = sql.replace(`$${i}`, '?');
-                i++;
-            }
+            sql = sql.replace(/\$\d+\b/g, '?');
         }
 
         db.all(sql, params, (err, rows) => {
@@ -28,6 +21,17 @@ function queryAll(sql, params = []) {
             else resolve({ rows: rows || [] }); // match pg format
         });
     });
+}
+
+function safeJsonArrayParse(value) {
+    if (!value) return [];
+    if (Array.isArray(value)) return value;
+    try {
+        const parsed = JSON.parse(value);
+        return Array.isArray(parsed) ? parsed : [];
+    } catch {
+        return [];
+    }
 }
 
 
@@ -99,7 +103,7 @@ router.get('/today', authMiddleware, async (req, res) => {
             recommendations: rows.map(r => ({
                 ...r,
                 name: lang === 'ar' ? r.name_ar : r.name_en,
-                reasons: lang === 'ar' ? (r.reasons_ar ? JSON.parse(r.reasons_ar) : []) : (r.reasons ? JSON.parse(r.reasons) : []),
+                reasons: lang === 'ar' ? safeJsonArrayParse(r.reasons_ar) : safeJsonArrayParse(r.reasons),
                 has_position: !!r.has_position
             }))
         });

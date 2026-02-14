@@ -126,6 +126,31 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: python -c "from engines.evaluate_performance import run_evaluation; run_evaluation()"
 
+  portfolio-generation:
+    if: github.event.schedule == '0 22 * * 0-5' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    needs: daily-predictions
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 1
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Generate Portfolios
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: python engines/generate_portfolios.py
+
   hourly-evaluation:
     if: github.event.schedule == '0 * * * *' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest

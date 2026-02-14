@@ -7,7 +7,7 @@
 
 const jwt = require('jsonwebtoken');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret-change-in-production-64chars-minimum-abcdef1234567890';
+const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_EXPIRES_IN = '7d';
 const JWT_REFRESH_THRESHOLD = 3 * 24 * 60 * 60; // Refresh if less than 3 days remaining
 
@@ -78,3 +78,7 @@ module.exports = {
     JWT_SECRET,
     COOKIE_OPTIONS
 };
+
+if (!JWT_SECRET) {
+    throw new Error('JWT_SECRET is required. Refusing to start without a secure signing key.');
+}
