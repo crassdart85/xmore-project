@@ -4,7 +4,7 @@ import sqlite3
 import altair as alt
 from datetime import datetime, timedelta
 import config
-import utils
+import prediction_utils as utils
 
 # Page Config
 st.set_page_config(page_title="Xmore2 Dashboard", page_icon="🇪🇬", layout="wide")
