@@ -371,3 +371,30 @@ Stock trading prediction system with web dashboard. Uses multiple AI agents to p
 - Runtime checks executed:
   - `python -m py_compile xmore_data/config.py xmore_data/utils.py xmore_data/data_manager.py xmore_data/providers/alpha_vantage_provider.py xmore_data/main.py xmore_data/__init__.py` -> passed.
   - `python -m pytest xmore_data/test_data_manager.py -v -m "not slow"` -> passed (`23 passed, 1 deselected`).
+
+## RSS + EGX Web Adapter Live Test (Feb 15, 2026)
+- Added optional EGX web news adapter behind feature flag:
+  - `config.py` -> `EGX_CONFIG['use_egx_web_scraper'] = False` (default)
+  - `rss_news_collector.py` -> `fetch_egx_web_news()` with anti-bot rejection detection and graceful fallback
+  - Runtime toggle via env: `USE_EGX_WEB_SCRAPER=true`
+- Added Mubasher feed as high-priority EGX source:
+  - `http://feeds.mubasher.info/en/EGX/news`
+  - Priority note added in `rss_news_collector.py`
+- Added daily EGX snapshot automation:
+  - `xmore_data/daily_snapshot_job.py` (EGXPY-first with provider fallback, per-symbol exports + manifest)
+  - `.github/workflows/scheduled-tasks.yml` new cron `0 14 * * 0-4` and artifact upload
+  - `xmore_data/data_manager.py` source tracking (`cache` / provider name)
+- Live test executed with EGX web adapter enabled:
+  - Command: `USE_EGX_WEB_SCRAPER=true python -c "from rss_news_collector import collect_rss_news; ..."`
+  - Result:
+    - `feeds_processed`: 6
+    - `articles_fetched`: 160
+    - `articles_matched`: 11
+    - `articles_saved`: 44
+    - `egx_web_processed`: 1
+    - `egx_web_articles_fetched`: 0
+    - `egx_web_articles_saved`: 0
+    - `errors`: 0
+  - Interpretation: RSS path is working in live mode; EGX website adapter remained non-blocking and returned 0 candidates (no runtime failure).
+- Environment note:
+  - Installed missing dependency for live run: `feedparser` (global python env).

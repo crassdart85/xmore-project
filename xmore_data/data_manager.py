@@ -53,6 +53,7 @@ class DataManager:
         self.use_cache = use_cache
         self.cache = MarketDataCache(ttl_hours=cache_ttl_hours) if use_cache else None
         self.verbose = verbose
+        self.last_source: Dict[str, str] = {}
         
         # Initialize providers in priority order
         self.providers = self._initialize_providers()
@@ -135,6 +136,7 @@ class DataManager:
         if self.use_cache and not force_refresh:
             cached = self.cache.get(symbol, interval, start_dt, end_dt)
             if cached is not None:
+                self.last_source[symbol] = "cache"
                 return cached
         
         # Try providers in fallback order
@@ -153,6 +155,7 @@ class DataManager:
                 # Cache successful fetch
                 if self.use_cache and df is not None and not df.empty:
                     self.cache.set(symbol, interval, df, start_dt, end_dt)
+                self.last_source[symbol] = provider.name
                 
                 logger.info(f"✓ Successfully fetched {symbol} from {provider.name}")
                 return df
@@ -291,6 +294,10 @@ class DataManager:
     def provider_info(self) -> List[str]:
         """Get list of available providers."""
         return [p.name for p in self.providers]
+
+    def get_last_source(self, symbol: str) -> Optional[str]:
+        """Get the last successful source/provider used for a symbol."""
+        return self.last_source.get(symbol)
 
 
 def fetch_egx_data(

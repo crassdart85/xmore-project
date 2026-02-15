@@ -22,6 +22,9 @@ try:
     from .config import Config
 except ImportError:
     # Support direct script execution: python xmore_data/main.py ...
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
     from xmore_data.data_manager import DataManager
     from xmore_data.utils import format_output_summary, get_logger
     from xmore_data.config import Config

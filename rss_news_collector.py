@@ -18,20 +18,42 @@ from datetime import datetime, timedelta
 from typing import List, Dict
 import re
 import logging
+import os
+import html
+import requests
 
 from database import get_connection
 from egx_symbols import get_stock_info, get_search_keywords, EGX_SYMBOL_DATABASE
+import config
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
+def _parse_bool_env(var_name: str, default: bool = False) -> bool:
+    """Parse boolean feature flag from environment variables."""
+    raw = os.getenv(var_name)
+    if raw is None:
+        return default
+    return raw.strip().lower() in {"1", "true", "yes", "on"}
+
+
 # ============================================
 # RSS FEED SOURCES
 # ============================================
 
+# Source priority order matters:
+# 1) Mubasher Egypt first for EGX-specific market/news coverage
+# 2) Other business/general feeds for breadth and redundancy
 EGYPTIAN_NEWS_FEEDS = [
+    {
+        "name": "Mubasher Egypt",
+        "url": "http://feeds.mubasher.info/en/EGX/news",
+        "language": "en",
+        "focus": "markets",
+        "reliability": "high"
+    },
     {
         "name": "Enterprise Egypt",
         "url": "https://enterprise.press/feed/",
@@ -120,6 +142,80 @@ def fetch_rss_feed(feed_url: str) -> List[Dict]:
 
     except Exception as e:
         logger.error(f"Error fetching RSS feed {feed_url}: {e}")
+        return []
+
+
+def fetch_egx_web_news(url: str, timeout_sec: int = 12) -> List[Dict]:
+    """
+    Best-effort fetch of EGX website news list page.
+
+    This adapter is optional and may fail when EGX anti-bot protections block requests.
+    Returns normalized article objects compatible with downstream flow.
+    """
+    headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/122.0.0.0 Safari/537.36"
+        )
+    }
+    try:
+        response = requests.get(url, headers=headers, timeout=timeout_sec)
+        response.raise_for_status()
+        body = response.text
+
+        blocked_markers = [
+            "The requested URL was rejected",
+            "Access Denied",
+            "Request blocked",
+        ]
+        if any(marker.lower() in body.lower() for marker in blocked_markers):
+            logger.warning("EGX web page rejected request. Skipping optional EGX web source.")
+            return []
+
+        # Lightweight extraction: anchor tags with non-trivial visible text.
+        link_re = re.compile(
+            r'<a[^>]+href=[\'"](?P<href>[^\'"]+)[\'"][^>]*>(?P<title>[^<]{8,300})</a>',
+            flags=re.IGNORECASE,
+        )
+        articles: List[Dict] = []
+        seen = set()
+        for m in link_re.finditer(body):
+            title = html.unescape(m.group("title")).strip()
+            href = m.group("href").strip()
+
+            if not title or len(title) < 12:
+                continue
+            title_l = title.lower()
+            if title_l in seen:
+                continue
+            seen.add(title_l)
+
+            # Keep EGX/news-like anchors only; avoid nav/footer noise.
+            if not any(k in title_l for k in ["egx", "exchange", "market", "news", "listed", "trading", "index"]):
+                continue
+
+            if href.startswith("/"):
+                link = f"https://www.egx.com.eg{href}"
+            elif href.startswith("http://") or href.startswith("https://"):
+                link = href
+            else:
+                link = f"https://www.egx.com.eg/{href.lstrip('/')}"
+
+            articles.append(
+                {
+                    "title": title,
+                    "link": link,
+                    "summary": "",
+                    "published": datetime.now(),
+                    "source": "EGX Website",
+                }
+            )
+
+        logger.info("EGX web adapter fetched %s candidate articles", len(articles))
+        return articles
+    except Exception as e:
+        logger.warning("EGX web adapter failed (optional): %s", e)
         return []
 
 
@@ -243,6 +339,9 @@ def collect_rss_news(days_back: int = 3, use_finbert: bool = True) -> Dict[str, 
         'articles_fetched': 0,
         'articles_matched': 0,
         'articles_saved': 0,
+        'egx_web_processed': 0,
+        'egx_web_articles_fetched': 0,
+        'egx_web_articles_saved': 0,
         'errors': 0
     }
 
@@ -310,6 +409,59 @@ def collect_rss_news(days_back: int = 3, use_finbert: bool = True) -> Dict[str, 
 
         except Exception as e:
             logger.error(f"Error processing feed {feed_config['name']}: {e}")
+            stats['errors'] += 1
+
+    # Optional EGX website adapter: disabled by default.
+    use_egx_web = _parse_bool_env(
+        "USE_EGX_WEB_SCRAPER",
+        default=bool(config.EGX_CONFIG.get("use_egx_web_scraper", False)),
+    )
+    if use_egx_web:
+        egx_web_url = os.getenv(
+            "EGX_WEB_NEWS_URL",
+            config.EGX_CONFIG.get("egx_web_news_url", "https://www.egx.com.eg/en/NewsList.aspx?ID=10"),
+        )
+        try:
+            print("  Fetching: EGX Website (optional adapter)...")
+            web_articles = fetch_egx_web_news(egx_web_url)
+            stats['egx_web_processed'] = 1
+            stats['egx_web_articles_fetched'] = len(web_articles)
+
+            for article in web_articles:
+                if article['published'] < cutoff_date:
+                    continue
+                matched_symbols = match_article_to_symbols(article)
+                if not matched_symbols:
+                    continue
+                stats['articles_matched'] += 1
+
+                sentiment = analyze_sentiment_simple(article['title'])
+                sentiment_score = sentiment['sentiment_score']
+                sentiment_label = sentiment['sentiment_label']
+
+                with get_connection() as conn:
+                    cursor = conn.cursor()
+                    for symbol in matched_symbols:
+                        try:
+                            cursor.execute(_adapt_sql("""
+                                INSERT OR IGNORE INTO news
+                                (symbol, date, headline, source, url, sentiment_score, sentiment_label)
+                                VALUES (?, ?, ?, ?, ?, ?, ?)
+                            """), (
+                                symbol,
+                                article['published'].strftime('%Y-%m-%d'),
+                                article['title'][:500],
+                                "WEB:EGX",
+                                article['link'],
+                                sentiment_score,
+                                sentiment_label
+                            ))
+                            stats['articles_saved'] += 1
+                            stats['egx_web_articles_saved'] += 1
+                        except Exception as e:
+                            logger.debug(f"Duplicate or error (EGX web): {e}")
+        except Exception as e:
+            logger.error(f"Error processing optional EGX web source: {e}")
             stats['errors'] += 1
 
     return stats

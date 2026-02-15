@@ -54,6 +54,10 @@ EGX_CONFIG = {
     "volatility_adjustment": 1.2,
     # Use RSS feeds for better Egyptian news coverage
     "use_rss_news": True,
+    # Optional best-effort EGX website scraper adapter (disabled by default)
+    # Enable only if EGX pages are reachable from your runtime environment.
+    "use_egx_web_scraper": False,
+    "egx_web_news_url": "https://www.egx.com.eg/en/NewsList.aspx?ID=10",
 }
 
 # ============================================
