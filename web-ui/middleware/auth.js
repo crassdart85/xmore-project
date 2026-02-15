@@ -6,9 +6,14 @@
  */
 
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 
 const IS_PROD = process.env.NODE_ENV === 'production';
-const JWT_SECRET = process.env.JWT_SECRET || (!IS_PROD ? 'dev-local-secret-change-before-production' : '');
+const HAS_CONFIGURED_SECRET = !!process.env.JWT_SECRET;
+const JWT_SECRET = process.env.JWT_SECRET
+    || (IS_PROD
+        ? crypto.randomBytes(64).toString('hex')
+        : 'dev-local-secret-change-before-production');
 const JWT_EXPIRES_IN = '7d';
 const JWT_REFRESH_THRESHOLD = 3 * 24 * 60 * 60; // Refresh if less than 3 days remaining
 
@@ -80,11 +85,10 @@ module.exports = {
     COOKIE_OPTIONS
 };
 
-if (!JWT_SECRET) {
-    throw new Error('JWT_SECRET is required in production. Refusing to start without a secure signing key.');
-}
-
-if (!process.env.JWT_SECRET && !IS_PROD) {
+if (!HAS_CONFIGURED_SECRET && IS_PROD) {
+    // Temporary production safety valve: process can boot, but sessions reset on restart.
+    console.error('[auth] JWT_SECRET is not set in production. Generated an ephemeral runtime secret. Configure JWT_SECRET to prevent session invalidation on restart.');
+} else if (!HAS_CONFIGURED_SECRET && !IS_PROD) {
     // Local/dev convenience only.
     console.warn('[auth] JWT_SECRET is not set. Using dev fallback secret. Set JWT_SECRET to avoid session invalidation between environments.');
 }
