@@ -214,7 +214,6 @@ h1 {
 
 .tab-content {
     display: none;
-    animation: fadeIn 0.3s ease-out;
 }
 
 .tab-content.active {
@@ -2826,4 +2825,227 @@ footer {
 
 .result-stock-table tbody tr:last-child td {
     border-bottom: none;
+}
+
+/* ============================================
+   UPGRADE 2: NOTYF TOAST OVERRIDES
+   ============================================ */
+[data-theme="dark"] .notyf__toast {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+}
+[dir="rtl"] .notyf {
+    direction: rtl;
+}
+
+/* ============================================
+   UPGRADE 4: SHIMMER SKELETON LOADING
+   ============================================ */
+.skeleton-shimmer {
+    background: linear-gradient(90deg,
+        var(--skeleton-base, #e5e7eb) 25%,
+        var(--skeleton-shine, #f3f4f6) 50%,
+        var(--skeleton-base, #e5e7eb) 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: 6px;
+}
+
+[data-theme="dark"] .skeleton-shimmer {
+    --skeleton-base: #2d2d44;
+    --skeleton-shine: #3d3d5c;
+}
+
+@keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+.skeleton-card {
+    height: 120px;
+    margin-bottom: 12px;
+}
+.skeleton-metric {
+    height: 48px;
+    width: 100px;
+    display: inline-block;
+    margin: 4px 8px;
+}
+.skeleton-chart {
+    height: 350px;
+    margin: 16px 0;
+}
+.skeleton-row {
+    height: 44px;
+    margin-bottom: 8px;
+}
+.skeleton-text {
+    height: 16px;
+    margin-bottom: 8px;
+}
+.skeleton-text.short { width: 40%; }
+.skeleton-text.medium { width: 65%; }
+.skeleton-text.long { width: 90%; }
+
+/* ============================================
+   UPGRADE 5: MICRO-INTERACTIONS & TRANSITIONS
+   ============================================ */
+
+/* Card hover effects */
+.trade-card,
+.result-stock-card,
+.consensus-card,
+.wl-card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.trade-card:hover,
+.result-stock-card:hover,
+.wl-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+}
+[data-theme="dark"] .trade-card:hover,
+[data-theme="dark"] .result-stock-card:hover,
+[data-theme="dark"] .consensus-card:hover,
+[data-theme="dark"] .wl-card:hover {
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+}
+
+/* Tab switching animation */
+.tab-content.active {
+    animation: fadeSlideIn 0.25s ease-out;
+}
+@keyframes fadeSlideIn {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Metric value pulse on update */
+.metric-value.updated {
+    animation: metricPulse 0.6s ease;
+}
+@keyframes metricPulse {
+    0% { color: var(--text-primary); }
+    50% { color: #10b981; }
+    100% { color: var(--text-primary); }
+}
+
+/* Badge entrance */
+.signal-badge,
+.sentiment-badge,
+.health-badge,
+.live-only-pill {
+    animation: badgePop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+@keyframes badgePop {
+    from { transform: scale(0.8); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+
+/* Progress bar animation (100-trade threshold) */
+.progress-fill,
+.global-progress-fill {
+    transition: width 1.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+/* Button press feedback */
+button:active, .btn:active, .tab-btn:active {
+    transform: scale(0.97);
+}
+
+/* Agent tooltip fade */
+.agent-tooltip,
+.perf-chart-tooltip {
+    transition: opacity 0.2s ease, visibility 0.2s ease;
+}
+
+/* Benchmark toggle styling */
+.benchmark-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+.benchmark-toggle input[type="checkbox"] {
+    accent-color: var(--accent);
+}
+
+/* ============================================
+   UPGRADE 6: EMPTY STATE ILLUSTRATIONS
+   ============================================ */
+.empty-state {
+    text-align: center;
+    padding: 48px 24px;
+}
+.empty-state-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+    opacity: 0.5;
+}
+.empty-state h3 {
+    color: var(--text-primary);
+    margin-bottom: 8px;
+    font-size: 1.2em;
+}
+.empty-state-desc {
+    color: var(--text-muted);
+    margin: 0 0 20px;
+    font-size: 0.95em;
+    line-height: 1.5;
+}
+.empty-state-cta {
+    display: inline-block;
+    background: linear-gradient(135deg, var(--accent) 0%, var(--accent-dark) 100%);
+    color: white;
+    border: none;
+    padding: 10px 24px;
+    border-radius: 20px;
+    font-size: 0.95em;
+    font-weight: 600;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+.empty-state-cta:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+/* ============================================
+   UPGRADE 7: ACCESSIBILITY — SKIP LINK
+   ============================================ */
+.skip-link {
+    position: absolute;
+    top: -40px;
+    left: 0;
+    background: var(--accent, #667eea);
+    color: #fff;
+    padding: 8px 16px;
+    z-index: 1000;
+    transition: top 0.2s;
+    text-decoration: none;
+    font-weight: 600;
+    border-radius: 0 0 8px 0;
+}
+.skip-link:focus {
+    top: 0;
+}
+
+/* WCAG AA contrast fixes for signal badges */
+.signal-up,
+.prediction-up {
+    background: #059669;
+    color: #ffffff;
+}
+.signal-down,
+.prediction-down {
+    background: #dc2626;
+    color: #ffffff;
+}
+.signal-hold,
+.signal-flat,
+.prediction-hold {
+    background: #6b7280;
+    color: #ffffff;
 }

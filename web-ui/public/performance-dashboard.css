@@ -116,6 +116,12 @@
     display: block;
 }
 
+#equityCurveChartContainer {
+    min-height: 350px;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
 .perf-chart-tooltip {
     display: none;
     position: absolute;

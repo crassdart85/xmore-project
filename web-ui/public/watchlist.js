@@ -192,6 +192,8 @@ async function addToWatchlist(stockId, buttonEl) {
         if (res.ok) {
             buttonEl.className = 'wl-follow-btn following';
             buttonEl.textContent = wt('wl_following');
+            // Toast notification (Upgrade 2)
+            if (typeof showToast === 'function') showToast('success', typeof t === 'function' ? t('stockAdded') : 'Stock added');
             // Invalidate watchlist cache so other tabs re-filter
             if (typeof resetWatchlistCache === 'function') resetWatchlistCache();
             // Reload watchlist to get latest data
@@ -219,6 +221,8 @@ async function removeFromWatchlist(stockId) {
         });
 
         if (res.ok) {
+            // Toast notification (Upgrade 2)
+            if (typeof showToast === 'function') showToast('info', typeof t === 'function' ? t('stockRemoved') : 'Stock removed');
             // Invalidate watchlist cache so other tabs re-filter
             if (typeof resetWatchlistCache === 'function') resetWatchlistCache();
             await loadWatchlist();

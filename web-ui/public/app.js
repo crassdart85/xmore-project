@@ -29,6 +29,151 @@ function escapeHtml(value) {
 }
 
 // ============================================
+// UPGRADE 1: ANIMATED NUMBER COUNTERS (CountUp.js)
+// ============================================
+
+function animateValue(elementId, endVal, options = {}) {
+    const el = document.getElementById(elementId);
+    if (!el) return;
+    // Skip if already animated with same value
+    if (el.getAttribute('data-animated') === String(endVal)) return;
+
+    const defaults = {
+        duration: 1.8,
+        useGrouping: true,
+        decimal: '.',
+        separator: ',',
+        ...options
+    };
+    if (typeof countUp !== 'undefined' && countUp.CountUp) {
+        const counter = new countUp.CountUp(elementId, endVal, defaults);
+        if (!counter.error) {
+            counter.start();
+        } else {
+            el.textContent = formatAnimatedValue(endVal, defaults);
+        }
+    } else {
+        el.textContent = formatAnimatedValue(endVal, defaults);
+    }
+    el.setAttribute('data-animated', String(endVal));
+}
+
+function formatAnimatedValue(val, opts) {
+    let str = Number(val).toFixed(opts.decimalPlaces || 0);
+    if (opts.prefix) str = opts.prefix + str;
+    if (opts.suffix) str = str + opts.suffix;
+    return str;
+}
+
+function pulseMetric(elementId) {
+    const el = document.getElementById(elementId);
+    if (el) {
+        el.classList.remove('updated');
+        void el.offsetWidth; // force reflow
+        el.classList.add('updated');
+    }
+}
+
+// ============================================
+// UPGRADE 2: TOAST NOTIFICATION SYSTEM (Notyf)
+// ============================================
+
+let notyf = null;
+
+function initNotyf() {
+    if (typeof Notyf === 'undefined') return;
+    notyf = new Notyf({
+        duration: 4000,
+        position: { x: 'right', y: 'top' },
+        dismissible: true,
+        ripple: true,
+        types: [
+            {
+                type: 'info',
+                background: 'var(--accent, #667eea)',
+                icon: { className: 'notyf-info-icon', tagName: 'span', text: '\u2139' }
+            },
+            {
+                type: 'warning',
+                background: '#f59e0b',
+                icon: { className: 'notyf-warn-icon', tagName: 'span', text: '\u26A0' }
+            }
+        ]
+    });
+}
+
+function showToast(type, message) {
+    if (!notyf) initNotyf();
+    if (!notyf) { console.log(`[Toast ${type}] ${message}`); return; }
+    if (type === 'success') notyf.success(message);
+    else if (type === 'error') notyf.error(message);
+    else notyf.open({ type: type, message: message });
+}
+
+// ============================================
+// UPGRADE 4: IMPROVED SKELETON LOADING
+// ============================================
+
+const SKELETON_TEMPLATES = {
+    predictions: `
+        <div class="skeleton-shimmer skeleton-text long"></div>
+        ${'<div class="skeleton-shimmer skeleton-card"></div>'.repeat(5)}
+    `,
+    performance: `
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px">
+            ${'<div class="skeleton-shimmer skeleton-metric"></div>'.repeat(4)}
+        </div>
+        <div class="skeleton-shimmer skeleton-chart"></div>
+        ${'<div class="skeleton-shimmer skeleton-row"></div>'.repeat(4)}
+    `,
+    trades: `${'<div class="skeleton-shimmer skeleton-card"></div>'.repeat(3)}`,
+    results: `${('<div class="skeleton-shimmer skeleton-text short"></div><div class="skeleton-shimmer skeleton-row"></div><div class="skeleton-shimmer skeleton-row"></div>').repeat(4)}`,
+    prices: `${'<div class="skeleton-shimmer skeleton-row"></div>'.repeat(6)}`,
+    consensus: `
+        <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px">
+            ${'<div class="skeleton-shimmer skeleton-metric"></div>'.repeat(4)}
+        </div>
+        ${'<div class="skeleton-shimmer skeleton-card"></div>'.repeat(3)}
+    `,
+    briefing: `
+        <div class="skeleton-shimmer skeleton-card"></div>
+        <div class="skeleton-shimmer skeleton-card"></div>
+        <div class="skeleton-shimmer skeleton-card"></div>
+    `,
+};
+
+function showSkeleton(containerId, type) {
+    const el = document.getElementById(containerId);
+    if (el && SKELETON_TEMPLATES[type]) {
+        el.innerHTML = SKELETON_TEMPLATES[type];
+        el.setAttribute('aria-busy', 'true');
+    }
+}
+
+function clearSkeleton(containerId) {
+    const el = document.getElementById(containerId);
+    if (el) el.setAttribute('aria-busy', 'false');
+}
+
+// ============================================
+// UPGRADE 6: EMPTY STATE ILLUSTRATIONS
+// ============================================
+
+function renderEmptyState(containerId, icon, titleKey, subtitleKey, ctaKey, ctaAction) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    container.innerHTML = `
+        <div class="empty-state">
+            <div class="empty-state-icon">${icon}</div>
+            <h3 data-i18n="${titleKey}">${t(titleKey)}</h3>
+            <p class="empty-state-desc" data-i18n="${subtitleKey}">${t(subtitleKey)}</p>
+            ${ctaKey ? `<button class="btn btn-primary empty-state-cta" onclick="${ctaAction}" data-i18n="${ctaKey}">${t(ctaKey)}</button>` : ''}
+        </div>
+    `;
+}
+
+// ============================================
 // DARK MODE SUPPORT
 // ============================================
 
@@ -56,6 +201,21 @@ function toggleTheme() {
     applyTheme();
     // Rebuild TradingView widgets with new theme
     loadTradingViewTicker();
+    // Update Lightweight Charts theme (Upgrade 3)
+    const chartContainer = document.getElementById('equityCurveChartContainer');
+    if (chartContainer && chartContainer._chartInstance) {
+        const isDark = currentTheme === 'dark';
+        chartContainer._chartInstance.applyOptions({
+            layout: {
+                background: { type: 'solid', color: isDark ? '#1a1a2e' : '#ffffff' },
+                textColor: isDark ? '#d1d5db' : '#374151',
+            },
+            grid: {
+                vertLines: { color: isDark ? '#2d2d44' : '#f0f0f0' },
+                horzLines: { color: isDark ? '#2d2d44' : '#f0f0f0' },
+            },
+        });
+    }
 }
 
 // Apply theme CSS immediately (prevents flash); button tooltip set later in applyLanguage()
@@ -228,7 +388,30 @@ const TRANSLATIONS = {
         yourWatchlist: 'Your Watchlist',
         allPredictions: 'All EGX Predictions',
         followStocksPrompt: 'Follow stocks from the Watchlist tab to see personalized data here.',
-        noWatchlistLogin: 'Login to see personalized data for your followed stocks.'
+        noWatchlistLogin: 'Login to see personalized data for your followed stocks.',
+
+        // Toast notifications (Upgrade 2)
+        stockAdded: 'Stock added to watchlist',
+        stockRemoved: 'Stock removed from watchlist',
+        watchlistFull: 'Watchlist is full (max 30 stocks)',
+        loadError: 'Failed to load data. Please try again.',
+        dataRefreshed: 'Data updated successfully',
+        minTradesWarning: 'Performance tracking begins after 100 trades',
+        langSwitched: 'Switched to English',
+
+        // Empty states (Upgrade 6)
+        emptyPredictions: 'No Predictions Yet',
+        emptyPredictionsDesc: 'Signals are generated daily after market close. Check back soon.',
+        emptyTrades: 'No Trade History',
+        emptyTradesDesc: 'Trade recommendations will appear here once the system generates them.',
+        emptyPortfolio: 'No Open Positions',
+        emptyPortfolioDesc: 'Open positions will show here after executing trade recommendations.',
+        viewTrades: 'View Trades',
+        emptyResults: 'No Results Yet',
+        emptyResultsDesc: 'Results will appear after predictions have been evaluated against actual outcomes.',
+
+        // Accessibility (Upgrade 7)
+        skipToContent: 'Skip to content',
     },
     ar: {
         title: 'إكسمور',
@@ -375,7 +558,30 @@ const TRANSLATIONS = {
         yourWatchlist: 'أسهمك المتابعة',
         allPredictions: 'جميع تنبؤات البورصة',
         followStocksPrompt: 'تابع أسهمك من تبويب المتابعة لعرض البيانات المخصصة هنا.',
-        noWatchlistLogin: 'سجّل دخولك لعرض بيانات الأسهم التي تتابعها.'
+        noWatchlistLogin: 'سجّل دخولك لعرض بيانات الأسهم التي تتابعها.',
+
+        // Toast notifications (Upgrade 2)
+        stockAdded: 'تمت إضافة السهم للمتابعة',
+        stockRemoved: 'تم إزالة السهم من المتابعة',
+        watchlistFull: 'قائمة المتابعة ممتلئة (الحد الأقصى ٣٠ سهم)',
+        loadError: 'فشل تحميل البيانات. حاول مرة أخرى.',
+        dataRefreshed: 'تم تحديث البيانات بنجاح',
+        minTradesWarning: 'يبدأ تتبع الأداء بعد ١٠٠ توصية',
+        langSwitched: 'تم التبديل للعربية',
+
+        // Empty states (Upgrade 6)
+        emptyPredictions: 'لا توجد تنبؤات بعد',
+        emptyPredictionsDesc: 'يتم إنشاء الإشارات يومياً بعد إغلاق السوق. تحقق مجدداً قريباً.',
+        emptyTrades: 'لا يوجد سجل تداول',
+        emptyTradesDesc: 'ستظهر توصيات التداول هنا بعد إنشائها بواسطة النظام.',
+        emptyPortfolio: 'لا توجد مراكز مفتوحة',
+        emptyPortfolioDesc: 'ستظهر المراكز المفتوحة هنا بعد تنفيذ توصيات التداول.',
+        viewTrades: 'عرض التوصيات',
+        emptyResults: 'لا توجد نتائج بعد',
+        emptyResultsDesc: 'ستظهر النتائج بعد تقييم التنبؤات مقابل النتائج الفعلية.',
+
+        // Accessibility (Upgrade 7)
+        skipToContent: 'الانتقال إلى المحتوى',
     }
 };
 
@@ -469,6 +675,7 @@ async function switchLanguage() {
     currentLang = currentLang === 'en' ? 'ar' : 'en';
     localStorage.setItem('lang', currentLang);
     applyLanguage();
+    showToast('info', t('langSwitched'));
     await loadSentiment();
     loadStats();
     loadPredictions();
@@ -549,6 +756,10 @@ function applyLanguage() {
     const langBtn = document.getElementById('langBtn');
     if (langBtn) langBtn.textContent = t('switchLang');
 
+    // Skip link (Upgrade 7)
+    const skipLink = document.querySelector('.skip-link');
+    if (skipLink) skipLink.textContent = t('skipToContent');
+
     updateThemeButton();
 
     // Update auth and watchlist text
@@ -583,7 +794,13 @@ function switchToTab(tabId, updateHash) {
     // Toggle active tab content
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
     const content = document.getElementById(`tab-${tabId}`);
-    if (content) content.classList.add('active');
+    if (content) {
+        content.classList.add('active');
+        // Re-trigger tab entrance animation (Upgrade 5)
+        content.style.animation = 'none';
+        void content.offsetWidth;
+        content.style.animation = '';
+    }
 
     // Update URL hash
     if (updateHash !== false) {
@@ -600,8 +817,24 @@ function switchToTab(tabId, updateHash) {
 
 function initTabs() {
     document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.setAttribute('tabindex', '0');
         btn.addEventListener('click', () => {
             switchToTab(btn.getAttribute('data-tab'));
+        });
+        // Keyboard navigation (Upgrade 7)
+        btn.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                btn.click();
+            }
+            if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+                const tabs = [...document.querySelectorAll('.tab-btn')];
+                const idx = tabs.indexOf(btn);
+                const dir = e.key === 'ArrowRight' ? 1 : -1;
+                const next = tabs[(idx + dir + tabs.length) % tabs.length];
+                next.focus();
+                next.click();
+            }
         });
     });
 
@@ -851,10 +1084,10 @@ async function loadGlobalSnapshotBar() {
         const alpha30 = (r30.alpha ?? 0);
         const win30 = (r30.win_rate ?? 0);
 
-        const card = (label, value, cls, tooltip) => `
+        const card = (id, label, cls, tooltip) => `
             <div class="global-snapshot-card ${cls}" title="${tooltip}">
                 <div class="global-snapshot-label">${label}</div>
-                <div class="global-snapshot-value">${value}</div>
+                <div class="global-snapshot-value metric-value" id="${id}">-</div>
             </div>
         `;
 
@@ -863,17 +1096,24 @@ async function loadGlobalSnapshotBar() {
                 <span class="live-only-pill">${t('liveOnlyData')}</span>
             </div>
             <div class="global-snapshot-grid">
-                ${card(t('snapshotAlpha30d'), `${alpha30 > 0 ? '+' : ''}${alpha30.toFixed(2)}%`, alpha30 > 0 ? 'positive' : alpha30 < 0 ? 'negative' : 'neutral', t('tooltipAlpha'))}
-                ${card(t('snapshotSharpe30d'), `${sharpe > 0 ? '+' : ''}${Number(sharpe).toFixed(2)}`, sharpe >= 1 ? 'positive' : sharpe > 0 ? 'neutral' : 'negative', t('tooltipSharpe'))}
-                ${card(t('snapshotMaxDd30d'), `${Number(maxDd).toFixed(2)}%`, maxDd <= 4 ? 'positive' : maxDd <= 8 ? 'neutral' : 'negative', t('tooltipMaxDd'))}
-                ${card(t('snapshotWinRate30d'), `${Number(win30).toFixed(1)}%`, win30 >= 55 ? 'positive' : win30 >= 45 ? 'neutral' : 'negative', t('tooltipWinRate'))}
+                ${card('gsAlpha30', t('snapshotAlpha30d'), alpha30 > 0 ? 'positive' : alpha30 < 0 ? 'negative' : 'neutral', t('tooltipAlpha'))}
+                ${card('gsSharpe30', t('snapshotSharpe30d'), sharpe >= 1 ? 'positive' : sharpe > 0 ? 'neutral' : 'negative', t('tooltipSharpe'))}
+                ${card('gsMaxDd30', t('snapshotMaxDd30d'), maxDd <= 4 ? 'positive' : maxDd <= 8 ? 'neutral' : 'negative', t('tooltipMaxDd'))}
+                ${card('gsWinRate30', t('snapshotWinRate30d'), win30 >= 55 ? 'positive' : win30 >= 45 ? 'neutral' : 'negative', t('tooltipWinRate'))}
                 <div class="global-snapshot-card span-2" title="${t('tooltipTrades')}">
                     <div class="global-snapshot-label">${t('snapshotTrades')}</div>
-                    <div class="global-snapshot-value">${trades}</div>
-                    <div class="global-progress-track"><span class="global-progress-fill" style="width:${progressPct}%"></span></div>
+                    <div class="global-snapshot-value metric-value" id="gsTrades">-</div>
+                    <div class="global-progress-track"><span class="global-progress-fill progress-fill" style="width:${progressPct}%"></span></div>
                 </div>
             </div>
         `;
+
+        // Animate the values (Upgrade 1)
+        animateValue('gsAlpha30', alpha30, { decimalPlaces: 2, suffix: '%', prefix: alpha30 > 0 ? '+' : '' });
+        animateValue('gsSharpe30', sharpe, { decimalPlaces: 2, prefix: sharpe > 0 ? '+' : '' });
+        animateValue('gsMaxDd30', maxDd, { decimalPlaces: 2, suffix: '%' });
+        animateValue('gsWinRate30', win30, { decimalPlaces: 1, suffix: '%' });
+        animateValue('gsTrades', trades, { decimalPlaces: 0 });
     } catch (error) {
         console.error('Error loading global snapshot bar:', error);
         el.innerHTML = `<div class="global-snapshot-empty">${t('errorPerformance')}</div>`;
@@ -886,10 +1126,23 @@ async function loadGlobalSnapshotBar() {
 
 window.addEventListener('load', async () => {
     try {
+        initNotyf();
         applyLanguage();
         initTabs();
         loadTradingViewTicker();
         loadGlobalSnapshotBar();
+
+        // Show skeletons before data loads (Upgrade 4)
+        showSkeleton('predictions', 'predictions');
+        showSkeleton('evaluations', 'results');
+        showSkeleton('prices', 'prices');
+        showSkeleton('consensusCards', 'consensus');
+
+        // Set aria-live on dynamic containers (Upgrade 7)
+        ['predictions', 'evaluations', 'prices', 'consensusCards'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.setAttribute('aria-live', 'polite');
+        });
 
         // Fetch watchlist symbols first (needed for filtering all tabs)
         await fetchUserWatchlistSymbols();
@@ -952,6 +1205,7 @@ async function refreshData() {
         // Load trades if functions exist
         if (typeof loadTrades === 'function') loadTrades();
         if (typeof loadPortfolio === 'function') loadPortfolio();
+        showToast('success', t('dataRefreshed'));
     } finally {
         if (btn) {
             btn.disabled = false;
@@ -972,8 +1226,8 @@ async function loadStats() {
         const response = await fetch(`${API_URL}/stats`);
         const data = await response.json();
 
-        document.getElementById('stocksTracked').textContent = data.stocksTracked || '0';
-        document.getElementById('totalPredictions').textContent = data.totalPredictions || '0';
+        animateValue('stocksTracked', data.stocksTracked || 0, { decimalPlaces: 0 });
+        animateValue('totalPredictions', data.totalPredictions || 0, { decimalPlaces: 0 });
         document.getElementById('latestDate').textContent = formatDate(data.latestDate);
     } catch (error) {
         console.error('Error loading stats:', error);
@@ -1000,8 +1254,9 @@ async function loadPredictions() {
         stockPerformanceMap = {};
         (stockPerfData.stocks || []).forEach(s => { stockPerformanceMap[s.symbol] = s; });
 
+        clearSkeleton('predictions');
         if (!data || data.length === 0) {
-            container.innerHTML = `<p class="no-data">${t('noPredictions')}</p>`;
+            renderEmptyState('predictions', '\uD83D\uDCCA', 'emptyPredictions', 'emptyPredictionsDesc', null, null);
             return;
         }
 
@@ -1029,7 +1284,9 @@ async function loadPredictions() {
         }
     } catch (error) {
         console.error('Error loading predictions:', error);
+        clearSkeleton('predictions');
         container.innerHTML = `<p class="error-message">${t('errorPredictions')}</p>`;
+        showToast('error', t('loadError'));
     }
 }
 
@@ -1209,8 +1466,9 @@ async function loadPerformanceDetailed() {
 
         // Update overall accuracy in stats bar (avoids duplicate API call)
         const acc = data?.overall?.directional_accuracy;
-        const accEl = document.getElementById('overallAccuracy');
-        if (accEl) accEl.textContent = acc ? `${acc}%` : '-';
+        if (acc) {
+            animateValue('overallAccuracy', acc, { decimalPlaces: 1, suffix: '%' });
+        }
 
         // Render overall stats
         renderOverallStats(data.overall);
@@ -1240,31 +1498,37 @@ function renderOverallStats(overall) {
     container.innerHTML = `
         <div class="perf-stats-grid">
             <div class="perf-stat-card">
-                <div class="perf-stat-value">${overall.directional_accuracy || 0}%</div>
+                <div class="perf-stat-value metric-value" id="perfDirAcc">-</div>
                 <div class="perf-stat-label">${t('directionalAccuracy')}</div>
             </div>
             <div class="perf-stat-card">
-                <div class="perf-stat-value">${overall.total_predictions || 0}</div>
+                <div class="perf-stat-value metric-value" id="perfTotalSig">-</div>
                 <div class="perf-stat-label">${t('totalSignals')}</div>
             </div>
             <div class="perf-stat-card">
-                <div class="perf-stat-value">${overall.win_rate_buy || 0}%</div>
+                <div class="perf-stat-value metric-value" id="perfWinBuy">-</div>
                 <div class="perf-stat-label">${t('winRateBuy')}</div>
             </div>
             <div class="perf-stat-card">
-                <div class="perf-stat-value">${overall.win_rate_sell || 0}%</div>
+                <div class="perf-stat-value metric-value" id="perfWinSell">-</div>
                 <div class="perf-stat-label">${t('winRateSell')}</div>
             </div>
             <div class="perf-stat-card">
-                <div class="perf-stat-value">${(overall.avg_return_per_signal * 100).toFixed(2)}%</div>
+                <div class="perf-stat-value metric-value" id="perfAvgRet">-</div>
                 <div class="perf-stat-label">${t('avgReturnPerSignal')}</div>
             </div>
             <div class="perf-stat-card">
-                <div class="perf-stat-value">${((overall.max_drawdown || 0) * 100).toFixed(1)}%</div>
+                <div class="perf-stat-value metric-value" id="perfMaxDd">-</div>
                 <div class="perf-stat-label">${t('maxDrawdown')}</div>
             </div>
         </div>
     `;
+    animateValue('perfDirAcc', overall.directional_accuracy || 0, { decimalPlaces: 1, suffix: '%' });
+    animateValue('perfTotalSig', overall.total_predictions || 0, { decimalPlaces: 0 });
+    animateValue('perfWinBuy', overall.win_rate_buy || 0, { decimalPlaces: 1, suffix: '%' });
+    animateValue('perfWinSell', overall.win_rate_sell || 0, { decimalPlaces: 1, suffix: '%' });
+    animateValue('perfAvgRet', (overall.avg_return_per_signal * 100), { decimalPlaces: 2, suffix: '%' });
+    animateValue('perfMaxDd', ((overall.max_drawdown || 0) * 100), { decimalPlaces: 1, suffix: '%' });
 }
 
 function renderPerStockTable(perStock) {
@@ -1409,8 +1673,9 @@ async function loadEvaluations() {
 
         const data = await response.json();
 
+        clearSkeleton('evaluations');
         if (!data || data.length === 0) {
-            container.innerHTML = `<p class="no-data">${t('noEvaluations')}</p>`;
+            renderEmptyState('evaluations', '\uD83D\uDCC8', 'emptyResults', 'emptyResultsDesc', null, null);
             return;
         }
 
@@ -1423,7 +1688,7 @@ async function loadEvaluations() {
             }
             filteredData = data.filter(item => userWatchlistSymbols.has(item.symbol));
             if (filteredData.length === 0) {
-                container.innerHTML = `<p class="no-data">${t('noEvaluations')}</p>`;
+                renderEmptyState('evaluations', '\uD83D\uDCC8', 'emptyResults', 'emptyResultsDesc', null, null);
                 return;
             }
         }
@@ -1515,6 +1780,7 @@ async function loadPrices() {
 
         const data = await response.json();
 
+        clearSkeleton('prices');
         if (!data || data.length === 0) {
             container.innerHTML = `<p class="no-data">${t('noPrices')}</p>`;
             return;
@@ -1591,6 +1857,7 @@ async function loadConsensus() {
             if (key) el.textContent = t(key);
         });
 
+        clearSkeleton('consensusCards');
         if (!consensusData || consensusData.length === 0) {
             cardsContainer.innerHTML = `<p class="no-data">${t('noConsensus')}</p>`;
             return;

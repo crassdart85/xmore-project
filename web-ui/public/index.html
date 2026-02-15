@@ -7,13 +7,15 @@
     <title>Xmore — AI Stock Prediction Dashboard</title>
     <meta name="description"
         content="Xmore is an AI-powered stock prediction system for the Egyptian Exchange (EGX) and US markets. Live performance tracking, multi-agent consensus signals.">
-    <link rel="stylesheet" href="style.css?v=20260211a">
-    <link rel="stylesheet" href="auth.css?v=20260211a">
-    <link rel="stylesheet" href="performance-dashboard.css?v=20260211a">
+    <link rel="stylesheet" href="style.css?v=20260215a">
+    <link rel="stylesheet" href="auth.css?v=20260215a">
+    <link rel="stylesheet" href="performance-dashboard.css?v=20260215a">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css">
 </head>
 
 <body>
-    <div class="container">
+    <a href="#main-content" class="skip-link">Skip to content</a>
+    <div class="container" id="main-content">
         <!-- TradingView Ticker Tape (EGX30 index) -->
         <div id="tv-ticker-tape" class="tv-ticker-container"></div>
 
@@ -295,12 +297,15 @@
         </div>
     </div>
 
-    <script src="app.js?v=20260211a"></script>
-    <script src="auth.js?v=20260211a"></script>
-    <script src="watchlist.js?v=20260211a"></script>
-    <script src="trades.js?v=20260211a"></script>
-    <script src="briefing.js?v=20260211b"></script>
-    <script src="performance-dashboard.js?v=20260211a"></script>
+    <script src="https://cdn.jsdelivr.net/npm/countup.js@2.8.0/dist/countUp.umd.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.js" defer></script>
+    <script src="https://unpkg.com/lightweight-charts@4.1.1/dist/lightweight-charts.standalone.production.js" defer></script>
+    <script src="app.js?v=20260215a"></script>
+    <script src="auth.js?v=20260215a"></script>
+    <script src="watchlist.js?v=20260215a"></script>
+    <script src="trades.js?v=20260215a"></script>
+    <script src="briefing.js?v=20260215a"></script>
+    <script src="performance-dashboard.js?v=20260215a"></script>
 </body>
 
 </html>

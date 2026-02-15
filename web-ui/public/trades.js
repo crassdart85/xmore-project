@@ -158,12 +158,12 @@ async function listTodayTrades() {
         return;
     }
 
-    container.innerHTML = `
-      <div class="trades-grid">
-        <div class="trade-card"><p class="loading">${tt('loading')}</p></div>
-        <div class="trade-card"><p class="loading">${tt('loading')}</p></div>
-      </div>
-    `;
+    // Show shimmer skeleton while loading (Upgrade 4)
+    if (typeof showSkeleton === 'function') {
+        showSkeleton('todayTradesContainer', 'trades');
+    } else {
+        container.innerHTML = `<div class="trades-grid"><div class="trade-card"><p class="loading">${tt('loading')}</p></div></div>`;
+    }
 
     try {
         const res = await fetch('/api/trades/today', { credentials: 'include' });
@@ -184,6 +184,7 @@ async function listTodayTrades() {
     } catch (err) {
         console.error('Error loading today trades:', err);
         renderError(container, err.message);
+        if (typeof showToast === 'function') showToast('error', err.message);
     }
 }
 
@@ -199,9 +200,14 @@ async function getPortfolio() {
         return;
     }
 
-    // Set loading state
-    openContainer.innerHTML = `<p class="loading">${tt('loading')}</p>`;
-    closedContainer.innerHTML = `<p class="loading">${tt('loading')}</p>`;
+    // Show shimmer skeleton while loading (Upgrade 4)
+    if (typeof showSkeleton === 'function') {
+        showSkeleton('portfolioOpen', 'trades');
+        showSkeleton('portfolioHistory', 'trades');
+    } else {
+        openContainer.innerHTML = `<p class="loading">${tt('loading')}</p>`;
+        closedContainer.innerHTML = `<p class="loading">${tt('loading')}</p>`;
+    }
 
     try {
         const res = await fetch('/api/trades/portfolio', { credentials: 'include' });
@@ -213,6 +219,7 @@ async function getPortfolio() {
     } catch (err) {
         console.error('Error loading portfolio:', err);
         renderError(openContainer, err.message);
+        if (typeof showToast === 'function') showToast('error', err.message);
     }
 }
 
@@ -225,7 +232,12 @@ function renderTodayTrades() {
     if (!container) return;
 
     if (todayTrades.length === 0) {
-        container.innerHTML = `<p class="no-data">${tt('tt_no_trades')}</p>`;
+        // Empty state illustration (Upgrade 6)
+        if (typeof renderEmptyState === 'function') {
+            renderEmptyState('todayTradesContainer', '📋', 'emptyTrades', 'emptyTradesDesc', null, null);
+        } else {
+            container.innerHTML = `<p class="no-data">${tt('tt_no_trades')}</p>`;
+        }
         return;
     }
 
@@ -312,6 +324,18 @@ function renderPortfolio() {
     const openContainer = document.getElementById('portfolioOpen');
     const closedContainer = document.getElementById('portfolioHistory');
     const statsContainer = document.getElementById('portfolioStats');
+
+    // Empty state when no portfolio data at all (Upgrade 6)
+    const hasOpen = portfolioData.open_positions && portfolioData.open_positions.length > 0;
+    const hasClosed = portfolioData.closed_positions && portfolioData.closed_positions.length > 0;
+    if (!portfolioData.stats && !hasOpen && !hasClosed) {
+        if (typeof renderEmptyState === 'function' && openContainer) {
+            renderEmptyState('portfolioOpen', '💼', 'emptyPortfolio', 'emptyPortfolioDesc', 'viewTrades', "switchToTab('trades')");
+            if (closedContainer) closedContainer.innerHTML = '';
+            if (statsContainer) statsContainer.innerHTML = '';
+        }
+        return;
+    }
 
     // 1. Stats
     if (statsContainer && portfolioData.stats) {

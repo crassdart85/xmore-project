@@ -187,7 +187,12 @@ async function loadBriefing() {
     const container = document.getElementById('briefingContainer');
     if (!container) return;
 
-    container.innerHTML = `<p class="loading">${bt('br_loading')}</p>`;
+    // Show shimmer skeleton while loading (Upgrade 4)
+    if (typeof showSkeleton === 'function') {
+        showSkeleton('briefingContainer', 'briefing');
+    } else {
+        container.innerHTML = `<p class="loading">${bt('br_loading')}</p>`;
+    }
 
     try {
         const res = await fetch('/api/briefing/today', { credentials: 'include' });
@@ -196,6 +201,8 @@ async function loadBriefing() {
             throw new Error(errData.details || errData.error || bt('br_error'));
         }
         const data = await res.json();
+
+        if (typeof clearSkeleton === 'function') clearSkeleton('briefingContainer');
 
         if (!data || !data.available) {
             container.innerHTML = `<p class="no-data">${bt('br_no_briefing')}</p>`;
@@ -206,12 +213,14 @@ async function loadBriefing() {
         renderBriefing();
     } catch (err) {
         console.error('Error loading briefing:', err);
+        if (typeof clearSkeleton === 'function') clearSkeleton('briefingContainer');
         container.innerHTML = `
             <div class="error-message">
                 <strong>${bt('br_error')}</strong><br>
                 <small>${err.message}</small><br>
                 <button onclick="window.loadBriefing()" class="refresh-btn retry-btn">${bt('br_retry')}</button>
             </div>`;
+        if (typeof showToast === 'function') showToast('error', bt('br_error'));
     }
 }
 

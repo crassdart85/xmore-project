@@ -19,7 +19,7 @@ const PERF_TRANSLATIONS = {
         degraded: 'Degraded',
         sinceInception: 'Since Inception',
         liveOnly: 'Live-only immutable logs',
-        showBenchmark: 'Benchmark',
+        showBenchmark: 'Show EGX30',
         showDrawdown: 'Drawdown',
         noData: 'Performance tracking will appear after live evaluations.',
         openAudit: 'Open Audit Trail',
@@ -46,7 +46,8 @@ const PERF_TRANSLATIONS = {
         auditField: 'Field',
         auditOld: 'Old',
         auditNew: 'New',
-        auditNoEntries: 'No entries'
+        auditNoEntries: 'No entries',
+        sortino: 'Sortino',
     },
     ar: {
         perfTitle: 'أداء إكسمور',
@@ -68,7 +69,7 @@ const PERF_TRANSLATIONS = {
         degraded: 'متراجع',
         sinceInception: 'منذ الانطلاق',
         liveOnly: 'سجل حي غير قابل للتعديل',
-        showBenchmark: 'المعيار',
+        showBenchmark: 'عرض EGX30',
         showDrawdown: 'الهبوط',
         noData: 'سيظهر تتبع الأداء بعد توفر تقييمات حية.',
         openAudit: 'فتح سجل التدقيق',
@@ -95,7 +96,8 @@ const PERF_TRANSLATIONS = {
         auditField: 'الحقل',
         auditOld: 'القديم',
         auditNew: 'الجديد',
-        auditNoEntries: 'لا توجد مدخلات'
+        auditNoEntries: 'لا توجد مدخلات',
+        sortino: 'سورتينو',
     }
 };
 
@@ -106,6 +108,8 @@ function pt(key) {
 let perfHistoryPage = 1;
 let perfEquityCurveDays = 90;
 let perfChartState = { showBenchmark: true, showDrawdown: true, points: [] };
+let perfLwChart = null; // Lightweight Charts instance
+let perfLwEgxSeries = null; // EGX30 benchmark series reference
 
 async function loadPerformanceDashboard() {
     const container = document.getElementById('perfDashboard');
@@ -122,6 +126,7 @@ async function loadPerformanceDashboard() {
 
         if (!summary.available) {
             container.innerHTML = `<p class="no-data">${pt('noData')}</p>`;
+            if (typeof showToast === 'function') showToast('warning', typeof t === 'function' ? t('minTradesWarning') : pt('noData'));
             return;
         }
 
@@ -132,15 +137,34 @@ async function loadPerformanceDashboard() {
         container.appendChild(buildAgentAccountability(agents));
         container.appendChild(buildTransparency(summary, history));
         container.appendChild(buildSinceInception(summary));
-        renderEquityCurveChart(equity);
+
+        // Render equity curve with Lightweight Charts (Upgrade 3) or canvas fallback
+        renderEquityCurve(equity);
+
+        // Animate proof-of-edge metrics (Upgrade 1)
+        const r30 = summary.rolling?.['30d'] || {};
+        const g = summary.global || {};
+        const alpha = r30.alpha ?? 0;
+        const sharpe = r30.sharpe_ratio ?? g.sharpe_ratio ?? 0;
+        const maxDd = r30.max_drawdown ?? g.max_drawdown ?? 0;
+        if (typeof animateValue === 'function') {
+            animateValue('perfEdgeAlpha', alpha, { decimalPlaces: 2, suffix: '%', prefix: alpha > 0 ? '+' : '' });
+            animateValue('perfEdgeSharpe', sharpe, { decimalPlaces: 2 });
+            animateValue('perfEdgeMaxDd', maxDd, { decimalPlaces: 2, suffix: '%' });
+            // Since inception
+            animateValue('perfInceptionAlpha', g.avg_alpha_1d || 0, { decimalPlaces: 2, suffix: '%', prefix: (g.avg_alpha_1d || 0) > 0 ? '+' : '' });
+            animateValue('perfInceptionSharpe', g.sharpe_ratio || 0, { decimalPlaces: 2 });
+            animateValue('perfInceptionTotal', g.total_predictions || 0, { decimalPlaces: 0 });
+        }
     } catch (e) {
         container.innerHTML = `<p class="error-message">${pt('loadFailed')}</p>`;
         console.error(e);
     }
 }
 
-function metricCard(label, value, cls = '', tip = '') {
-    return `<div class="perf-metric-card ${cls}" title="${tip}"><div class="perf-metric-label">${label}</div><div class="perf-metric-value">${value}</div></div>`;
+function metricCard(label, value, cls = '', tip = '', id = '') {
+    const idAttr = id ? ` id="${id}"` : '';
+    return `<div class="perf-metric-card ${cls}" title="${tip}"><div class="perf-metric-label">${label}</div><div class="perf-metric-value metric-value"${idAttr}>${value}</div></div>`;
 }
 
 function buildHealth(summary) {
@@ -156,7 +180,7 @@ function buildHealth(summary) {
     return createSection(`
         <div class="perf-health ${state}">
             <div class="perf-health-title">${pt('systemHealth')}</div>
-            <div class="perf-health-state">${pt(state)}</div>
+            <div class="perf-health-state health-badge">${pt(state)}</div>
             <div class="perf-health-note">${pt('liveOnly')}</div>
         </div>
     `);
@@ -172,9 +196,9 @@ function buildProofOfEdge(summary, equity) {
     return createSection(`
         <h3>${pt('proof')}</h3>
         <div class="perf-proof-grid">
-            ${metricCard(pt('alpha'), `${alpha > 0 ? '+' : ''}${alpha.toFixed(2)}%`, alpha > 0 ? 'positive' : 'negative', '30-day alpha versus EGX30')}
-            ${metricCard(pt('sharpe'), Number(sharpe).toFixed(2), sharpe >= 1 ? 'positive' : 'neutral', '30-day risk-adjusted return')}
-            ${metricCard(pt('maxDd'), `${Number(maxDd).toFixed(2)}%`, maxDd <= 8 ? 'positive' : 'negative', '30-day maximum drawdown')}
+            ${metricCard(pt('alpha'), '-', alpha > 0 ? 'positive' : 'negative', '30-day alpha versus EGX30', 'perfEdgeAlpha')}
+            ${metricCard(pt('sharpe'), '-', sharpe >= 1 ? 'positive' : 'neutral', '30-day risk-adjusted return', 'perfEdgeSharpe')}
+            ${metricCard(pt('maxDd'), '-', maxDd <= 8 ? 'positive' : 'negative', '30-day maximum drawdown', 'perfEdgeMaxDd')}
         </div>
         <div class="perf-section-head">
             <h3>${pt('equity')}</h3>
@@ -183,17 +207,13 @@ function buildProofOfEdge(summary, equity) {
                 <button class="perf-period-btn ${perfEquityCurveDays === 60 ? 'active' : ''}" onclick="changeEquityCurvePeriod(60)">60d</button>
                 <button class="perf-period-btn ${perfEquityCurveDays === 90 ? 'active' : ''}" onclick="changeEquityCurvePeriod(90)">90d</button>
                 <button class="perf-period-btn ${perfEquityCurveDays === 180 ? 'active' : ''}" onclick="changeEquityCurvePeriod(180)">180d</button>
-                <label><input type="checkbox" ${perfChartState.showBenchmark ? 'checked' : ''} onchange="toggleBenchmarkLine(this.checked)"> ${pt('showBenchmark')}</label>
-                <label><input type="checkbox" ${perfChartState.showDrawdown ? 'checked' : ''} onchange="toggleDrawdownShading(this.checked)"> ${pt('showDrawdown')}</label>
+                <label class="benchmark-toggle"><input type="checkbox" id="toggle-egx30" ${perfChartState.showBenchmark ? 'checked' : ''} onchange="toggleBenchmarkLine(this.checked)"> <span data-i18n="showBenchmark">${pt('showBenchmark')}</span></label>
             </div>
         </div>
-        <div class="perf-chart-wrap">
-            <canvas id="equityCurveCanvas"></canvas>
-            <div id="perfChartTooltip" class="perf-chart-tooltip"></div>
-        </div>
+        <div class="perf-chart-wrap" id="equityCurveChartContainer" style="min-height:350px;"></div>
         <div class="perf-chart-legend">
-            <span>Xmore ${equity.total_xmore > 0 ? '+' : ''}${Number(equity.total_xmore || 0).toFixed(2)}%</span>
-            <span>EGX30 ${equity.total_egx30 > 0 ? '+' : ''}${Number(equity.total_egx30 || 0).toFixed(2)}%</span>
+            <span style="color:#10b981">&#9632; Xmore ${equity.total_xmore > 0 ? '+' : ''}${Number(equity.total_xmore || 0).toFixed(2)}%</span>
+            <span style="color:#6b7280">&#9632; EGX30 ${equity.total_egx30 > 0 ? '+' : ''}${Number(equity.total_egx30 || 0).toFixed(2)}%</span>
             <span>Alpha ${equity.total_alpha > 0 ? '+' : ''}${Number(equity.total_alpha || 0).toFixed(2)}%</span>
         </div>
     `);
@@ -269,7 +289,7 @@ function buildTransparency(summary, history) {
             <button class="perf-action-btn secondary" onclick="showAuditLog()">${pt('openAudit')}</button>
             <button class="perf-action-btn" onclick="loadMorePredictions()">${pt('showMore')}</button>
         </div>
-        <div class="integrity-progress"><span style="width:${progress}%"></span><em>${g.total_predictions || 0}/100</em></div>
+        <div class="integrity-progress progress-fill"><span style="width:${progress}%"></span><em>${g.total_predictions || 0}/100</em></div>
     `);
 }
 
@@ -278,10 +298,10 @@ function buildSinceInception(summary) {
     return createSection(`
         <h3>${pt('sinceInception')}</h3>
         <div class="perf-proof-grid">
-            ${metricCard(pt('alpha'), `${g.avg_alpha_1d > 0 ? '+' : ''}${Number(g.avg_alpha_1d || 0).toFixed(2)}%`)}
-            ${metricCard(pt('sharpe'), Number(g.sharpe_ratio || 0).toFixed(2))}
+            ${metricCard(pt('alpha'), '-', '', '', 'perfInceptionAlpha')}
+            ${metricCard(pt('sharpe'), '-', '', '', 'perfInceptionSharpe')}
             ${metricCard(pt('firstLive'), g.first_prediction ? String(g.first_prediction).slice(0, 10) : 'N/A')}
-            ${metricCard(pt('totalLive'), `${g.total_predictions || 0}`)}
+            ${metricCard(pt('totalLive'), '-', '', '', 'perfInceptionTotal')}
         </div>
     `);
 }
@@ -295,22 +315,161 @@ function createSection(html) {
 
 async function changeEquityCurvePeriod(days) {
     perfEquityCurveDays = days;
+    // Destroy old chart instance
+    const container = document.getElementById('equityCurveChartContainer');
+    if (container && container._chartInstance) {
+        container._chartInstance.remove();
+        container._chartInstance = null;
+    }
+    if (container && container._resizeObserver) {
+        container._resizeObserver.disconnect();
+        container._resizeObserver = null;
+    }
+    perfLwChart = null;
+    perfLwEgxSeries = null;
     await loadPerformanceDashboard();
 }
 
 function toggleBenchmarkLine(v) {
     perfChartState.showBenchmark = !!v;
+    // If Lightweight Charts instance exists, toggle series visibility
+    if (perfLwEgxSeries) {
+        perfLwEgxSeries.applyOptions({ visible: v });
+        return;
+    }
+    // Fallback: re-render canvas
     const chartData = { series: perfChartState.points };
-    renderEquityCurveChart(chartData);
+    renderEquityCurveCanvas(chartData);
 }
 
 function toggleDrawdownShading(v) {
     perfChartState.showDrawdown = !!v;
-    const chartData = { series: perfChartState.points };
-    renderEquityCurveChart(chartData);
+    // For Lightweight Charts, we don't have drawdown shading built in,
+    // so we re-render if using canvas fallback
+    if (!perfLwChart) {
+        const chartData = { series: perfChartState.points };
+        renderEquityCurveCanvas(chartData);
+    }
 }
 
-function renderEquityCurveChart(data) {
+// ============================================
+// UPGRADE 3: LIGHTWEIGHT CHARTS EQUITY CURVE
+// ============================================
+
+function renderEquityCurve(data) {
+    const container = document.getElementById('equityCurveChartContainer');
+    if (!container) return;
+
+    const points = data.series || [];
+    perfChartState.points = points;
+
+    if (points.length < 2) {
+        container.innerHTML = '<p class="no-data" style="text-align:center;padding:40px;">Not enough data for chart.</p>';
+        return;
+    }
+
+    // Try Lightweight Charts first, fall back to canvas
+    if (typeof LightweightCharts !== 'undefined') {
+        renderEquityCurveLW(container, points);
+    } else {
+        // Fallback: inject a canvas and use the old renderer
+        container.innerHTML = '<canvas id="equityCurveCanvas"></canvas><div id="perfChartTooltip" class="perf-chart-tooltip"></div>';
+        renderEquityCurveCanvas(data);
+    }
+}
+
+function renderEquityCurveLW(container, points) {
+    // Clear previous chart
+    if (container._chartInstance) {
+        container._chartInstance.remove();
+        container._chartInstance = null;
+    }
+    if (container._resizeObserver) {
+        container._resizeObserver.disconnect();
+        container._resizeObserver = null;
+    }
+    container.innerHTML = '';
+
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+
+    const chart = LightweightCharts.createChart(container, {
+        width: container.clientWidth,
+        height: 350,
+        layout: {
+            background: { type: 'solid', color: isDark ? '#1a1a2e' : '#ffffff' },
+            textColor: isDark ? '#d1d5db' : '#374151',
+            fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+        },
+        grid: {
+            vertLines: { color: isDark ? '#2d2d44' : '#f0f0f0' },
+            horzLines: { color: isDark ? '#2d2d44' : '#f0f0f0' },
+        },
+        crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
+        rightPriceScale: {
+            borderColor: isDark ? '#2d2d44' : '#e0e0e0',
+        },
+        timeScale: {
+            borderColor: isDark ? '#2d2d44' : '#e0e0e0',
+            timeVisible: false,
+        },
+        localization: {
+            priceFormatter: (price) => price.toFixed(2) + '%',
+        },
+    });
+
+    // Xmore performance area
+    const xmoreSeries = chart.addAreaSeries({
+        lineColor: '#10b981',
+        topColor: 'rgba(16, 185, 129, 0.3)',
+        bottomColor: 'rgba(16, 185, 129, 0.02)',
+        lineWidth: 2,
+        title: 'Xmore',
+    });
+
+    const xmoreData = points
+        .filter(d => d.date)
+        .map(d => ({
+            time: String(d.date).slice(0, 10),
+            value: Number(d.xmore || d.cumulative_return || 0),
+        }));
+    if (xmoreData.length > 0) xmoreSeries.setData(xmoreData);
+
+    // EGX30 benchmark line
+    const egxSeries = chart.addLineSeries({
+        color: '#6b7280',
+        lineWidth: 1,
+        lineStyle: LightweightCharts.LineStyle.Dashed,
+        title: 'EGX30',
+        visible: perfChartState.showBenchmark,
+    });
+
+    const egxData = points
+        .filter(d => d.date)
+        .map(d => ({
+            time: String(d.date).slice(0, 10),
+            value: Number(d.egx30 || d.egx30_return || 0),
+        }));
+    if (egxData.length > 0) egxSeries.setData(egxData);
+
+    // Responsive resize
+    const resizeObserver = new ResizeObserver(entries => {
+        for (const entry of entries) {
+            chart.applyOptions({ width: entry.contentRect.width });
+        }
+    });
+    resizeObserver.observe(container);
+
+    // Store references
+    container._chartInstance = chart;
+    container._resizeObserver = resizeObserver;
+    perfLwChart = chart;
+    perfLwEgxSeries = egxSeries;
+
+    chart.timeScale().fitContent();
+}
+
+// Canvas fallback (kept for graceful degradation)
+function renderEquityCurveCanvas(data) {
     const canvas = document.getElementById('equityCurveCanvas');
     const tip = document.getElementById('perfChartTooltip');
     if (!canvas) return;
@@ -395,21 +554,39 @@ async function loadMorePredictions() {
 }
 
 async function showAuditLog() {
+    const triggerBtn = document.activeElement;
     const data = await fetch('/api/performance-v2/audit?limit=80').then(r => r.json()).catch(() => ({ audit_entries: [] }));
     const modal = document.createElement('div');
     modal.className = 'perf-modal-overlay';
-    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-labelledby', 'auditModalTitle');
+    modal.onclick = (e) => {
+        if (e.target === modal) {
+            modal.remove();
+            if (triggerBtn) triggerBtn.focus();
+        }
+    };
+    // Close on Escape (Upgrade 7)
+    modal.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            modal.remove();
+            if (triggerBtn) triggerBtn.focus();
+        }
+    });
     modal.innerHTML = `<div class="perf-modal">
-        <button class="perf-modal-close" onclick="this.closest('.perf-modal-overlay').remove()">&times;</button>
-        <h3>${pt('auditTitle')}</h3>
+        <button class="perf-modal-close" onclick="this.closest('.perf-modal-overlay').remove()" aria-label="Close">&times;</button>
+        <h3 id="auditModalTitle">${pt('auditTitle')}</h3>
         <div class="perf-table-wrapper"><table class="perf-table"><thead><tr><th>${pt('auditWhen')}</th><th>${pt('auditTable')}</th><th>${pt('auditRecord')}</th><th>${pt('auditField')}</th><th>${pt('auditOld')}</th><th>${pt('auditNew')}</th></tr></thead>
         <tbody>${(data.audit_entries || []).map(e => `<tr><td>${e.changed_at || '-'}</td><td>${e.table_name || '-'}</td><td>${e.record_id || '-'}</td><td>${e.field_changed || '-'}</td><td>${e.old_value || '-'}</td><td>${e.new_value || '-'}</td></tr>`).join('') || `<tr><td colspan="6">${pt('auditNoEntries')}</td></tr>`}</tbody></table></div>
     </div>`;
     document.body.appendChild(modal);
+    // Focus the close button (Upgrade 7)
+    const closeBtn = modal.querySelector('.perf-modal-close');
+    if (closeBtn) closeBtn.focus();
 }
 
 document.addEventListener('DOMContentLoaded', () => {
     const perfTab = document.querySelector('[data-tab="performance"]');
     if (perfTab) perfTab.addEventListener('click', () => setTimeout(loadPerformanceDashboard, 60));
 });
-
