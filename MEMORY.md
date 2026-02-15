@@ -347,3 +347,27 @@ Stock trading prediction system with web dashboard. Uses multiple AI agents to p
 
 
 
+
+## xmore_data Verification + Runtime Hardening (Feb 15, 2026)
+- Completed an end-to-end verification of the EGX data ingestion layer implementation under `xmore_data/`.
+- Closed requirement gaps found during audit:
+  - Added required public API wrappers in `xmore_data/data_manager.py`:
+    - `fetch_egx_data(...)`
+    - `fetch_multiple_symbols(...)`
+    - `get_egx30_index(...)`
+  - Exported these functions in `xmore_data/__init__.py` for package-level usage.
+  - Hardened schema standardization in `xmore_data/utils.py`:
+    - Canonical provider-column mapping (including Alpha Vantage keys like `1. open`, `2. high`, etc.)
+    - Enforced exact final output schema and order:
+      `Date | Open | High | Low | Close | Adj Close | Volume`
+  - Fixed Alpha Vantage normalization flow in `xmore_data/providers/alpha_vantage_provider.py` to rely on canonical validation mapping and preserve adjusted close when present.
+  - Updated CLI import behavior in `xmore_data/main.py` to support both:
+    - `python -m xmore_data.main ...`
+    - `python xmore_data/main.py ...`
+  - Extended date parsing in `xmore_data/utils.py` to accept `today` and `yesterday` tokens (matching CLI examples).
+  - Ensured runtime directory readiness on import in `xmore_data/config.py` by creating:
+    - `Config.CACHE_DIR`
+    - `Config.LOG_FILE.parent`
+- Runtime checks executed:
+  - `python -m py_compile xmore_data/config.py xmore_data/utils.py xmore_data/data_manager.py xmore_data/providers/alpha_vantage_provider.py xmore_data/main.py xmore_data/__init__.py` -> passed.
+  - `python -m pytest xmore_data/test_data_manager.py -v -m "not slow"` -> passed (`23 passed, 1 deselected`).

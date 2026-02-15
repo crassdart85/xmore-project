@@ -1,0 +1,27 @@
+"""
+Requirements for xmore_data module.
+
+Install with: pip install -r requirements_data.txt
+"""
+
+# Core dependencies
+pandas>=1.5.0
+numpy>=1.23.0
+python-dotenv>=0.20.0
+
+# Provider libraries (at least one required)
+yfinance>=0.2.0
+
+# Optional providers
+egxpy>=0.1.0  # Primary provider (install if available)
+alpha-vantage>=2.3.0  # Tertiary fallback
+
+# Caching
+joblib>=1.2.0
+
+# Excel export support
+openpyxl>=3.9.0
+
+# Type checking (development)
+# mypy>=0.990
+# pandas-stubs>=1.5.0
