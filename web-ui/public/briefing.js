@@ -38,6 +38,8 @@ const briefingText = {
         br_no_actions: "No urgent actions today — your positions are steady.",
         br_login_actions: "Login to see personalized trade actions.",
         br_login_btn: "Login",
+        br_buy: "BUY",
+        br_sell: "SELL",
 
         // Portfolio Snapshot
         br_portfolio: "Portfolio Snapshot",
@@ -46,6 +48,7 @@ const briefingText = {
         br_best: "Best",
         br_worst: "Worst",
         br_no_portfolio: "No open positions.",
+        br_symbol: "Symbol",
         br_entry: "Entry",
         br_current: "Current",
         br_pnl: "P&L",
@@ -111,6 +114,8 @@ const briefingText = {
         br_no_actions: "لا توجد إجراءات عاجلة اليوم — مراكزك مستقرة.",
         br_login_actions: "سجّل دخولك لعرض التوصيات المخصصة.",
         br_login_btn: "تسجيل الدخول",
+        br_buy: "شراء",
+        br_sell: "بيع",
 
         // Portfolio Snapshot
         br_portfolio: "لمحة المحفظة",
@@ -119,6 +124,7 @@ const briefingText = {
         br_best: "الأفضل",
         br_worst: "الأسوأ",
         br_no_portfolio: "لا توجد مراكز مفتوحة.",
+        br_symbol: "الرمز",
         br_entry: "الدخول",
         br_current: "الحالي",
         br_pnl: "الربح",
@@ -204,7 +210,7 @@ async function loadBriefing() {
             <div class="error-message">
                 <strong>${bt('br_error')}</strong><br>
                 <small>${err.message}</small><br>
-                <button onclick="window.loadBriefing()" class="refresh-btn" style="margin-top:10px; padding:6px 15px; font-size:0.85em; cursor:pointer">${bt('br_retry')}</button>
+                <button onclick="window.loadBriefing()" class="refresh-btn retry-btn">${bt('br_retry')}</button>
             </div>`;
     }
 }
@@ -349,7 +355,7 @@ function renderActionsToday(actions) {
 
         return `
         <div class="action-card ${actionCls}">
-            <div class="action-card-badge ${actionBadge}">${a.action}</div>
+            <div class="action-card-badge ${actionBadge}">${a.action === 'BUY' ? bt('br_buy') : bt('br_sell')}</div>
             <div class="action-card-body">
                 <div class="action-card-symbol">${a.symbol}</div>
                 <div class="action-card-name">${name}</div>
@@ -415,7 +421,7 @@ function renderPortfolioSnapshot(portfolio) {
         ${portfolio.positions && portfolio.positions.length > 0 ? `
         <table class="portfolio-table briefing-table">
             <thead><tr>
-                <th>${bt('br_sector')}</th>
+                <th>${bt('br_symbol')}</th>
                 <th>${bt('br_entry')}</th>
                 <th>${bt('br_current')}</th>
                 <th>${bt('br_pnl')}</th>

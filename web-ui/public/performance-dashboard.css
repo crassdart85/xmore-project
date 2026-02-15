@@ -193,6 +193,33 @@
     gap: 8px;
 }
 
+.perf-action-btn {
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 8px 16px;
+    background: var(--accent);
+    color: white;
+    font-weight: 600;
+    font-size: 0.85em;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.2s;
+}
+
+.perf-action-btn:hover {
+    transform: translateY(-1px);
+    opacity: 0.9;
+}
+
+.perf-action-btn.secondary {
+    background: transparent;
+    color: var(--text-primary);
+    border-color: var(--border-color);
+}
+
+.perf-action-btn.secondary:hover {
+    background: var(--card-bg);
+}
+
 .integrity-progress {
     margin-top: 10px;
     position: relative;

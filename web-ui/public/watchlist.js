@@ -66,14 +66,7 @@ function wt(key) {
     return (wlText[lang] && wlText[lang][key]) || wlText.en[key] || key;
 }
 
-function escapeHtml(value) {
-    return String(value ?? '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-}
+// escapeHtml() is defined globally in app.js
 
 // ============================================
 // LOAD STOCKS (for search)

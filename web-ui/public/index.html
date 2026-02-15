@@ -62,20 +62,20 @@
         </section>
 
         <!-- Tab Navigation -->
-        <nav class="tab-nav" id="tabNav">
-            <button class="tab-btn active" data-tab="predictions" id="tabPredictions">Predictions</button>
-            <button class="tab-btn" data-tab="briefing" id="tabBriefing">Briefing</button>
-            <button class="tab-btn" data-tab="trades" id="tabTrades">Trades</button>
-            <button class="tab-btn" data-tab="portfolio" id="tabPortfolio">Portfolio</button>
-            <button class="tab-btn" data-tab="watchlist" id="tabWatchlist" style="display:none;">Watchlist</button>
-            <button class="tab-btn" data-tab="consensus" id="tabConsensus">Consensus</button>
-            <button class="tab-btn" data-tab="performance" id="tabPerformance">Performance</button>
-            <button class="tab-btn" data-tab="results" id="tabResults">Results</button>
-            <button class="tab-btn" data-tab="prices" id="tabPrices">Prices</button>
+        <nav class="tab-nav" id="tabNav" role="tablist">
+            <button class="tab-btn active" data-tab="predictions" id="tabPredictions" role="tab" aria-selected="true" aria-controls="tab-predictions">Predictions</button>
+            <button class="tab-btn" data-tab="briefing" id="tabBriefing" role="tab" aria-selected="false" aria-controls="tab-briefing">Briefing</button>
+            <button class="tab-btn" data-tab="trades" id="tabTrades" role="tab" aria-selected="false" aria-controls="tab-trades">Trades</button>
+            <button class="tab-btn" data-tab="portfolio" id="tabPortfolio" role="tab" aria-selected="false" aria-controls="tab-portfolio">Portfolio</button>
+            <button class="tab-btn" data-tab="watchlist" id="tabWatchlist" role="tab" aria-selected="false" aria-controls="tab-watchlist">Watchlist</button>
+            <button class="tab-btn" data-tab="consensus" id="tabConsensus" role="tab" aria-selected="false" aria-controls="tab-consensus">Consensus</button>
+            <button class="tab-btn" data-tab="performance" id="tabPerformance" role="tab" aria-selected="false" aria-controls="tab-performance">Performance</button>
+            <button class="tab-btn" data-tab="results" id="tabResults" role="tab" aria-selected="false" aria-controls="tab-results">Results</button>
+            <button class="tab-btn" data-tab="prices" id="tabPrices" role="tab" aria-selected="false" aria-controls="tab-prices">Prices</button>
         </nav>
 
         <!-- Tab: Watchlist (requires login) -->
-        <section class="tab-content" id="tab-watchlist">
+        <section class="tab-content" id="tab-watchlist" role="tabpanel" aria-labelledby="tabWatchlist">
             <div id="watchlistSection">
                 <div class="watchlist-header">
                     <h2 id="wlTitle">⭐ My Watchlist</h2>
@@ -96,7 +96,7 @@
         </section>
 
         <!-- Tab: Predictions -->
-        <section class="tab-content active" id="tab-predictions">
+        <section class="tab-content active" id="tab-predictions" role="tabpanel" aria-labelledby="tabPredictions">
             <div class="section-header">
                 <p class="section-subtitle" id="predictionsBrief">Start here: see today's AI signals by stock and scan for bullish, bearish, or neutral direction.</p>
             </div>
@@ -141,7 +141,7 @@
         </section>
 
         <!-- Tab: Performance Dashboard (Investor-Grade) -->
-        <section class="tab-content" id="tab-performance">
+        <section class="tab-content" id="tab-performance" role="tabpanel" aria-labelledby="tabPerformance">
             <div class="section-header">
                 <p class="section-subtitle" id="performanceBrief">Review strategy quality over time, including win rate, drawdown, and benchmark-relative performance.</p>
             </div>
@@ -151,7 +151,7 @@
         </section>
 
         <!-- Tab: Consensus (3-Layer Pipeline) -->
-        <section class="tab-content" id="tab-consensus">
+        <section class="tab-content" id="tab-consensus" role="tabpanel" aria-labelledby="tabConsensus">
             <div class="section-header">
                 <p class="section-subtitle" id="consensusBrief">See where multiple agents agree, plus risk filters, to spot the strongest shared setup.</p>
             </div>
@@ -181,7 +181,7 @@
         </section>
 
         <!-- Tab: Prediction Results -->
-        <section class="tab-content" id="tab-results">
+        <section class="tab-content" id="tab-results" role="tabpanel" aria-labelledby="tabResults">
             <div class="section-header section-header-centered">
                 <h2 id="resultsTitle">Results</h2>
                 <p class="section-subtitle" id="resultsBrief">Compare past predictions with real outcomes to understand what the model got right or wrong.</p>
@@ -192,7 +192,7 @@
         </section>
 
         <!-- Tab: Latest Prices -->
-        <section class="tab-content" id="tab-prices">
+        <section class="tab-content" id="tab-prices" role="tabpanel" aria-labelledby="tabPrices">
             <div class="section-header">
                 <p class="section-subtitle" id="pricesBrief">Check the latest market prices and volume for each tracked stock in one quick table.</p>
             </div>
@@ -202,7 +202,7 @@
         </section>
 
         <!-- Tab: Daily Market Briefing -->
-        <section class="tab-content" id="tab-briefing">
+        <section class="tab-content" id="tab-briefing" role="tabpanel" aria-labelledby="tabBriefing">
             <div class="section-header">
                 <h2 id="briefingTitle">Daily Market Briefing</h2>
                 <p class="section-subtitle" id="briefingSubtitle">AI-generated market overview and personalized action
@@ -215,7 +215,7 @@
         </section>
 
         <!-- Tab: Trades (Today) -->
-        <section class="tab-content" id="tab-trades">
+        <section class="tab-content" id="tab-trades" role="tabpanel" aria-labelledby="tabTrades">
             <div class="section-header">
                 <h2 id="tradesTitle">Today's Recommendations</h2>
                 <p class="section-subtitle" id="tradesSubtitle">AI-generated trade signals for today's market session.
@@ -228,7 +228,7 @@
         </section>
 
         <!-- Tab: Portfolio -->
-        <section class="tab-content" id="tab-portfolio">
+        <section class="tab-content" id="tab-portfolio" role="tabpanel" aria-labelledby="tabPortfolio">
             <div class="section-header">
                 <h2 id="portfolioTitle">My Portfolio</h2>
                 <p class="section-subtitle" id="portfolioBrief">Monitor open positions, recent trade history, and high-level portfolio health in one place.</p>
@@ -251,29 +251,30 @@
                     <p class="loading">Loading history...</p>
                 </div>
             </div>
+        </section>
 
-            <footer>
-                <button id="refreshBtn" class="refresh-btn">Refresh Data</button>
-                <div class="disclaimer-block">
-                    <p class="disclaimer" id="disclaimerEN">
-                        Xmore is an information and analytics tool, not a licensed investment advisor or broker.
-                        This is not financial advice. Use as one input in your decision, not as a guarantee.
-                        Past performance does not guarantee future results.
-                    </p>
-                    <p class="disclaimer disclaimer-ar" id="disclaimerAR">
-                        Xmore أداة معلومات وتحليلات، وليس مستشاراً استثمارياً مرخصاً أو وسيطاً.
-                        هذا ليس نصيحة مالية. استخدم هذا كمدخل واحد في قرارك، وليس كضمان.
-                        الأداء السابق لا يضمن النتائج المستقبلية.
-                    </p>
-                    <a href="/terms" class="terms-link" id="termsLink">Terms of Service</a>
-                </div>
-            </footer>
+        <footer>
+            <button id="refreshBtn" class="refresh-btn">Refresh Data</button>
+            <div class="disclaimer-block">
+                <p class="disclaimer" id="disclaimerEN">
+                    Xmore is an information and analytics tool, not a licensed investment advisor or broker.
+                    This is not financial advice. Use as one input in your decision, not as a guarantee.
+                    Past performance does not guarantee future results.
+                </p>
+                <p class="disclaimer disclaimer-ar" id="disclaimerAR">
+                    Xmore أداة معلومات وتحليلات، وليس مستشاراً استثمارياً مرخصاً أو وسيطاً.
+                    هذا ليس نصيحة مالية. استخدم هذا كمدخل واحد في قرارك، وليس كضمان.
+                    الأداء السابق لا يضمن النتائج المستقبلية.
+                </p>
+                <a href="/terms" class="terms-link" id="termsLink">Terms of Service</a>
+            </div>
+        </footer>
     </div>
 
     <!-- Auth Modal -->
-    <div id="authModal" class="auth-modal-overlay" style="display:none;">
-        <div class="auth-modal">
-            <button id="authCloseBtn" class="auth-close-btn">&times;</button>
+    <div id="authModal" class="auth-modal-overlay" style="display:none;" role="presentation">
+        <div class="auth-modal" role="dialog" aria-modal="true" aria-labelledby="authWelcome">
+            <button id="authCloseBtn" class="auth-close-btn" aria-label="Close">&times;</button>
             <h2 id="authWelcome" class="auth-welcome">🔐 Welcome to Xmore</h2>
             <div class="auth-tabs">
                 <button id="authLoginTab" class="auth-tab active" data-auth-tab="login">Login</button>

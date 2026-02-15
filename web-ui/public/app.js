@@ -7,10 +7,26 @@
 window.onerror = function (msg, url, line, col, error) {
     console.error('Global error:', msg, url, line, col, error);
     const el = document.getElementById('predictions');
-    if (el) el.innerHTML = `<p class="error-message">JS Error: ${msg} (line ${line})</p>`;
+    if (el) {
+        const p = document.createElement('p');
+        p.className = 'error-message';
+        p.textContent = `JS Error: ${msg} (line ${line})`;
+        el.innerHTML = '';
+        el.appendChild(p);
+    }
 };
 
 const API_URL = '/api';
+
+// Shared HTML escaping utility
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
 
 // ============================================
 // DARK MODE SUPPORT
@@ -165,6 +181,7 @@ const TRANSLATIONS = {
         recentAccuracySymbol: 'Recent Accuracy',
         whySignal: 'Why This Signal?',
         expandDetails: 'Details',
+        conf: 'Confidence',
         trend: 'Trend',
         momentum: 'Momentum',
         volumeState: 'Volume',
@@ -188,7 +205,6 @@ const TRANSLATIONS = {
 
         // Consensus tab
         tabConsensus: 'Consensus',
-        consensus: 'Agreement',
         consensusTitle: 'Signal Consensus',
         bullCase: 'Bull Case',
         bearCase: 'Bear Case',
@@ -315,6 +331,7 @@ const TRANSLATIONS = {
         recentAccuracySymbol: 'الدقة الحديثة',
         whySignal: 'لماذا هذه الإشارة؟',
         expandDetails: 'التفاصيل',
+        conf: 'الثقة',
         trend: 'الاتجاه',
         momentum: 'الزخم',
         volumeState: 'الحجم',
@@ -335,7 +352,6 @@ const TRANSLATIONS = {
 
         // Consensus tab
         tabConsensus: 'الإجماع',
-        consensus: 'الاتفاق',
         consensusTitle: 'إجماع الإشارات',
         bullCase: 'حالة الثور',
         bearCase: 'حالة الدب',
@@ -461,7 +477,6 @@ async function switchLanguage() {
     loadPerformanceDetailed();
     loadEvaluations();
     loadPrices();
-    loadTradingViewTicker();
     loadGlobalSnapshotBar();
 }
 
@@ -471,6 +486,9 @@ function applyLanguage() {
     document.documentElement.dir = isArabic ? 'rtl' : 'ltr';
     document.documentElement.lang = currentLang;
     document.body.classList.toggle('rtl', isArabic);
+
+    // Update page title
+    document.title = isArabic ? 'إكسمور — لوحة التنبؤات الذكية للأسهم' : 'Xmore — AI Stock Prediction Dashboard';
 
     const title = document.querySelector('header h1');
     const subtitle = document.querySelector('.subtitle');
@@ -544,44 +562,60 @@ function applyLanguage() {
 // TAB NAVIGATION
 // ============================================
 
+function switchToTab(tabId, updateHash) {
+    const btn = document.querySelector(`.tab-btn[data-tab="${tabId}"]`);
+    if (!btn) return;
+
+    // Guard: watchlist tab requires login
+    if (tabId === 'watchlist' && typeof currentUser !== 'undefined' && !currentUser) {
+        if (typeof showAuthModal === 'function') showAuthModal('login');
+        return;
+    }
+
+    // Toggle active tab button + ARIA
+    document.querySelectorAll('.tab-btn').forEach(b => {
+        b.classList.remove('active');
+        b.setAttribute('aria-selected', 'false');
+    });
+    btn.classList.add('active');
+    btn.setAttribute('aria-selected', 'true');
+
+    // Toggle active tab content
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    const content = document.getElementById(`tab-${tabId}`);
+    if (content) content.classList.add('active');
+
+    // Update URL hash
+    if (updateHash !== false) {
+        history.pushState({ tab: tabId }, '', `#${tabId}`);
+    }
+
+    // Lazy-load data
+    if (tabId === 'watchlist' && typeof loadWatchlist === 'function') loadWatchlist();
+    if (tabId === 'briefing' && typeof loadBriefing === 'function') loadBriefing();
+    if (tabId === 'trades' && typeof loadTrades === 'function') loadTrades();
+    if (tabId === 'portfolio' && typeof loadPortfolio === 'function') loadPortfolio();
+    if (tabId === 'performance' && typeof loadPerformanceDashboard === 'function') loadPerformanceDashboard();
+}
+
 function initTabs() {
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.addEventListener('click', () => {
-            const tabId = btn.getAttribute('data-tab');
-
-            // Guard: watchlist tab requires login
-            if (tabId === 'watchlist' && typeof currentUser !== 'undefined' && !currentUser) {
-                if (typeof showAuthModal === 'function') showAuthModal('login');
-                return;
-            }
-
-            // Toggle active tab button
-            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-
-            // Toggle active tab content
-            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-            const content = document.getElementById(`tab-${tabId}`);
-            if (content) content.classList.add('active');
-
-            // Lazy-load watchlist data on first visit
-            if (tabId === 'watchlist' && typeof loadWatchlist === 'function') {
-                loadWatchlist();
-            }
-            if (tabId === 'briefing' && typeof loadBriefing === 'function') {
-                loadBriefing();
-            }
-            if (tabId === 'trades' && typeof loadTrades === 'function') {
-                loadTrades();
-            }
-            if (tabId === 'portfolio' && typeof loadPortfolio === 'function') {
-                loadPortfolio();
-            }
-            if (tabId === 'performance' && typeof loadPerformanceDashboard === 'function') {
-                loadPerformanceDashboard();
-            }
+            switchToTab(btn.getAttribute('data-tab'));
         });
     });
+
+    // Handle browser back/forward
+    window.addEventListener('popstate', (e) => {
+        const tabId = (e.state && e.state.tab) || window.location.hash.slice(1) || 'predictions';
+        switchToTab(tabId, false);
+    });
+
+    // Load initial tab from URL hash
+    const initialTab = window.location.hash.slice(1) || 'predictions';
+    if (initialTab !== 'predictions') {
+        switchToTab(initialTab, false);
+    }
 }
 
 // ============================================
@@ -874,12 +908,12 @@ window.addEventListener('load', async () => {
             .catch(err => {
                 console.error('Failed loading predictions chain:', err);
                 const el = document.getElementById('predictions');
-                if (el) el.innerHTML = `<p class="error-message">Failed to load: ${err.message}</p>`;
+                if (el) el.innerHTML = `<p class="error-message">Failed to load: ${escapeHtml(err.message)}</p>`;
             });
     } catch (err) {
         console.error('Load handler error:', err);
         const el = document.getElementById('predictions');
-        if (el) el.innerHTML = `<p class="error-message">Init error: ${err.message}</p>`;
+        if (el) el.innerHTML = `<p class="error-message">Init error: ${escapeHtml(err.message)}</p>`;
     }
 });
 

@@ -125,14 +125,7 @@ function isArabic() {
     return (typeof currentLang !== 'undefined') && currentLang === 'ar';
 }
 
-function escapeHtml(value) {
-    return String(value ?? '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-}
+// escapeHtml() is defined globally in app.js
 
 function translateConviction(conviction) {
     if (!conviction) return 'N/A';
@@ -310,7 +303,7 @@ function renderError(container, message) {
         <div class="error-message">
             <strong>${escapeHtml(title)}</strong><br>
             <small>${escapeHtml(message)}</small><br>
-            <button onclick="window.loadTrades()" class="refresh-btn" style="margin-top:10px; padding:6px 15px; font-size:0.85em; cursor:pointer">${tt('tt_retry')}</button>
+            <button onclick="window.loadTrades()" class="refresh-btn retry-btn">${tt('tt_retry')}</button>
         </div>
     `;
 }

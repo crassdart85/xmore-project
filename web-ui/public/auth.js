@@ -218,11 +218,6 @@ function setLoggedInState(user) {
     els.userEmail.textContent = user.email;
     els.logoutBtn.textContent = at('auth_logout');
 
-    // Show watchlist tab
-    if (els.watchlistTab) {
-        els.watchlistTab.style.display = '';
-    }
-
     // Sync language preference
     if (user.preferred_language && typeof switchLanguage === 'function') {
         if (user.preferred_language !== currentLang) {
@@ -238,11 +233,6 @@ function setLoggedOutState() {
 
     els.userInfoBar.style.display = 'none';
     els.loginPrompt.style.display = '';
-
-    // Hide watchlist tab
-    if (els.watchlistTab) {
-        els.watchlistTab.style.display = 'none';
-    }
 
     // Update login prompt text
     els.showAuthBtn.textContent = at('auth_login_prompt');

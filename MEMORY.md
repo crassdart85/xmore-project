@@ -3,7 +3,7 @@
 ## Project Overview
 Stock trading prediction system with web dashboard. Uses multiple AI agents to predict stock movements.
 
-**Last Updated**: February 14, 2026
+**Last Updated**: February 15, 2026
 
 ## Deployment Architecture
 - **Render.com** - Hosts web dashboard + PostgreSQL database
@@ -58,6 +58,7 @@ Stock trading prediction system with web dashboard. Uses multiple AI agents to p
 
 ## Environment Variables (Secrets)
 - `DATABASE_URL` - PostgreSQL connection string (Render)
+- `JWT_SECRET` - JWT signing secret for auth cookies (required for stable sessions in production)
 - `NEWS_API_KEY` - News API for news collection
 - `FINNHUB_API_KEY` - Finnhub API for sentiment analysis news
 
@@ -215,6 +216,13 @@ Stock trading prediction system with web dashboard. Uses multiple AI agents to p
 - Prediction horizon: 1 day (changed from 7 days for faster evaluation)
 
 ## Recent Changes (Feb 2026)
+- **Auth + Deployment Hotfix (Feb 15, 2026)**:
+  - Updated `web-ui/middleware/auth.js` startup behavior:
+    - Production now auto-generates an ephemeral JWT secret if `JWT_SECRET` is missing (service can boot)
+    - Logs explicit warning that sessions will be invalidated on restart until `JWT_SECRET` is configured
+    - Local/dev still supports a fallback secret with warning
+  - Updated `render.yaml` to include `JWT_SECRET` with `generateValue: true` for Render Blueprint provisioning
+  - Deployment note: existing Render services may still require manual env var set/redeploy to apply new secret
 - **Security + Reliability Hardening (Feb 14, 2026)**:
   - Enforced required `JWT_SECRET` in `web-ui/middleware/auth.js` (removed insecure default fallback)
   - Tightened CORS behavior in `web-ui/server.js` to support explicit allowlist via `CORS_ALLOWED_ORIGINS`
@@ -334,5 +342,8 @@ Stock trading prediction system with web dashboard. Uses multiple AI agents to p
 - **Briefing Track Record** (`engines/briefing_generator.py`): Daily briefing now includes 30-day rolling performance snippet
 - **Data Integrity**: Core predictions immutable (PostgreSQL triggers), all outcome changes audited, live-only metrics, 100-trade minimum threshold
 - **See**: `docs/PERFORMANCE_SYSTEM.md` for full architecture documentation
+
+
+
 
 

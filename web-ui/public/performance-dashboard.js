@@ -23,7 +23,30 @@ const PERF_TRANSLATIONS = {
         showDrawdown: 'Drawdown',
         noData: 'Performance tracking will appear after live evaluations.',
         openAudit: 'Open Audit Trail',
-        showMore: 'Show More'
+        showMore: 'Show More',
+        window: 'Window',
+        agent: 'Agent',
+        win30d: '30d Win',
+        win90d: '90d Win',
+        confidence: 'Confidence',
+        predictions: 'Predictions',
+        weight: 'Weight',
+        date: 'Date',
+        symbol: 'Symbol',
+        signal: 'Signal',
+        noDataRow: 'No data',
+        loading: 'Loading performance...',
+        loadFailed: 'Failed to load performance dashboard.',
+        firstLive: 'First Live',
+        totalLive: 'Total Live',
+        auditTitle: 'Audit Trail',
+        auditWhen: 'When',
+        auditTable: 'Table',
+        auditRecord: 'Record',
+        auditField: 'Field',
+        auditOld: 'Old',
+        auditNew: 'New',
+        auditNoEntries: 'No entries'
     },
     ar: {
         perfTitle: 'أداء إكسمور',
@@ -49,7 +72,30 @@ const PERF_TRANSLATIONS = {
         showDrawdown: 'الهبوط',
         noData: 'سيظهر تتبع الأداء بعد توفر تقييمات حية.',
         openAudit: 'فتح سجل التدقيق',
-        showMore: 'عرض المزيد'
+        showMore: 'عرض المزيد',
+        window: 'الفترة',
+        agent: 'الوكيل',
+        win30d: 'فوز 30 يوم',
+        win90d: 'فوز 90 يوم',
+        confidence: 'الثقة',
+        predictions: 'التنبؤات',
+        weight: 'الوزن',
+        date: 'التاريخ',
+        symbol: 'الرمز',
+        signal: 'الإشارة',
+        noDataRow: 'لا توجد بيانات',
+        loading: 'جاري تحميل الأداء...',
+        loadFailed: 'فشل تحميل لوحة الأداء.',
+        firstLive: 'أول تنبؤ حي',
+        totalLive: 'إجمالي التنبؤات الحية',
+        auditTitle: 'سجل التدقيق',
+        auditWhen: 'متى',
+        auditTable: 'الجدول',
+        auditRecord: 'السجل',
+        auditField: 'الحقل',
+        auditOld: 'القديم',
+        auditNew: 'الجديد',
+        auditNoEntries: 'لا توجد مدخلات'
     }
 };
 
@@ -64,7 +110,7 @@ let perfChartState = { showBenchmark: true, showDrawdown: true, points: [] };
 async function loadPerformanceDashboard() {
     const container = document.getElementById('perfDashboard');
     if (!container) return;
-    container.innerHTML = '<p class="loading">Loading performance...</p>';
+    container.innerHTML = `<p class="loading">${pt('loading')}</p>`;
 
     try {
         const [summary, agents, equity, history] = await Promise.all([
@@ -88,7 +134,7 @@ async function loadPerformanceDashboard() {
         container.appendChild(buildSinceInception(summary));
         renderEquityCurveChart(equity);
     } catch (e) {
-        container.innerHTML = '<p class="error-message">Failed to load performance dashboard.</p>';
+        container.innerHTML = `<p class="error-message">${pt('loadFailed')}</p>`;
         console.error(e);
     }
 }
@@ -168,7 +214,7 @@ function buildStability(summary) {
         <h3>${pt('stability')}</h3>
         <div class="perf-table-wrapper">
             <table class="perf-table">
-                <thead><tr><th>Window</th><th>${pt('winRate')}</th><th>${pt('volatility')}</th><th>${pt('profitFactor')}</th><th>${pt('trades')}</th></tr></thead>
+                <thead><tr><th>${pt('window')}</th><th>${pt('winRate')}</th><th>${pt('volatility')}</th><th>${pt('profitFactor')}</th><th>${pt('trades')}</th></tr></thead>
                 <tbody>${rows}</tbody>
             </table>
         </div>
@@ -192,8 +238,8 @@ function buildAgentAccountability(data) {
         <h3>${pt('accountability')}</h3>
         <div class="perf-table-wrapper">
             <table class="perf-table">
-                <thead><tr><th>Agent</th><th>30d Win</th><th>90d Win</th><th>Confidence</th><th>Predictions</th><th>Weight</th></tr></thead>
-                <tbody>${rows || '<tr><td colspan="6">No data</td></tr>'}</tbody>
+                <thead><tr><th>${pt('agent')}</th><th>${pt('win30d')}</th><th>${pt('win90d')}</th><th>${pt('confidence')}</th><th>${pt('predictions')}</th><th>${pt('weight')}</th></tr></thead>
+                <tbody>${rows || `<tr><td colspan="6">${pt('noDataRow')}</td></tr>`}</tbody>
             </table>
         </div>
     `);
@@ -215,8 +261,8 @@ function buildTransparency(summary, history) {
         <div class="perf-integrity-banner">${pt('liveOnly')}</div>
         <div class="perf-table-wrapper">
             <table class="perf-table">
-                <thead><tr><th>Date</th><th>Symbol</th><th>Signal</th><th>Confidence</th><th>Alpha</th></tr></thead>
-                <tbody>${rows || '<tr><td colspan="5">No data</td></tr>'}</tbody>
+                <thead><tr><th>${pt('date')}</th><th>${pt('symbol')}</th><th>${pt('signal')}</th><th>${pt('confidence')}</th><th>${pt('alpha')}</th></tr></thead>
+                <tbody>${rows || `<tr><td colspan="5">${pt('noDataRow')}</td></tr>`}</tbody>
             </table>
         </div>
         <div class="perf-actions">
@@ -234,8 +280,8 @@ function buildSinceInception(summary) {
         <div class="perf-proof-grid">
             ${metricCard(pt('alpha'), `${g.avg_alpha_1d > 0 ? '+' : ''}${Number(g.avg_alpha_1d || 0).toFixed(2)}%`)}
             ${metricCard(pt('sharpe'), Number(g.sharpe_ratio || 0).toFixed(2))}
-            ${metricCard('First Live', g.first_prediction ? String(g.first_prediction).slice(0, 10) : 'N/A')}
-            ${metricCard('Total Live', `${g.total_predictions || 0}`)}
+            ${metricCard(pt('firstLive'), g.first_prediction ? String(g.first_prediction).slice(0, 10) : 'N/A')}
+            ${metricCard(pt('totalLive'), `${g.total_predictions || 0}`)}
         </div>
     `);
 }
@@ -354,10 +400,10 @@ async function showAuditLog() {
     modal.className = 'perf-modal-overlay';
     modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
     modal.innerHTML = `<div class="perf-modal">
-        <button class="perf-modal-close" onclick="this.closest('.perf-modal-overlay').remove()">x</button>
-        <h3>Audit Trail</h3>
-        <div class="perf-table-wrapper"><table class="perf-table"><thead><tr><th>When</th><th>Table</th><th>Record</th><th>Field</th><th>Old</th><th>New</th></tr></thead>
-        <tbody>${(data.audit_entries || []).map(e => `<tr><td>${e.changed_at || '-'}</td><td>${e.table_name || '-'}</td><td>${e.record_id || '-'}</td><td>${e.field_changed || '-'}</td><td>${e.old_value || '-'}</td><td>${e.new_value || '-'}</td></tr>`).join('') || '<tr><td colspan="6">No entries</td></tr>'}</tbody></table></div>
+        <button class="perf-modal-close" onclick="this.closest('.perf-modal-overlay').remove()">&times;</button>
+        <h3>${pt('auditTitle')}</h3>
+        <div class="perf-table-wrapper"><table class="perf-table"><thead><tr><th>${pt('auditWhen')}</th><th>${pt('auditTable')}</th><th>${pt('auditRecord')}</th><th>${pt('auditField')}</th><th>${pt('auditOld')}</th><th>${pt('auditNew')}</th></tr></thead>
+        <tbody>${(data.audit_entries || []).map(e => `<tr><td>${e.changed_at || '-'}</td><td>${e.table_name || '-'}</td><td>${e.record_id || '-'}</td><td>${e.field_changed || '-'}</td><td>${e.old_value || '-'}</td><td>${e.new_value || '-'}</td></tr>`).join('') || `<tr><td colspan="6">${pt('auditNoEntries')}</td></tr>`}</tbody></table></div>
     </div>`;
     document.body.appendChild(modal);
 }

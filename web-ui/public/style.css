@@ -36,7 +36,7 @@
     --container-bg: #1e1e2e;
     --text-primary: #e4e4e7;
     --text-secondary: #a1a1aa;
-    --text-muted: #71717a;
+    --text-muted: #9ca3af;
     --border-color: #3f3f46;
     --border-light: #27272a;
     --table-bg: #1e1e2e;
@@ -55,6 +55,29 @@
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+}
+
+/* Focus-visible outlines for keyboard navigation */
+:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+button:focus-visible,
+input:focus-visible,
+a:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+/* Respect reduced-motion preferences */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
 }
 
 body {
@@ -521,9 +544,19 @@ tbody tr:hover {
     font-weight: 600;
 }
 
+.positive-change::before {
+    content: '\25B2 ';
+    font-size: 0.7em;
+}
+
 .negative-change {
     color: #ef4444;
     font-weight: 600;
+}
+
+.negative-change::before {
+    content: '\25BC ';
+    font-size: 0.7em;
 }
 
 .result-correct {
@@ -735,6 +768,12 @@ footer {
     border-radius: 10px;
     border: 1px solid #fecaca;
     transition: background 0.3s ease;
+}
+
+.retry-btn {
+    margin-top: 10px;
+    padding: 6px 15px;
+    font-size: 0.85em;
 }
 
 [data-theme="dark"] .error-message {
@@ -1045,9 +1084,19 @@ footer {
     font-weight: 600;
 }
 
+.pos::before {
+    content: '\25B2 ';
+    font-size: 0.7em;
+}
+
 .neg {
     color: #ef4444;
     font-weight: 600;
+}
+
+.neg::before {
+    content: '\25BC ';
+    font-size: 0.7em;
 }
 
 /* Agent name with tooltip */
@@ -1199,6 +1248,37 @@ footer {
     margin-right: 6px;
 }
 
+.rtl .action-card.urgent-buy,
+.rtl .action-card.urgent-sell {
+    border-left: none;
+    border-right-width: 4px;
+    border-right-style: solid;
+}
+
+.rtl .action-card.urgent-buy { border-right-color: #10b981; }
+.rtl .action-card.urgent-sell { border-right-color: #ef4444; }
+
+.rtl .bb-label {
+    text-align: right;
+}
+
+.rtl .bb-score {
+    text-align: left;
+}
+
+.rtl .sector-row {
+    flex-direction: row-reverse;
+}
+
+.rtl .sector-conf {
+    text-align: left;
+}
+
+.rtl .result-stock-card {
+    border-left-width: 1px;
+    border-right-width: 6px;
+}
+
 /* ============================================
    RESPONSIVE DESIGN
    ============================================ */
@@ -1271,12 +1351,21 @@ footer {
     }
 
     .tab-nav {
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+    }
+
+    .tab-nav::-webkit-scrollbar {
+        display: none;
     }
 
     .tab-btn {
         padding: 10px 14px;
         font-size: 0.85em;
+        flex: 0 0 auto;
+        white-space: nowrap;
     }
 
     .section {
