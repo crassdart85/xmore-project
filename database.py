@@ -34,6 +34,26 @@ def _adapt_sql(sql):
         return sql.replace('?', '%s')
     return sql
 
+def _safe_add_column(cursor, table, column, col_type):
+    """Add a column if it doesn't exist, handling PG transaction semantics.
+
+    In PostgreSQL, a failed ALTER TABLE aborts the entire transaction.
+    Using SAVEPOINTs lets us roll back just the failed statement.
+    In SQLite, failed statements don't abort the transaction, so try/except suffices.
+    """
+    if DATABASE_URL:
+        cursor.execute("SAVEPOINT add_col")
+        try:
+            cursor.execute(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}")
+            cursor.execute("RELEASE SAVEPOINT add_col")
+        except Exception:
+            cursor.execute("ROLLBACK TO SAVEPOINT add_col")
+    else:
+        try:
+            cursor.execute(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}")
+        except Exception:
+            pass
+
 @contextmanager
 def get_connection():
     """
@@ -233,10 +253,7 @@ def create_tables():
         """)
 
         # Add reasoning column to predictions if it doesn't exist
-        try:
-            cursor.execute("ALTER TABLE predictions ADD COLUMN reasoning TEXT")
-        except Exception:
-            pass  # Column already exists
+        _safe_add_column(cursor, "predictions", "reasoning", "TEXT")
 
         # Table 8: Users (Auth)
         cursor.execute(f"""
@@ -428,10 +445,7 @@ def create_tables():
             ("is_live", f"{bool_default}"),
         ]
         for col_name, col_type in benchmark_columns:
-            try:
-                cursor.execute(f"ALTER TABLE trade_recommendations ADD COLUMN {col_name} {col_type}")
-            except Exception:
-                pass  # Column already exists
+            _safe_add_column(cursor, "trade_recommendations", col_name, col_type)
 
         # Add benchmark columns to user_positions
         position_columns = [
@@ -439,12 +453,9 @@ def create_tables():
             ("alpha_pct", "REAL"),
         ]
         for col_name, col_type in position_columns:
-            try:
-                cursor.execute(f"ALTER TABLE user_positions ADD COLUMN {col_name} {col_type}")
-            except Exception:
-                pass  # Column already exists
+            _safe_add_column(cursor, "user_positions", col_name, col_type)
 
-        # Seed EGX 30 stocks (insert or ignore for SQLite)
+        # Seed EGX 30 stocks (upsert: ignore if already exists)
         egx30_stocks = [
             ('COMI.CA', 'Commercial International Bank', 'البنك التجاري الدولي', 'Banking', 'البنوك'),
             ('HRHO.CA', 'Hermes Holding', 'القابضة المصرية الكويتية (هيرميس)', 'Financial Services', 'الخدمات المالية'),
@@ -477,11 +488,19 @@ def create_tables():
             ('DMCR.CA', 'Dice Medical & Scientific', 'دايس الطبية والعلمية', 'Healthcare', 'الرعاية الصحية'),
             ('ASCM.CA', 'Arabian Cement', 'الأسمنت العربية', 'Materials', 'المواد'),
         ]
-        for stock in egx30_stocks:
-            cursor.execute("""
-                INSERT OR IGNORE INTO egx30_stocks (symbol, name_en, name_ar, sector_en, sector_ar)
-                VALUES (?, ?, ?, ?, ?)
-            """, stock)
+        if DATABASE_URL:
+            for stock in egx30_stocks:
+                cursor.execute(_adapt_sql("""
+                    INSERT INTO egx30_stocks (symbol, name_en, name_ar, sector_en, sector_ar)
+                    VALUES (?, ?, ?, ?, ?)
+                    ON CONFLICT (symbol) DO NOTHING
+                """), stock)
+        else:
+            for stock in egx30_stocks:
+                cursor.execute("""
+                    INSERT OR IGNORE INTO egx30_stocks (symbol, name_en, name_ar, sector_en, sector_ar)
+                    VALUES (?, ?, ?, ?, ?)
+                """, stock)
 
         # Create indexes for common queries
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_prices_symbol_date ON prices(symbol, date)")
