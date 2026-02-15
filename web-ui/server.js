@@ -22,10 +22,17 @@ const corsAllowedOrigins = (process.env.CORS_ALLOWED_ORIGINS || '')
   .filter(Boolean);
 app.use(cors({
   origin: (origin, cb) => {
+    // No origin header (server-to-server, same-origin GET, etc.) — always allow
     if (!origin) return cb(null, true);
-    if (!corsAllowedOrigins.length && process.env.NODE_ENV !== 'production') return cb(null, true);
-    if (corsAllowedOrigins.includes(origin)) return cb(null, true);
-    return cb(new Error('CORS origin not allowed'));
+    // Explicit allowlist configured — use it
+    if (corsAllowedOrigins.length) {
+      return corsAllowedOrigins.includes(origin)
+        ? cb(null, true)
+        : cb(new Error('CORS origin not allowed'));
+    }
+    // No allowlist configured — allow same-origin (browser sends Origin on POST
+    // even for same-origin requests, so we must permit it)
+    return cb(null, true);
   },
   credentials: true
 }));
