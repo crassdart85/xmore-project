@@ -11,6 +11,8 @@ services:
         fromDatabase:
           name: trading-db
           property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
 
   # Note: Scheduled tasks run via GitHub Actions (.github/workflows/scheduled-tasks.yml)
 
