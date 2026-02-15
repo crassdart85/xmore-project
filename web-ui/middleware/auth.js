@@ -7,7 +7,8 @@
 
 const jwt = require('jsonwebtoken');
 
-const JWT_SECRET = process.env.JWT_SECRET;
+const IS_PROD = process.env.NODE_ENV === 'production';
+const JWT_SECRET = process.env.JWT_SECRET || (!IS_PROD ? 'dev-local-secret-change-before-production' : '');
 const JWT_EXPIRES_IN = '7d';
 const JWT_REFRESH_THRESHOLD = 3 * 24 * 60 * 60; // Refresh if less than 3 days remaining
 
@@ -80,5 +81,10 @@ module.exports = {
 };
 
 if (!JWT_SECRET) {
-    throw new Error('JWT_SECRET is required. Refusing to start without a secure signing key.');
+    throw new Error('JWT_SECRET is required in production. Refusing to start without a secure signing key.');
+}
+
+if (!process.env.JWT_SECRET && !IS_PROD) {
+    // Local/dev convenience only.
+    console.warn('[auth] JWT_SECRET is not set. Using dev fallback secret. Set JWT_SECRET to avoid session invalidation between environments.');
 }
