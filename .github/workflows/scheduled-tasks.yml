@@ -2,175 +2,145 @@ name: Trading System Automation
 
 on:
   schedule:
-    # EGX data collection: 2:30 PM Cairo = 12:30 PM EST = 17:30 UTC (Sun-Thu)
-    # EGX trades Sun-Thu, closes at 14:30 Cairo time
+    # EGX midday collection: 2:30 PM Cairo = 17:30 UTC (Sun-Thu)
     - cron: '30 17 * * 0-4'
 
-    # US + general data collection: 4:30 PM EST = 21:30 UTC (Mon-Fri)
-    - cron: '30 21 * * 1-5'
-
-    # Daily predictions: 5:00 PM EST = 22:00 UTC (Sun-Fri to cover EGX and US)
+    # Full daily pipeline: 5:00 PM EST = 22:00 UTC (Sun-Fri)
+    # Runs AFTER both EGX (17:30) and US (included in collect_data.py) markets
     - cron: '0 22 * * 0-5'
 
-    # Hourly evaluation: Every hour
-    - cron: '0 * * * *'
+    # Catchup evaluation: 3x daily (06:00, 12:00, 18:00 UTC)
+    # Resolves predictions whose target_date has passed since last pipeline run
+    - cron: '0 6,12,18 * * *'
 
-  # Allow manual trigger
   workflow_dispatch:
 
+# Prevent overlapping pipeline runs
+concurrency:
+  group: trading-pipeline
+  cancel-in-progress: false
+
+env:
+  DATABASE_URL: ${{ secrets.DATABASE_URL }}
+  FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
+  NEWS_API_KEY: ${{ secrets.NEWS_API_KEY }}
+
 jobs:
-  # EGX-specific collection (Sun-Thu, after EGX market close)
-  egx-collection:
+  # ──────────────────────────────────────────────
+  # Job 1: EGX midday collection (Sun-Thu 17:30 UTC)
+  # Captures EGX close prices early so the main pipeline has fresh data
+  # ──────────────────────────────────────────────
+  egx-midday-collection:
     if: github.event.schedule == '30 17 * * 0-4' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           ref: main
           fetch-depth: 1
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - uses: actions/setup-python@v4
         with:
           python-version: '3.10'
 
       - name: Install dependencies
-        run: |
-          pip install -r requirements.txt
-          pip install lxml
+        run: pip install -r requirements.txt
 
-      - name: Collect EGX data (live feed + fallback)
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      - name: Initialize database schema
+        run: python -c "from database import create_tables; create_tables()"
+
+      - name: Collect EGX prices
         run: |
           python -c "
           from collect_data import collect_egx_data
-          from database import create_tables
-          create_tables()
           count = collect_egx_data()
           print(f'EGX collection complete: {count} stocks')
           "
 
-      - name: Collect EGX sentiment
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
-        run: |
-          python sentiment.py
-
-  # US + general data collection (Mon-Fri)
-  daily-collection:
-    if: github.event.schedule == '30 21 * * 1-5' || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          ref: main
-          fetch-depth: 1
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
-
-      - name: Install dependencies
-        run: |
-          pip install -r requirements.txt
-          pip install lxml
-
-      - name: Collect data
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          NEWS_API_KEY: ${{ secrets.NEWS_API_KEY }}
-        run: |
-          python collect_data.py
-
       - name: Collect sentiment
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
-        run: |
-          python sentiment.py
+        continue-on-error: true
+        run: python sentiment.py
 
-  daily-predictions:
-    if: github.event.schedule == '0 22 * * 0-5' || github.event_name == 'workflow_dispatch'
+  # ──────────────────────────────────────────────
+  # Job 2: Full daily pipeline (Sun-Fri 22:00 UTC)
+  # Sequential: collect → sentiment → agents → portfolios → evaluate
+  # On manual dispatch, waits for EGX collection to finish first
+  # ──────────────────────────────────────────────
+  daily-pipeline:
+    needs: [egx-midday-collection]
+    # Run even if egx-midday-collection was skipped (different schedule) or failed
+    if: always() && (github.event.schedule == '0 22 * * 0-5' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           ref: main
           fetch-depth: 1
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - uses: actions/setup-python@v4
         with:
           python-version: '3.10'
 
       - name: Install dependencies
-        run: |
-          pip install -r requirements.txt
+        run: pip install -r requirements.txt
 
-      - name: Run predictions
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      - name: Initialize database schema
+        run: python -c "from database import create_tables; create_tables()"
+
+      # Step 1: Collect all prices + news
+      - name: Collect prices and news
+        run: python collect_data.py
+
+      # Step 2: Sentiment analysis
+      - name: Analyze sentiment
+        continue-on-error: true
+        run: python sentiment.py
+
+      # Step 3: Run 3-layer agent pipeline
+      # (predictions → consensus → trade recs → briefing → performance eval)
+      - name: Run agent pipeline
         run: python run_agents.py
 
-      - name: Evaluate Performance & Benchmarks
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-        run: python -c "from engines.evaluate_performance import run_evaluation; run_evaluation()"
-
-  portfolio-generation:
-    if: github.event.schedule == '0 22 * * 0-5' || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    needs: daily-predictions
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          ref: main
-          fetch-depth: 1
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.10'
-
-      - name: Install dependencies
-        run: pip install -r requirements.txt
-
-      - name: Generate Portfolios
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      # Step 4: Generate model portfolios
+      - name: Generate portfolios
+        continue-on-error: true
         run: python engines/generate_portfolios.py
 
-  hourly-evaluation:
-    if: github.event.schedule == '0 * * * *' || github.event_name == 'workflow_dispatch'
+      # Step 5: Evaluate agent prediction accuracy (fills evaluations table)
+      - name: Evaluate prediction accuracy
+        run: python evaluate.py
+
+  # ──────────────────────────────────────────────
+  # Job 3: Catchup evaluation (3x daily)
+  # Resolves predictions whose target_date has passed between pipeline runs
+  # Lightweight: only evaluation, no data collection or predictions
+  # ──────────────────────────────────────────────
+  catchup-evaluation:
+    if: github.event.schedule == '0 6,12,18 * * *'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           ref: main
           fetch-depth: 1
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - uses: actions/setup-python@v4
         with:
           python-version: '3.10'
 
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      - name: Run evaluation
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      # Agent prediction accuracy (evaluations table)
+      - name: Evaluate prediction accuracy
         run: python evaluate.py
+
+      # Trade performance metrics (returns, alpha, sharpe)
+      - name: Evaluate trade performance
+        run: python -c "from engines.evaluate_performance import run_evaluation; run_evaluation()"
