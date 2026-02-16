@@ -398,3 +398,25 @@ Stock trading prediction system with web dashboard. Uses multiple AI agents to p
   - Interpretation: RSS path is working in live mode; EGX website adapter remained non-blocking and returned 0 candidates (no runtime failure).
 - Environment note:
   - Installed missing dependency for live run: `feedparser` (global python env).
+
+## Admin Dashboard + Market Intelligence Update (Feb 16, 2026)
+- Added secure admin interface at `/admin` protected by `ADMIN_SECRET` (separate from standard JWT auth).
+- Added shared middleware: `web-ui/middleware/admin.js`.
+- Protected admin assets/routes in `web-ui/server.js`:
+  - `/admin`, `/admin.html`, `/admin.js`
+  - `/api/admin/*`
+- Added admin API module: `web-ui/routes/admin.js`:
+  - `GET /api/admin/system-health`
+  - `GET /api/admin/reports`
+  - `POST /api/admin/reports/upload` (multer PDF upload)
+- Added PDF ingestion engine: `engines/ingest_report.py` (pdfplumber text extraction, EN/AR detection, JSON output for Node persistence).
+- Added DB migration: `web-ui/migrations/009_market_reports.sql` for `market_reports` table.
+- Added startup DB init coverage in `web-ui/init-db.js` to create `market_reports` on Render boot.
+- Added admin frontend:
+  - `web-ui/public/admin.html`
+  - `web-ui/public/admin.js`
+  - Admin styles in `web-ui/public/style.css`
+- Added deployment env entry in `render.yaml`: `ADMIN_SECRET` with `generateValue: true`.
+- Operations note:
+  - Existing Render services may still require manual `ADMIN_SECRET` set + redeploy.
+  - If an admin secret is exposed in chat/logs, rotate it immediately.
