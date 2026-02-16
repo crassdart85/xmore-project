@@ -3049,3 +3049,112 @@ button:active, .btn:active, .tab-btn:active {
     background: #6b7280;
     color: #ffffff;
 }
+
+/* ============================================
+   ADMIN DASHBOARD
+   ============================================ */
+.admin-header {
+    padding: 56px 20px;
+}
+
+.admin-secret-panel {
+    margin-bottom: 24px;
+}
+
+.admin-secret-row {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.admin-secret-row input {
+    min-width: 280px;
+    max-width: 460px;
+    flex: 1;
+    padding: 12px 14px;
+    border: 1px solid var(--input-border);
+    border-radius: 10px;
+    background: var(--input-bg);
+    color: var(--text-primary);
+}
+
+.admin-btn {
+    padding: 12px 22px;
+    font-size: 0.95em;
+}
+
+.admin-muted {
+    color: var(--text-muted);
+    font-size: 0.85em;
+}
+
+.admin-health-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 14px;
+}
+
+.admin-health-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 16px;
+}
+
+.admin-health-card h3 {
+    margin-bottom: 10px;
+    color: var(--text-primary);
+}
+
+.admin-health-content p {
+    margin-bottom: 6px;
+    color: var(--text-secondary);
+    word-break: break-word;
+}
+
+.admin-drop-zone {
+    border: 2px dashed var(--border-color);
+    background: var(--card-bg);
+    border-radius: 14px;
+    padding: 32px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s ease, background 0.2s ease;
+    color: var(--text-secondary);
+}
+
+.admin-drop-zone.drag-over {
+    border-color: var(--accent);
+    background: rgba(102, 126, 234, 0.08);
+}
+
+.admin-upload-status {
+    margin-top: 12px;
+}
+
+.admin-status-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 999px;
+    font-size: 0.8em;
+    font-weight: 700;
+}
+
+.admin-status-processed {
+    background: rgba(16, 185, 129, 0.15);
+    color: #059669;
+    border: 1px solid rgba(5, 150, 105, 0.4);
+}
+
+.admin-status-pending {
+    background: rgba(245, 158, 11, 0.15);
+    color: #b45309;
+    border: 1px solid rgba(180, 83, 9, 0.4);
+}
+
+@media (max-width: 768px) {
+    .admin-secret-row input {
+        min-width: 100%;
+    }
+}

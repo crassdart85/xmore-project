@@ -15,4 +15,5 @@ lxml>=4.9.0
 vaderSentiment>=3.3.2
 quantstats>=0.0.62
 TA-Lib>=0.4.28
+pdfplumber>=0.11.4
 

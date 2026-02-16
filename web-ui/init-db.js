@@ -317,6 +317,21 @@ async function initializeDatabase() {
     `);
     await pool.query("CREATE INDEX IF NOT EXISTS idx_briefings_date ON daily_briefings(briefing_date DESC)");
 
+    // Table: Market Intelligence reports (Admin dashboard)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS market_reports (
+        id SERIAL PRIMARY KEY,
+        filename TEXT NOT NULL,
+        upload_date TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        extracted_text TEXT,
+        language VARCHAR(2) NOT NULL DEFAULT 'EN',
+        summary TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        CONSTRAINT chk_market_reports_language CHECK (language IN ('EN', 'AR'))
+      )
+    `);
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_market_reports_upload_date ON market_reports(upload_date DESC)');
+
     // Seed ALL EGX stocks (~190)
     console.log('🌱 Seeding EGX stocks...');
     await pool.query(`

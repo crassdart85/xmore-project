@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Xmore Admin Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header class="admin-header">
+            <h1>Xmore Admin</h1>
+            <p class="subtitle">Market Intelligence Console</p>
+        </header>
+
+        <section class="section admin-secret-panel">
+            <h2>Admin Access</h2>
+            <div class="admin-secret-row">
+                <input id="adminSecretInput" type="password" placeholder="Enter ADMIN_SECRET">
+                <button id="saveSecretBtn" class="refresh-btn admin-btn">Save</button>
+                <span id="secretStatus" class="admin-muted"></span>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2>System Health</h2>
+            <div class="admin-health-grid">
+                <article class="admin-health-card">
+                    <h3>Latest Audit Log</h3>
+                    <div id="auditHealth" class="admin-health-content no-data">Loading...</div>
+                </article>
+                <article class="admin-health-card">
+                    <h3>Latest Agent Daily Snapshot</h3>
+                    <div id="agentHealth" class="admin-health-content no-data">Loading...</div>
+                </article>
+            </div>
+        </section>
+
+        <section class="section">
+            <h2>Knowledge Base Upload</h2>
+            <div id="dropZone" class="admin-drop-zone" tabindex="0" role="button" aria-label="Upload PDF report">
+                <p><strong>Drag and drop PDF here</strong></p>
+                <p>or click to browse</p>
+                <input id="fileInput" type="file" accept="application/pdf,.pdf" hidden>
+            </div>
+            <div id="uploadStatus" class="admin-upload-status"></div>
+        </section>
+
+        <section class="section">
+            <h2>Report List</h2>
+            <div class="scrollable-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Filename</th>
+                            <th>Upload Date</th>
+                            <th>Language</th>
+                            <th>Status</th>
+                            <th>Summary</th>
+                        </tr>
+                    </thead>
+                    <tbody id="reportRows">
+                        <tr>
+                            <td colspan="5" class="no-data">No reports yet.</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+
+    <script src="admin.js"></script>
+</body>
+</html>

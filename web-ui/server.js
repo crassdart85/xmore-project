@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const cookieParser = require('cookie-parser');
+const { requireAdminSecret } = require('./middleware/admin');
 
 // Route modules
 const { router: authRouter, attachDb: attachAuthDb } = require('./routes/auth');
@@ -11,6 +12,7 @@ const { router: watchlistRouter, attachDb: attachWatchlistDb } = require('./rout
 const { router: tradesRouter, attachDb: attachTradesDb } = require('./routes/trades');
 const { router: briefingRouter, attachDb: attachBriefingDb } = require('./routes/briefing');
 const { router: performanceRouter, attachDb: attachPerformanceDb } = require('./routes/performance');
+const { router: adminRouter, attachDb: attachAdminDb } = require('./routes/admin');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -38,6 +40,10 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(cookieParser());
+
+// Protect admin interface assets separately from user JWT auth.
+app.use(['/admin', '/admin.html', '/admin.js'], requireAdminSecret);
+
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ============================================
@@ -124,6 +130,7 @@ attachWatchlistDb(db, isPostgres);
 attachTradesDb(db);
 attachBriefingDb(db, isPostgres);
 attachPerformanceDb(db, isPostgres);
+attachAdminDb(db, isPostgres);
 
 app.use('/api', authRouter);
 app.use('/api', stocksRouter);
@@ -131,6 +138,7 @@ app.use('/api', watchlistRouter);
 app.use('/api/trades', tradesRouter);
 app.use('/api/briefing', briefingRouter);
 app.use('/api/performance-v2', performanceRouter);
+app.use('/api/admin', adminRouter);
 
 // ============================================
 // API ENDPOINTS
@@ -590,6 +598,10 @@ app.get('/api/risk/overview', (req, res) => {
 // ============================================
 // FRONTEND ROUTE
 // ============================================
+app.get('/admin', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'admin.html'));
+});
+
 app.get('*', (req, res) => {
   // Don't serve index.html for /api routes that weren't matched
   if (req.path.startsWith('/api/')) {
