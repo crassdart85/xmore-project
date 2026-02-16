@@ -128,7 +128,8 @@ class TestDataValidation:
         result = validate_dataframe(valid_df, "test")
         
         assert len(result) == len(valid_df)
-        assert result['Date'].dtype == 'datetime64[ns]'
+        # pandas on newer Python builds may use datetime64[us] instead of ns precision
+        assert str(result['Date'].dtype).startswith('datetime64[')
         assert all(col in result.columns for col in Config.STANDARD_COLUMNS)
     
     def test_validate_empty_df(self):
