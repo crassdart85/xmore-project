@@ -456,3 +456,35 @@ Stock trading prediction system with web dashboard. Uses multiple AI agents to p
   - Live `xmore_news` run inserted 160 records to test DB from accessible sources.
 - Runtime note:
   - Reuters/Al Arabiya may still return zero in restricted environments due to robots/403/network policy; pipeline remains compliant and continues with available sources.
+
+## Sentiment Intelligence Layer Rollout (Feb 16, 2026)
+- Added new financial-grade package: `xmore_sentiment/`:
+  - `schemas.py` (Pydantic models for strict structured extraction + scoring outputs)
+  - `extractor.py` (LLM JSON-schema constrained fact extraction only; no free-text sentiment)
+  - `rule_engine.py` (deterministic financial event scoring)
+  - `confidence.py` (weighted confidence modeling)
+  - `validator.py` (keyword polarity check + disagreement handling + historical metrics)
+  - `scorer.py` (orchestration for raw score, confidence, final sentiment)
+  - `storage.py` (SQLite/PostgreSQL tables: `articles`, `extracted_facts`, `sentiment_scores`, `validation_metrics`)
+  - `main.py` (CLI pipeline runner)
+- Hallucination controls implemented:
+  - LLM restricted to schema-constrained fact extraction JSON
+  - invalid JSON discarded and logged
+  - no direct LLM sentiment classification allowed
+- Rule engine + confidence features:
+  - deterministic mapping for earnings/guidance/debt/macro/regulatory signals
+  - macro-only content down-weighting when not company-specific
+  - confidence combines certainty, entity strength, quantitative extraction, and rule/keyword agreement
+- Dual validation + self-correction:
+  - dictionary polarity cross-check
+  - disagreement threshold marks uncertain records and applies penalty
+  - rolling performance metrics and auto-adjusting weight multiplier after sufficient sample size
+- Risk controls in code:
+  - sentiment can only adjust signal confidence/position sizing
+  - sentiment does not independently trigger trades
+- Dependency update:
+  - added `pydantic>=2.8.0` to `requirements.txt`
+- Sanity checks:
+  - module compile checks passed
+  - CLI help works
+  - dry run with `--limit 0` completed successfully
