@@ -420,3 +420,39 @@ Stock trading prediction system with web dashboard. Uses multiple AI agents to p
 - Operations note:
   - Existing Render services may still require manual `ADMIN_SECRET` set + redeploy.
   - If an admin secret is exposed in chat/logs, rotate it immediately.
+
+## News Intelligence Layer Rollout (Feb 16, 2026)
+- Added new modular package: `xmore_news/` with production-oriented ingestion pipeline:
+  - `xmore_news/config.py`
+  - `xmore_news/sources/reuters_scraper.py`
+  - `xmore_news/sources/alarabiya_scraper.py`
+  - `xmore_news/sources/egypt_local_scraper.py`
+  - `xmore_news/parser.py`
+  - `xmore_news/sentiment_preprocessor.py`
+  - `xmore_news/storage.py`
+  - `xmore_news/scheduler.py`
+  - `xmore_news/main.py`
+- Implemented core functions and architecture requirements:
+  - `fetch_reuters_news()` / `fetch_alarabiya_news()` / `fetch_egypt_news()`
+  - `normalize_article(...)`
+  - `extract_company_mentions(...)`
+  - `save_articles_to_db(...)`
+  - `prepare_for_sentiment(...)`
+- Storage schema added in SQLite (`news_articles`) with URL + URL-hash dedupe and processing flags.
+- Added compliance controls:
+  - robots.txt checks
+  - per-request delay
+  - retry with exponential backoff
+  - source-level failure isolation
+- Added scheduler support via APScheduler with configurable 30-minute interval.
+- Added source feed hardening:
+  - Reuters + Al Arabiya source-specific Google News RSS fallback endpoints in addition to primary RSS/listing URLs.
+- Test compatibility fix:
+  - Updated `xmore_data/test_data_manager.py` datetime assertion to tolerate precision differences (`datetime64[ns]` vs `datetime64[us]`) on newer Python/pandas builds.
+- Validation snapshot:
+  - `npm run check` (web-ui) passed.
+  - `tests/test_portfolio_engine.py` passed.
+  - `xmore_data/test_data_manager.py -m "not slow"` passed after dtype fix (`23 passed, 1 deselected`).
+  - Live `xmore_news` run inserted 160 records to test DB from accessible sources.
+- Runtime note:
+  - Reuters/Al Arabiya may still return zero in restricted environments due to robots/403/network policy; pipeline remains compliant and continues with available sources.
