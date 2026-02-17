@@ -2,7 +2,7 @@ const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
-const pdfParse = require('pdf-parse');
+const { PDFParse } = require('pdf-parse');
 const { createWorker } = require('tesseract.js');
 const { requireAdminSecret } = require('../middleware/admin');
 
@@ -123,21 +123,36 @@ function detectLanguage(text) {
     return arCount > enCount ? 'AR' : 'EN';
 }
 
-function summarizeText(text, maxSentences = 3, maxChars = 600) {
+const SIGNAL_RE = /\b(buy|sell|long|short|bullish|bearish|upside|downside|overweight|underweight|outperform|underperform|go(?:ing)?\s+up|go(?:ing)?\s+down|rise|fall|rally|decline|target|upgrade|downgrade|accumulate|reduce|hold|neutral)\b/i;
+
+function summarizeText(text, maxChars = 600) {
     if (!text) return '';
     const cleaned = text.replace(/\s+/g, ' ').trim();
     if (!cleaned) return '';
     const sentences = cleaned.split(SENTENCE_SPLIT_RE).map(s => s.trim()).filter(Boolean);
     if (!sentences.length) return cleaned.slice(0, maxChars);
-    return sentences.slice(0, maxSentences).join(' ').trim().slice(0, maxChars);
+
+    // Prefer sentences that contain actionable stock signals
+    const signalSentences = sentences.filter(s => SIGNAL_RE.test(s));
+    if (signalSentences.length) {
+        return signalSentences.slice(0, 3).join(' ').trim().slice(0, maxChars);
+    }
+
+    // Fallback: last few sentences often contain conclusions
+    if (sentences.length > 3) {
+        return sentences.slice(-3).join(' ').trim().slice(0, maxChars);
+    }
+    return sentences.slice(0, 3).join(' ').trim().slice(0, maxChars);
 }
 
 async function extractPdf(filePath) {
     const dataBuffer = fs.readFileSync(filePath);
-    const data = await pdfParse(dataBuffer);
-    const extractedText = (data.text || '').trim();
+    const pdf = new PDFParse({ data: dataBuffer });
+    const result = await pdf.getText();
+    const extractedText = (result.text || '').trim();
     const language = detectLanguage(extractedText);
     const summary = summarizeText(extractedText);
+    pdf.destroy();
     return { extracted_text: extractedText, language, summary };
 }
 
