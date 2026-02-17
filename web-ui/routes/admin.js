@@ -2,7 +2,8 @@ const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
-const { spawn } = require('child_process');
+const pdfParse = require('pdf-parse');
+const { createWorker } = require('tesseract.js');
 const { requireAdminSecret } = require('../middleware/admin');
 
 const router = express.Router();
@@ -91,52 +92,75 @@ const storage = multer.diskStorage({
     }
 });
 
-function pdfOnly(_req, file, cb) {
+const ALLOWED_EXTENSIONS = new Set(['.pdf', '.png', '.jpg', '.jpeg', '.webp', '.bmp', '.tiff', '.tif']);
+const IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg', '.webp', '.bmp', '.tiff', '.tif']);
+
+function allowedFileFilter(_req, file, cb) {
     const ext = path.extname(file.originalname || '').toLowerCase();
-    const isPdfMime = file.mimetype === 'application/pdf';
-    if (isPdfMime || ext === '.pdf') {
+    if (ALLOWED_EXTENSIONS.has(ext)) {
         cb(null, true);
         return;
     }
-    cb(new Error('Only PDF files are allowed'));
+    cb(new Error('Only PDF and image files (PNG, JPG, WEBP, BMP, TIFF) are allowed'));
 }
 
 const upload = multer({
     storage,
-    fileFilter: pdfOnly,
+    fileFilter: allowedFileFilter,
     limits: { fileSize: 25 * 1024 * 1024 }
 });
 
 router.use(requireAdminSecret);
 
-function runIngestScript(filePath) {
-    return new Promise((resolve, reject) => {
-        const pythonBin = process.env.PYTHON_BIN || 'python';
-        const scriptPath = path.resolve(__dirname, '..', '..', 'engines', 'ingest_report.py');
-        const child = spawn(pythonBin, [scriptPath, filePath], {
-            cwd: path.resolve(__dirname, '..', '..')
-        });
+const ARABIC_RE = /[\u0600-\u06FF]/g;
+const LATIN_RE = /[A-Za-z]/g;
+const SENTENCE_SPLIT_RE = /(?<=[.!?\u061f])\s+/;
 
-        let stdout = '';
-        let stderr = '';
-        child.stdout.on('data', chunk => { stdout += chunk.toString(); });
-        child.stderr.on('data', chunk => { stderr += chunk.toString(); });
+function detectLanguage(text) {
+    if (!text) return 'EN';
+    const arCount = (text.match(ARABIC_RE) || []).length;
+    const enCount = (text.match(LATIN_RE) || []).length;
+    return arCount > enCount ? 'AR' : 'EN';
+}
 
-        child.on('error', reject);
-        child.on('close', code => {
-            if (code !== 0) {
-                reject(new Error(stderr || `ingest_report.py exited with code ${code}`));
-                return;
-            }
+function summarizeText(text, maxSentences = 3, maxChars = 600) {
+    if (!text) return '';
+    const cleaned = text.replace(/\s+/g, ' ').trim();
+    if (!cleaned) return '';
+    const sentences = cleaned.split(SENTENCE_SPLIT_RE).map(s => s.trim()).filter(Boolean);
+    if (!sentences.length) return cleaned.slice(0, maxChars);
+    return sentences.slice(0, maxSentences).join(' ').trim().slice(0, maxChars);
+}
 
-            try {
-                const parsed = JSON.parse(stdout.trim());
-                resolve(parsed);
-            } catch (_err) {
-                reject(new Error('Failed to parse ingest_report.py output'));
-            }
-        });
-    });
+async function extractPdf(filePath) {
+    const dataBuffer = fs.readFileSync(filePath);
+    const data = await pdfParse(dataBuffer);
+    const extractedText = (data.text || '').trim();
+    const language = detectLanguage(extractedText);
+    const summary = summarizeText(extractedText);
+    return { extracted_text: extractedText, language, summary };
+}
+
+async function extractImage(filePath) {
+    const lang = 'eng+ara';
+    const worker = await createWorker(lang);
+    try {
+        const { data } = await worker.recognize(filePath);
+        const extractedText = (data.text || '').trim();
+        const language = detectLanguage(extractedText);
+        const summary = summarizeText(extractedText);
+        return { extracted_text: extractedText, language, summary };
+    } finally {
+        await worker.terminate();
+    }
+}
+
+async function extractFile(filePath) {
+    const ext = path.extname(filePath).toLowerCase();
+    if (IMAGE_EXTENSIONS.has(ext)) {
+        return extractImage(filePath);
+    }
+    return extractPdf(filePath);
 }
 
 function buildSummary(text, fallbackSummary) {
@@ -213,11 +237,11 @@ router.get('/reports', async (req, res) => {
 
 router.post('/reports/upload', upload.single('report'), async (req, res) => {
     if (!req.file) {
-        return res.status(400).json({ error: 'PDF file is required (field name: report)' });
+        return res.status(400).json({ error: 'A PDF or image file is required (field name: report)' });
     }
 
     try {
-        const ingest = await runIngestScript(req.file.path);
+        const ingest = await extractFile(req.file.path);
         const extractedText = typeof ingest.extracted_text === 'string' ? ingest.extracted_text : '';
         const language = String(ingest.language || 'EN').toUpperCase() === 'AR' ? 'AR' : 'EN';
         const summary = buildSummary(extractedText, ingest.summary || '');

@@ -144,11 +144,14 @@ async function loadReports() {
     }
 }
 
+const ALLOWED_UPLOAD_EXTENSIONS = ['.pdf', '.png', '.jpg', '.jpeg', '.webp', '.bmp', '.tiff', '.tif'];
+
 async function uploadReport(file) {
     if (!file) return;
     const fileName = file.name || '';
-    if (!fileName.toLowerCase().endsWith('.pdf')) {
-        setUploadMessage('Only PDF files are allowed.', true);
+    const ext = fileName.toLowerCase().slice(fileName.lastIndexOf('.'));
+    if (!ALLOWED_UPLOAD_EXTENSIONS.includes(ext)) {
+        setUploadMessage('Only PDF and image files (PNG, JPG, WEBP, BMP, TIFF) are allowed.', true);
         return;
     }
 
