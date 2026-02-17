@@ -3,7 +3,6 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const cookieParser = require('cookie-parser');
-const { requireAdminSecret } = require('./middleware/admin');
 
 // Route modules
 const { router: authRouter, attachDb: attachAuthDb } = require('./routes/auth');
@@ -40,9 +39,6 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(cookieParser());
-
-// Protect admin interface assets separately from user JWT auth.
-app.use(['/admin', '/admin.html', '/admin.js'], requireAdminSecret);
 
 app.use(express.static(path.join(__dirname, 'public')));
 

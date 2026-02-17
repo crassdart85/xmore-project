@@ -501,3 +501,12 @@ Stock trading prediction system with web dashboard. Uses multiple AI agents to p
 - Verified historical GitHub Actions logs contained the exact failing messages before fix:
   - `Error generating trade recommendations: name 'database' is not defined`
   - `Error generating briefing: name 'database' is not defined`
+## Admin Route Bootstrap Fix (Feb 17, 2026)
+- Root cause identified for {"error":"Admin access denied"} on direct /admin visits:
+  - web-ui/server.js protected /admin, /admin.html, and /admin.js with requireAdminSecret, preventing initial page load when no admin secret cookie/header existed yet.
+- Implemented fix:
+  - Removed pre-auth middleware for admin static routes in web-ui/server.js.
+  - Kept /api/admin/* protected via router.use(requireAdminSecret) in web-ui/routes/admin.js.
+- Result:
+  - Admin page can now load first, allowing secret entry in UI.
+  - Admin APIs remain protected and still require valid ADMIN_SECRET.
