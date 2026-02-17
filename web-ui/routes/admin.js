@@ -123,26 +123,70 @@ function detectLanguage(text) {
     return arCount > enCount ? 'AR' : 'EN';
 }
 
-const SIGNAL_RE = /\b(buy|sell|long|short|bullish|bearish|upside|downside|overweight|underweight|outperform|underperform|go(?:ing)?\s+up|go(?:ing)?\s+down|rise|fall|rally|decline|target|upgrade|downgrade|accumulate|reduce|hold|neutral)\b/i;
+const TICKER_RE = /\b[A-Z]{2,5}(?:\.CA)?\b/g;
+const BULLISH_RE = /\b(buy|long|bullish|upside|outperform|go(?:ing)?\s+up|rise|rally|upgrade|accumulate|overweight|strong|growth|positive|gain|recover)\b/gi;
+const BEARISH_RE = /\b(sell|short|bearish|downside|underperform|go(?:ing)?\s+down|fall|decline|downgrade|reduce|underweight|weak|loss|drop|risk|negative|warning)\b/gi;
+const TOPIC_RE = /\b(earnings|revenue|profit|dividend|merger|acquisition|IPO|interest\s+rate|inflation|GDP|oil|sector|market|index|EGX|banking|real\s+estate|pharma|tech|telecom|construction|food|chemicals|retail)\b/gi;
 
-function summarizeText(text, maxChars = 600) {
+function buildInsight(text) {
     if (!text) return '';
     const cleaned = text.replace(/\s+/g, ' ').trim();
     if (!cleaned) return '';
+
+    // Extract stock tickers mentioned
+    const tickerMatches = [...new Set((cleaned.match(TICKER_RE) || []).filter(t => t.length >= 2 && t.length <= 7))];
+    // Filter out common English words that look like tickers
+    const stopWords = new Set(['THE', 'AND', 'FOR', 'ARE', 'BUT', 'NOT', 'YOU', 'ALL', 'CAN', 'HER', 'WAS', 'ONE', 'OUR', 'OUT', 'HAS', 'ITS', 'HIS', 'HOW', 'MAY', 'NEW', 'NOW', 'OLD', 'SEE', 'WAY', 'WHO', 'DID', 'GET', 'LET', 'SAY', 'SHE', 'TOO', 'USE', 'PDF', 'PNG', 'JPG', 'EGP', 'USD', 'EUR', 'GBP', 'SAR', 'AED', 'WITH', 'THIS', 'THAT', 'FROM', 'ALSO', 'BEEN', 'WILL', 'EACH', 'THAN', 'THEM', 'THEN', 'SOME', 'HAVE', 'MORE']);
+    const tickers = tickerMatches.filter(t => !stopWords.has(t)).slice(0, 6);
+
+    // Count bullish vs bearish signals
+    const bullCount = (cleaned.match(BULLISH_RE) || []).length;
+    const bearCount = (cleaned.match(BEARISH_RE) || []).length;
+
+    // Extract topics
+    const topicMatches = [...new Set((cleaned.match(TOPIC_RE) || []).map(t => t.toLowerCase()))].slice(0, 4);
+
+    // Build the interpretive summary
+    const parts = [];
+
+    // What the document is about
+    if (tickers.length && topicMatches.length) {
+        parts.push(`Discusses ${tickers.join(', ')} in the context of ${topicMatches.join(', ')}`);
+    } else if (tickers.length) {
+        parts.push(`Covers stocks: ${tickers.join(', ')}`);
+    } else if (topicMatches.length) {
+        parts.push(`Covers topics: ${topicMatches.join(', ')}`);
+    } else {
+        // Fall back to first meaningful sentence
+        const sentences = cleaned.split(SENTENCE_SPLIT_RE).map(s => s.trim()).filter(Boolean);
+        if (sentences.length) {
+            parts.push(sentences[0].slice(0, 200));
+        } else {
+            return cleaned.slice(0, 300);
+        }
+    }
+
+    // Overall tone
+    if (bullCount > 0 || bearCount > 0) {
+        const total = bullCount + bearCount;
+        if (bullCount > bearCount * 2) {
+            parts.push(`Overall tone is bullish (${bullCount}/${total} signals positive)`);
+        } else if (bearCount > bullCount * 2) {
+            parts.push(`Overall tone is bearish (${bearCount}/${total} signals negative)`);
+        } else {
+            parts.push(`Mixed outlook (${bullCount} bullish vs ${bearCount} bearish signals)`);
+        }
+    }
+
+    // Key takeaway from signal sentences
     const sentences = cleaned.split(SENTENCE_SPLIT_RE).map(s => s.trim()).filter(Boolean);
-    if (!sentences.length) return cleaned.slice(0, maxChars);
-
-    // Prefer sentences that contain actionable stock signals
-    const signalSentences = sentences.filter(s => SIGNAL_RE.test(s));
-    if (signalSentences.length) {
-        return signalSentences.slice(0, 3).join(' ').trim().slice(0, maxChars);
+    const SIGNAL_RE = /\b(buy|sell|bullish|bearish|target|upgrade|downgrade|outperform|underperform)\b/i;
+    const keySentence = sentences.find(s => SIGNAL_RE.test(s));
+    if (keySentence) {
+        parts.push(`Key insight: "${keySentence.slice(0, 150)}"`);
     }
 
-    // Fallback: last few sentences often contain conclusions
-    if (sentences.length > 3) {
-        return sentences.slice(-3).join(' ').trim().slice(0, maxChars);
-    }
-    return sentences.slice(0, 3).join(' ').trim().slice(0, maxChars);
+    return parts.join('. ').slice(0, 600);
 }
 
 async function extractPdf(filePath) {
@@ -151,7 +195,7 @@ async function extractPdf(filePath) {
     const result = await pdf.getText();
     const extractedText = (result.text || '').trim();
     const language = detectLanguage(extractedText);
-    const summary = summarizeText(extractedText);
+    const summary = buildInsight(extractedText);
     pdf.destroy();
     return { extracted_text: extractedText, language, summary };
 }
@@ -163,7 +207,7 @@ async function extractImage(filePath) {
         const { data } = await worker.recognize(filePath);
         const extractedText = (data.text || '').trim();
         const language = detectLanguage(extractedText);
-        const summary = summarizeText(extractedText);
+        const summary = buildInsight(extractedText);
         return { extracted_text: extractedText, language, summary };
     } finally {
         await worker.terminate();
