@@ -394,7 +394,7 @@ def execute():
 def get_market_data(symbol: str):
     """Fetch market data for risk calculation."""
     # Simplified: get latest price and 52w high from DB
-    with database.get_connection() as conn:
+    with get_connection() as conn:
         cursor = conn.cursor()
         
         # Latest close
@@ -429,7 +429,7 @@ def get_market_data(symbol: str):
 
 def open_new_position(user_id, rec, trading_date):
     """Create a new OPEN position."""
-    with database.get_connection() as conn:
+    with get_connection() as conn:
         cursor = conn.cursor()
         if os.getenv('DATABASE_URL'):
             cursor.execute("""
@@ -446,7 +446,7 @@ def open_new_position(user_id, rec, trading_date):
 def close_position(user_id, rec, trading_date):
     """Close an OPEN position."""
     exit_price = rec.get("close_price", 0)
-    with database.get_connection() as conn:
+    with get_connection() as conn:
         cursor = conn.cursor()
         
         # Calculate return logic requires reading entry price first or doing it in SQL
@@ -484,7 +484,7 @@ def close_position(user_id, rec, trading_date):
 
 def store_trade_recommendation(user_id, rec, trading_date):
     """Store recommendation to DB."""
-    with database.get_connection() as conn:
+    with get_connection() as conn:
         cursor = conn.cursor()
         
         query_pg = """
@@ -572,7 +572,7 @@ def generate_and_store_briefing(trading_date):
     import time as _time
     start = _time.time()
 
-    with database.get_connection() as conn:
+    with get_connection() as conn:
         cursor = conn.cursor()
 
         # 1. Rebuild consensus_map from DB (same pattern as trade recommendations)
@@ -718,15 +718,61 @@ def generate_daily_trade_recommendations(trading_date):
     # In this MVP, we process anyway if it's a weekday, but logically strict system would skip.
     # The prompt implies we should respect it.
     
-    with database.get_connection() as conn:
+    with get_connection() as conn:
         cursor = conn.cursor()
         
-        # 2. Get users with watchlists
+        # 2. Ensure active users have at least a baseline watchlist.
+        if os.getenv('DATABASE_URL'):
+            cursor.execute("SELECT id, email FROM users WHERE is_active = TRUE")
+        else:
+            cursor.execute("SELECT id, email FROM users WHERE is_active = 1")
+        active_users = [dict(row) for row in cursor.fetchall()]
+
+        if active_users:
+            if os.getenv('DATABASE_URL'):
+                cursor.execute("""
+                    SELECT u.id
+                    FROM users u
+                    LEFT JOIN user_watchlist w ON u.id = w.user_id
+                    WHERE u.is_active = TRUE
+                    GROUP BY u.id
+                    HAVING COUNT(w.id) = 0
+                """)
+            else:
+                cursor.execute("""
+                    SELECT u.id
+                    FROM users u
+                    LEFT JOIN user_watchlist w ON u.id = w.user_id
+                    WHERE u.is_active = 1
+                    GROUP BY u.id
+                    HAVING COUNT(w.id) = 0
+                """)
+            users_without_watchlist = [row['id'] for row in cursor.fetchall()]
+
+            if users_without_watchlist:
+                cursor.execute("SELECT id FROM egx30_stocks ORDER BY id LIMIT 10")
+                default_stock_ids = [row['id'] for row in cursor.fetchall()]
+
+                for user_id in users_without_watchlist:
+                    for stock_id in default_stock_ids:
+                        if os.getenv('DATABASE_URL'):
+                            cursor.execute("""
+                                INSERT INTO user_watchlist (user_id, stock_id)
+                                VALUES (%s, %s)
+                                ON CONFLICT (user_id, stock_id) DO NOTHING
+                            """, (user_id, stock_id))
+                        else:
+                            cursor.execute("""
+                                INSERT OR IGNORE INTO user_watchlist (user_id, stock_id)
+                                VALUES (?, ?)
+                            """, (user_id, stock_id))
+                print(f"  ✅ Seeded watchlists for {len(users_without_watchlist)} active users")
+
+        # 3. Generate only for users that now have watchlist entries.
         if os.getenv('DATABASE_URL'):
             cursor.execute("SELECT DISTINCT u.id, u.email FROM users u JOIN user_watchlist w ON u.id = w.user_id WHERE u.is_active = TRUE")
         else:
             cursor.execute("SELECT DISTINCT u.id, u.email FROM users u JOIN user_watchlist w ON u.id = w.user_id WHERE u.is_active = 1")
-            
         users = [dict(row) for row in cursor.fetchall()]
         print(f"  👥 Generating recommendations for {len(users)} users...")
         
@@ -770,7 +816,7 @@ def generate_daily_trade_recommendations(trading_date):
         user_id = user['id']
         max_positions = TRADE_CONFIG["max_open_positions"] # Default to free tier
         
-        with database.get_connection() as conn:
+        with get_connection() as conn:
             cursor = conn.cursor()
             
             # Get watchlist

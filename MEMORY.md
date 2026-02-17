@@ -488,3 +488,16 @@ Stock trading prediction system with web dashboard. Uses multiple AI agents to p
   - module compile checks passed
   - CLI help works
   - dry run with `--limit 0` completed successfully
+
+## Trades/Portfolio Empty-State Hotfix (Feb 17, 2026)
+- Fixed critical pipeline bug in `run_agents.py` where multiple functions used `database.get_connection()` despite importing `get_connection` directly.
+  - Result: removed `name 'database' is not defined` failures that blocked trade recommendation and briefing generation during daily pipeline runs.
+- Added watchlist seeding in `generate_daily_trade_recommendations(...)`:
+  - Active users with no `user_watchlist` rows now receive a baseline set of 10 EGX30 symbols.
+  - Recommendation generation then runs for all active users with watchlists.
+- Relaxed trades API behavior in `web-ui/routes/trades.js`:
+  - `GET /api/trades/today` now falls back to the user’s latest available recommendation date when today has no rows.
+  - API response summary now includes `date` (effective date used) and `fallback_used` (boolean).
+- Verified historical GitHub Actions logs contained the exact failing messages before fix:
+  - `Error generating trade recommendations: name 'database' is not defined`
+  - `Error generating briefing: name 'database' is not defined`

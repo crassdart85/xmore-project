@@ -81,11 +81,33 @@ router.get('/today', authMiddleware, async (req, res) => {
                 AND up.symbol = tr.symbol
                 AND up.status = 'OPEN'
             WHERE tr.user_id = $1
-            AND tr.recommendation_date = CURRENT_DATE
+            AND tr.recommendation_date = $2
             ORDER BY tr.priority DESC
         `;
 
-        const result = await queryAll(sql, [userId]);
+        const today = new Date().toISOString().split('T')[0];
+        let result = await queryAll(sql, [userId, today]);
+        let usedDate = today;
+        let fallbackUsed = false;
+
+        if (!result.rows.length) {
+            const latestDateRes = await queryAll(
+                `SELECT MAX(recommendation_date) AS latest_date FROM trade_recommendations WHERE user_id = $1`,
+                [userId]
+            );
+            const latestDateRaw = latestDateRes.rows[0]?.latest_date;
+            const latestDate = latestDateRaw
+                ? new Date(latestDateRaw).toISOString().split('T')[0]
+                : null;
+
+            if (latestDate) {
+                result = await queryAll(sql, [userId, latestDate]);
+                if (result.rows.length) {
+                    usedDate = latestDate;
+                    fallbackUsed = true;
+                }
+            }
+        }
 
         // Summary counts
         const rows = result.rows;
@@ -95,7 +117,8 @@ router.get('/today', authMiddleware, async (req, res) => {
             hold: rows.filter(r => r.action === 'HOLD').length,
             watch: rows.filter(r => r.action === 'WATCH').length,
             total: rows.length,
-            date: new Date().toISOString().split('T')[0]
+            date: usedDate,
+            fallback_used: fallbackUsed
         };
 
         return res.json({
