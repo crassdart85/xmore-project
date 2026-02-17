@@ -74,6 +74,15 @@ function ensureUploadDir() {
     fs.mkdirSync(uploadDir, { recursive: true });
 }
 
+function decodeFilename(raw) {
+    if (!raw) return 'report';
+    try {
+        return Buffer.from(raw, 'latin1').toString('utf8');
+    } catch (_e) {
+        return raw;
+    }
+}
+
 const storage = multer.diskStorage({
     destination: (_req, _file, cb) => {
         try {
@@ -300,6 +309,7 @@ router.post('/reports/upload', upload.single('report'), async (req, res) => {
     }
 
     try {
+        const filename = decodeFilename(req.file.originalname);
         const ingest = await extractFile(req.file.path);
         const extractedText = typeof ingest.extracted_text === 'string' ? ingest.extracted_text : '';
         const language = String(ingest.language || 'EN').toUpperCase() === 'AR' ? 'AR' : 'EN';
@@ -308,11 +318,11 @@ router.post('/reports/upload', upload.single('report'), async (req, res) => {
         await dbRun(`
             INSERT INTO market_reports (filename, upload_date, extracted_text, language, summary)
             VALUES (${ph(1)}, CURRENT_TIMESTAMP, ${ph(2)}, ${ph(3)}, ${ph(4)})
-        `, [req.file.originalname, extractedText, language, summary]);
+        `, [filename, extractedText, language, summary]);
 
         return res.status(201).json({
             ok: true,
-            filename: req.file.originalname,
+            filename,
             language,
             summary,
             status: extractedText.trim() ? 'Processed' : 'Pending'
