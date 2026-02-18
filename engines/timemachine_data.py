@@ -11,8 +11,10 @@ EGX stocks use .CA suffix on Yahoo Finance (e.g. COMI.CA, HRHO.CA).
 """
 
 import logging
+import sqlite3
 import time
 from datetime import datetime, timedelta
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -69,6 +71,9 @@ _HEADERS = {
     ),
     'Accept': 'application/json',
 }
+
+# Local fallback DB path (read-only usage; no writes from this module)
+_LOCAL_PRICE_DB = Path(__file__).resolve().parents[1] / 'stocks.db'
 
 
 # ─── Source 2: Direct Yahoo Finance v8/chart API ──────────────────────────────
@@ -216,6 +221,53 @@ def _compute_egx30_proxy(price_data: dict, buffer_start: str) -> list:
     return proxy_rows
 
 
+def _fetch_from_local_db(symbol: str, buffer_start: str, end_date: str) -> list:
+    """
+    Read historical OHLCV from local stocks.db as a resilience fallback.
+    This is read-only and keeps Time Machine fully ephemeral.
+    """
+    if not _LOCAL_PRICE_DB.exists():
+        return []
+
+    clean = symbol.replace('.CA', '')
+    rows_out: list = []
+    conn = sqlite3.connect(_LOCAL_PRICE_DB)
+    conn.row_factory = sqlite3.Row
+    try:
+        rows = conn.execute(
+            """
+            SELECT date, open, high, low, close, volume
+            FROM prices
+            WHERE symbol IN (?, ?)
+              AND date >= ?
+              AND date <= ?
+            ORDER BY date ASC
+            """,
+            (clean, symbol, buffer_start, end_date),
+        ).fetchall()
+    except Exception as e:
+        logger.debug(f"  [localdb] {symbol}: query failed ({e})")
+        conn.close()
+        return []
+    finally:
+        conn.close()
+
+    for r in rows:
+        try:
+            close_val = float(r['close'])
+            rows_out.append({
+                'date': str(r['date']),
+                'open': round(float(r['open']) if r['open'] is not None else close_val, 2),
+                'high': round(float(r['high']) if r['high'] is not None else close_val, 2),
+                'low': round(float(r['low']) if r['low'] is not None else close_val, 2),
+                'close': round(close_val, 2),
+                'volume': int(r['volume']) if r['volume'] is not None else 0,
+            })
+        except Exception:
+            continue
+    return rows_out
+
+
 # ─── Public API ───────────────────────────────────────────────────────────────
 
 def fetch_historical_prices(start_date: str, end_date: str) -> dict:
@@ -307,8 +359,18 @@ def fetch_historical_prices(start_date: str, end_date: str) -> dict:
             # Small delay to avoid rate-limiting when fetching many symbols
             time.sleep(0.3)
 
-    # ── Step 3: EGX30 equal-weight proxy ─────────────────────────────────────
-    logger.info("Step 3: Building EGX30 equal-weight proxy benchmark...")
+    # ── Step 3: local DB fallback for still-missing symbols ──────────────────
+    still_missing = [s for s in EGX30_SYMBOLS if s not in result]
+    if still_missing:
+        logger.info(f"Step 3: Local DB fallback for {len(still_missing)} symbols")
+        for symbol in still_missing:
+            rows = _fetch_from_local_db(symbol, buffer_start, end_date)
+            if rows:
+                result[symbol] = rows
+                logger.info(f"  [localdb] {symbol}: {len(rows)} days")
+
+    # ── Step 4: EGX30 equal-weight proxy ─────────────────────────────────────
+    logger.info("Step 4: Building EGX30 equal-weight proxy benchmark...")
     proxy = _compute_egx30_proxy(result, buffer_start)
     if proxy:
         result['^EGX30'] = proxy

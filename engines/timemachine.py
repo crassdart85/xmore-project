@@ -31,6 +31,23 @@ logging.basicConfig(
 logger = logging.getLogger('timemachine')
 
 
+def _has_sufficient_history(price_data: dict, start_date: str) -> bool:
+    """
+    Require a minimum number of stocks with enough rows to run indicators.
+    """
+    if not price_data:
+        return False
+    eligible = 0
+    for symbol, rows in price_data.items():
+        if symbol == '^EGX30':
+            continue
+        usable = rows
+        has_in_range = any(r.get('date', '') >= start_date for r in rows)
+        if len(usable) >= 50 and has_in_range:
+            eligible += 1
+    return eligible >= 3
+
+
 def main():
     try:
         # Parse input from Node.js
@@ -66,7 +83,7 @@ def main():
         logger.info("Step 1/3: Fetching historical prices from Yahoo Finance...")
         price_data = fetch_historical_prices(start_date, end_date)
 
-        if not price_data or len(price_data) < 3:
+        if not _has_sufficient_history(price_data, start_date):
             _error(
                 'Insufficient price data available for this date range. Try a more recent date.',
                 'بيانات الأسعار غير كافية لهذه الفترة. جرب تاريخاً أحدث.'
