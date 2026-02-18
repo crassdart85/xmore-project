@@ -224,12 +224,276 @@ function bindSecretInput() {
     saveSecretBtn.addEventListener('click', save);
 }
 
+// ============================================================
+// CUSTOM NEWS SOURCES
+// ============================================================
+
+const sourceRows = document.getElementById('sourceRows');
+const sourceStatus = document.getElementById('sourceStatus');
+const addSourceBtn = document.getElementById('addSourceBtn');
+const addSourcePanel = document.getElementById('addSourcePanel');
+const saveSrcBtn = document.getElementById('saveSrcBtn');
+const cancelSrcBtn = document.getElementById('cancelSrcBtn');
+const srcType = document.getElementById('srcType');
+const srcName = document.getElementById('srcName');
+const srcUrl = document.getElementById('srcUrl');
+const srcBotToken = document.getElementById('srcBotToken');
+const srcChatId = document.getElementById('srcChatId');
+const srcBotRow = document.getElementById('srcBotRow');
+const srcChatRow = document.getElementById('srcChatRow');
+const srcUrlRow = document.getElementById('srcUrlRow');
+const srcLang = document.getElementById('srcLang');
+const srcInterval = document.getElementById('srcInterval');
+
+const TYPE_LABELS = {
+    url: 'URL',
+    rss: 'RSS',
+    telegram_public: 'Telegram Public',
+    telegram_bot: 'Telegram Bot',
+    manual: 'Manual',
+};
+
+function setSourceStatus(msg, isError = false) {
+    sourceStatus.className = isError ? 'admin-upload-status error-message' : 'admin-upload-status no-data';
+    sourceStatus.textContent = msg;
+}
+
+function renderSources(sources) {
+    if (!sources || sources.length === 0) {
+        sourceRows.innerHTML = '<tr><td colspan="8" class="no-data">No custom sources yet. Click "Add Source" to get started.</td></tr>';
+        return;
+    }
+    sourceRows.innerHTML = sources.map(s => {
+        const activeBadge = s.is_active
+            ? '<span class="admin-status-badge admin-status-processed">Active</span>'
+            : '<span class="admin-status-badge admin-status-pending">Paused</span>';
+        const lastFetched = s.last_fetched_at ? formatDate(s.last_fetched_at) : 'Never';
+        const urlDisplay = s.source_url ? `<span title="${escapeHtml(s.source_url)}">${escapeHtml(s.source_url.slice(0, 40))}${s.source_url.length > 40 ? '…' : ''}</span>` : '—';
+        const toggleLabel = s.is_active ? 'Pause' : 'Resume';
+        return `<tr>
+            <td>${escapeHtml(s.name)}</td>
+            <td>${escapeHtml(TYPE_LABELS[s.source_type] || s.source_type)}</td>
+            <td>${urlDisplay}</td>
+            <td>${escapeHtml(s.language || 'auto')}</td>
+            <td>${activeBadge}</td>
+            <td>${escapeHtml(lastFetched)}</td>
+            <td>${escapeHtml(String(s.article_count || 0))}</td>
+            <td style="white-space:nowrap;">
+                <button class="admin-btn" onclick="fetchSourceNow(${s.id}, this)" ${s.source_type === 'manual' ? 'disabled' : ''}>Fetch Now</button>
+                <button class="admin-btn" onclick="toggleSource(${s.id}, ${!s.is_active})">${escapeHtml(toggleLabel)}</button>
+                <button class="admin-btn admin-btn-danger" onclick="deleteSource(${s.id})">Delete</button>
+            </td>
+        </tr>`;
+    }).join('');
+}
+
+async function loadSources() {
+    try {
+        const data = await fetchJson(`${API_BASE}/sources`);
+        renderSources(data.sources || []);
+    } catch (err) {
+        sourceRows.innerHTML = `<tr><td colspan="8" class="error-message">${escapeHtml(err.message)}</td></tr>`;
+    }
+}
+
+async function saveSource() {
+    const name = (srcName.value || '').trim();
+    const type = srcType.value;
+    const url = (srcUrl.value || '').trim();
+    const botToken = (srcBotToken.value || '').trim();
+    const chatId = (srcChatId.value || '').trim();
+    const lang = srcLang.value;
+    const interval = srcInterval.value;
+
+    if (!name) return setSourceStatus('Source name is required.', true);
+    if (['url', 'rss', 'telegram_public'].includes(type) && !url) {
+        return setSourceStatus('URL / channel is required for this source type.', true);
+    }
+    if (type === 'telegram_bot' && (!botToken || !chatId)) {
+        return setSourceStatus('Bot token and Chat ID are required for Telegram Bot sources.', true);
+    }
+
+    setSourceStatus('Saving…');
+    try {
+        await fetchJson(`${API_BASE}/sources`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                name, source_type: type, source_url: url || null,
+                bot_token: botToken || null, chat_id: chatId || null,
+                language: lang, fetch_interval_hours: interval,
+            }),
+        });
+        setSourceStatus(`Source "${name}" added.`);
+        addSourcePanel.style.display = 'none';
+        srcName.value = '';
+        srcUrl.value = '';
+        srcBotToken.value = '';
+        srcChatId.value = '';
+        await loadSources();
+    } catch (err) {
+        setSourceStatus(err.message, true);
+    }
+}
+
+async function toggleSource(id, active) {
+    try {
+        await fetchJson(`${API_BASE}/sources/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ is_active: active }),
+        });
+        await loadSources();
+    } catch (err) {
+        setSourceStatus(err.message, true);
+    }
+}
+
+async function deleteSource(id) {
+    if (!confirm('Delete this source? All associated articles will also be removed.')) return;
+    try {
+        await fetchJson(`${API_BASE}/sources/${id}`, { method: 'DELETE' });
+        await loadSources();
+    } catch (err) {
+        setSourceStatus(err.message, true);
+    }
+}
+
+async function fetchSourceNow(id, btn) {
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Fetching…';
+    }
+    setSourceStatus('Fetching…');
+    try {
+        const result = await fetchJson(`${API_BASE}/sources/${id}/fetch`, { method: 'POST' });
+        const msg = result.ok
+            ? `Fetched ${result.articles_fetched} items, ${result.articles_new} new for "${result.source_name}"`
+            : `Error: ${result.error || 'Unknown error'}`;
+        setSourceStatus(msg, !result.ok);
+        await loadSources();
+    } catch (err) {
+        setSourceStatus(err.message, true);
+    } finally {
+        if (btn) { btn.disabled = false; btn.textContent = 'Fetch Now'; }
+    }
+}
+
+function updateSourceFormFields() {
+    const type = srcType.value;
+    const needsUrl = ['url', 'rss', 'telegram_public'].includes(type);
+    const needsBot = type === 'telegram_bot';
+    srcUrlRow.style.display = (needsUrl || needsBot) ? '' : 'none';
+    srcBotRow.style.display = needsBot ? '' : 'none';
+    srcChatRow.style.display = needsBot ? '' : 'none';
+    srcUrl.placeholder = type === 'telegram_public' ? 't.me/channelname' : 'https://…';
+}
+
+function bindSourceForm() {
+    addSourceBtn.addEventListener('click', () => {
+        const isVisible = addSourcePanel.style.display !== 'none';
+        addSourcePanel.style.display = isVisible ? 'none' : '';
+    });
+    cancelSrcBtn.addEventListener('click', () => { addSourcePanel.style.display = 'none'; });
+    saveSrcBtn.addEventListener('click', saveSource);
+    srcType.addEventListener('change', updateSourceFormFields);
+    updateSourceFormFields();
+}
+
+// ============================================================
+// WHATSAPP / MANUAL FEED
+// ============================================================
+
+const waDropZone = document.getElementById('waDropZone');
+const waFileInput = document.getElementById('waFileInput');
+const waText = document.getElementById('waText');
+const waSourceName = document.getElementById('waSourceName');
+const waSubmitBtn = document.getElementById('waSubmitBtn');
+const waStatus = document.getElementById('waStatus');
+const waFileName = document.getElementById('waFileName');
+
+let waSelectedFile = null;
+
+function setWaStatus(msg, isError = false) {
+    waStatus.className = isError ? 'admin-upload-status error-message' : 'admin-upload-status no-data';
+    waStatus.textContent = msg;
+}
+
+async function submitWhatsApp() {
+    const text = (waText.value || '').trim();
+    const sourceName = (waSourceName.value || 'WhatsApp').trim();
+
+    if (!text && !waSelectedFile) {
+        return setWaStatus('Please paste text or select a file.', true);
+    }
+
+    setWaStatus('Submitting to pipeline…');
+    waSubmitBtn.disabled = true;
+
+    const body = new FormData();
+    body.append('text', text);
+    body.append('source_name', sourceName);
+    if (waSelectedFile) body.append('file', waSelectedFile);
+
+    try {
+        const result = await fetchJson(`${API_BASE}/sources/whatsapp`, { method: 'POST', body });
+        if (result.ok) {
+            const sym = (result.symbols_matched || []).join(', ') || 'general market';
+            setWaStatus(`Stored and matched to: ${sym} (${result.language || 'auto'}, ${result.sentiment || '—'})`);
+            waText.value = '';
+            waSelectedFile = null;
+            waFileName.textContent = '';
+            await loadSources();
+        } else {
+            setWaStatus(result.error || 'Failed to process content.', true);
+        }
+    } catch (err) {
+        setWaStatus(err.message, true);
+    } finally {
+        waSubmitBtn.disabled = false;
+    }
+}
+
+function bindWaDropZone() {
+    const openPicker = () => waFileInput.click();
+
+    waDropZone.addEventListener('click', openPicker);
+    waDropZone.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openPicker(); }
+    });
+
+    waFileInput.addEventListener('change', (e) => {
+        waSelectedFile = e.target.files && e.target.files[0];
+        waFileName.textContent = waSelectedFile ? waSelectedFile.name : '';
+        waFileInput.value = '';
+    });
+
+    ['dragenter', 'dragover'].forEach(t => {
+        waDropZone.addEventListener(t, (e) => { e.preventDefault(); e.stopPropagation(); waDropZone.classList.add('drag-over'); });
+    });
+    ['dragleave', 'drop'].forEach(t => {
+        waDropZone.addEventListener(t, (e) => { e.preventDefault(); e.stopPropagation(); waDropZone.classList.remove('drag-over'); });
+    });
+    waDropZone.addEventListener('drop', (e) => {
+        waSelectedFile = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0];
+        waFileName.textContent = waSelectedFile ? waSelectedFile.name : '';
+    });
+
+    waSubmitBtn.addEventListener('click', submitWhatsApp);
+}
+
+// ============================================================
+// BOOTSTRAP
+// ============================================================
+
 async function bootstrap() {
     applyThemeAndLanguage();
     adminSecretInput.value = getSecret();
     bindDropZone();
     bindSecretInput();
-    await Promise.all([loadSystemHealth(), loadReports()]);
+    bindSourceForm();
+    bindWaDropZone();
+    await Promise.all([loadSystemHealth(), loadReports(), loadSources()]);
 }
 
 bootstrap();

@@ -67,6 +67,119 @@
                 </table>
             </div>
         </section>
+        <!-- ================================================ -->
+        <!-- CUSTOM NEWS SOURCES                              -->
+        <!-- ================================================ -->
+        <section class="section">
+            <h2>Custom News Sources</h2>
+            <p class="admin-muted">Add URLs, RSS feeds, or Telegram channels to feed into the sentiment pipeline.</p>
+
+            <!-- Add source form -->
+            <div id="addSourcePanel" style="display:none; margin-bottom:16px;">
+                <div class="admin-source-form">
+                    <div class="admin-form-row">
+                        <label for="srcType">Type</label>
+                        <select id="srcType">
+                            <option value="rss">RSS Feed</option>
+                            <option value="url">Single URL (article)</option>
+                            <option value="telegram_public">Telegram Public Channel</option>
+                            <option value="telegram_bot">Telegram Bot</option>
+                            <option value="manual">Manual (no auto-fetch)</option>
+                        </select>
+                    </div>
+                    <div class="admin-form-row">
+                        <label for="srcName">Label</label>
+                        <input id="srcName" type="text" placeholder="e.g. EGX Telegram Channel">
+                    </div>
+                    <div class="admin-form-row" id="srcUrlRow">
+                        <label for="srcUrl">URL / Channel</label>
+                        <input id="srcUrl" type="text" placeholder="https://... or t.me/channelname">
+                    </div>
+                    <div class="admin-form-row" id="srcBotRow" style="display:none;">
+                        <label for="srcBotToken">Bot Token</label>
+                        <input id="srcBotToken" type="password" placeholder="1234567:AAB...">
+                    </div>
+                    <div class="admin-form-row" id="srcChatRow" style="display:none;">
+                        <label for="srcChatId">Chat ID</label>
+                        <input id="srcChatId" type="text" placeholder="-100123456789">
+                    </div>
+                    <div class="admin-form-row">
+                        <label for="srcLang">Language</label>
+                        <select id="srcLang">
+                            <option value="auto">Auto-detect</option>
+                            <option value="en">English</option>
+                            <option value="ar">Arabic</option>
+                        </select>
+                    </div>
+                    <div class="admin-form-row">
+                        <label for="srcInterval">Fetch every</label>
+                        <select id="srcInterval">
+                            <option value="1">1 hour</option>
+                            <option value="3">3 hours</option>
+                            <option value="6" selected>6 hours</option>
+                            <option value="12">12 hours</option>
+                            <option value="24">24 hours</option>
+                        </select>
+                    </div>
+                    <div class="admin-form-actions">
+                        <button id="saveSrcBtn" class="refresh-btn admin-btn">Save Source</button>
+                        <button id="cancelSrcBtn" class="admin-btn" style="background:var(--border)">Cancel</button>
+                    </div>
+                </div>
+            </div>
+
+            <button id="addSourceBtn" class="refresh-btn admin-btn" style="margin-bottom:12px;">+ Add Source</button>
+
+            <div class="scrollable-container">
+                <table id="sourcesTable">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Type</th>
+                            <th>URL / Channel</th>
+                            <th>Lang</th>
+                            <th>Status</th>
+                            <th>Last Fetched</th>
+                            <th>Articles</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sourceRows">
+                        <tr><td colspan="8" class="no-data">Loading sources…</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div id="sourceStatus" class="admin-upload-status"></div>
+        </section>
+
+        <!-- ================================================ -->
+        <!-- WHATSAPP / MANUAL FEED                           -->
+        <!-- ================================================ -->
+        <section class="section">
+            <h2>WhatsApp / Manual Feed</h2>
+            <p class="admin-muted">Paste forwarded WhatsApp messages or upload screenshots and PDFs (Arabic or English). The text is processed through the sentiment pipeline automatically.</p>
+
+            <div class="admin-source-form">
+                <div class="admin-form-row">
+                    <label for="waSourceName">Source Label</label>
+                    <input id="waSourceName" type="text" value="WhatsApp" placeholder="e.g. WhatsApp — EGX Group">
+                </div>
+                <div class="admin-form-row">
+                    <label for="waText">Paste text</label>
+                    <textarea id="waText" rows="5" placeholder="Paste forwarded message here…" style="width:100%;box-sizing:border-box;resize:vertical;font-family:inherit;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--container-bg);color:var(--text-primary);"></textarea>
+                </div>
+                <div id="waDropZone" class="admin-drop-zone" tabindex="0" role="button" aria-label="Upload image or PDF">
+                    <p><strong>Drag & drop image or PDF</strong></p>
+                    <p>or click to browse</p>
+                    <input id="waFileInput" type="file" accept="application/pdf,.pdf,image/png,.png,image/jpeg,.jpg,.jpeg,image/webp,.webp,image/bmp,.bmp,image/tiff,.tiff,.tif" hidden>
+                </div>
+                <p id="waFileName" class="admin-muted" style="min-height:18px;"></p>
+                <div class="admin-form-actions">
+                    <button id="waSubmitBtn" class="refresh-btn admin-btn">Submit to Pipeline</button>
+                </div>
+            </div>
+            <div id="waStatus" class="admin-upload-status"></div>
+        </section>
     </div>
 
     <script src="admin.js"></script>

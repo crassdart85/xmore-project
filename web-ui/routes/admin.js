@@ -1,6 +1,7 @@
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
+const { spawn } = require('child_process');
 const multer = require('multer');
 const { PDFParse } = require('pdf-parse');
 const { createWorker } = require('tesseract.js');
@@ -333,6 +334,234 @@ router.post('/reports/upload', upload.single('report'), async (req, res) => {
             error: 'Failed to process uploaded report',
             details: err.message
         });
+    }
+});
+
+// ============================================================
+// CUSTOM NEWS SOURCES — CRUD + Fetch Now + WhatsApp ingest
+// ============================================================
+
+const VALID_SOURCE_TYPES = new Set(['url', 'rss', 'telegram_public', 'telegram_bot', 'manual']);
+const VALID_LANGUAGES = new Set(['auto', 'en', 'ar']);
+
+// GET /api/admin/sources
+router.get('/sources', async (_req, res) => {
+    try {
+        const rows = await dbAll(`
+            SELECT
+                s.id, s.name, s.source_type, s.source_url,
+                s.chat_id, s.language, s.is_active,
+                s.fetch_interval_hours, s.last_fetched_at, s.created_at,
+                (SELECT COUNT(*) FROM custom_source_articles a WHERE a.source_id = s.id) AS article_count
+            FROM custom_news_sources s
+            ORDER BY s.created_at DESC
+        `);
+        return res.json({ sources: rows });
+    } catch (err) {
+        if (isMissingTableError(err)) return res.json({ sources: [] });
+        console.error('Admin sources list error:', err);
+        return res.status(500).json({ error: 'Failed to load sources' });
+    }
+});
+
+// POST /api/admin/sources
+router.post('/sources', express.json(), async (req, res) => {
+    const { name, source_type, source_url, bot_token, chat_id, language, fetch_interval_hours } = req.body || {};
+
+    if (!name || !source_type) {
+        return res.status(400).json({ error: 'name and source_type are required' });
+    }
+    if (!VALID_SOURCE_TYPES.has(source_type)) {
+        return res.status(400).json({ error: `source_type must be one of: ${[...VALID_SOURCE_TYPES].join(', ')}` });
+    }
+    const lang = VALID_LANGUAGES.has(language) ? language : 'auto';
+    const interval = Math.min(Math.max(parseInt(fetch_interval_hours, 10) || 6, 1), 168);
+
+    if (['url', 'rss', 'telegram_public'].includes(source_type) && !source_url) {
+        return res.status(400).json({ error: `source_url is required for source_type=${source_type}` });
+    }
+    if (source_type === 'telegram_bot' && (!bot_token || !chat_id)) {
+        return res.status(400).json({ error: 'bot_token and chat_id are required for telegram_bot sources' });
+    }
+
+    try {
+        const row = await dbGet(`
+            INSERT INTO custom_news_sources (name, source_type, source_url, bot_token, chat_id, language, fetch_interval_hours)
+            VALUES (${ph(1)},${ph(2)},${ph(3)},${ph(4)},${ph(5)},${ph(6)},${ph(7)})
+            RETURNING id
+        `, [name, source_type, source_url || null, bot_token || null, chat_id || null, lang, interval]);
+
+        const id = row ? row.id : null;
+        return res.status(201).json({ ok: true, id });
+    } catch (err) {
+        console.error('Admin create source error:', err);
+        return res.status(500).json({ error: 'Failed to create source' });
+    }
+});
+
+// PATCH /api/admin/sources/:id
+router.patch('/sources/:id', express.json(), async (req, res) => {
+    const sourceId = parseInt(req.params.id, 10);
+    if (!sourceId) return res.status(400).json({ error: 'Invalid id' });
+
+    const { name, is_active, fetch_interval_hours, language, bot_token, chat_id, source_url } = req.body || {};
+    const updates = [];
+    const params = [];
+    let i = 1;
+
+    if (name !== undefined)               { updates.push(`name = ${ph(i++)}`);                   params.push(name); }
+    if (is_active !== undefined)          { updates.push(`is_active = ${ph(i++)}`);               params.push(!!is_active); }
+    if (fetch_interval_hours !== undefined) { updates.push(`fetch_interval_hours = ${ph(i++)}`); params.push(parseInt(fetch_interval_hours, 10) || 6); }
+    if (language !== undefined && VALID_LANGUAGES.has(language)) { updates.push(`language = ${ph(i++)}`); params.push(language); }
+    if (bot_token !== undefined)          { updates.push(`bot_token = ${ph(i++)}`);               params.push(bot_token || null); }
+    if (chat_id !== undefined)            { updates.push(`chat_id = ${ph(i++)}`);                 params.push(chat_id || null); }
+    if (source_url !== undefined)         { updates.push(`source_url = ${ph(i++)}`);              params.push(source_url || null); }
+
+    if (updates.length === 0) return res.status(400).json({ error: 'No valid fields to update' });
+
+    params.push(sourceId);
+    try {
+        await dbRun(`UPDATE custom_news_sources SET ${updates.join(', ')} WHERE id = ${ph(i)}`, params);
+        return res.json({ ok: true });
+    } catch (err) {
+        if (isMissingTableError(err)) return res.status(404).json({ error: 'Table not found — run migration 011' });
+        console.error('Admin update source error:', err);
+        return res.status(500).json({ error: 'Failed to update source' });
+    }
+});
+
+// DELETE /api/admin/sources/:id
+router.delete('/sources/:id', async (req, res) => {
+    const sourceId = parseInt(req.params.id, 10);
+    if (!sourceId) return res.status(400).json({ error: 'Invalid id' });
+    try {
+        await dbRun(`DELETE FROM custom_news_sources WHERE id = ${ph(1)}`, [sourceId]);
+        return res.json({ ok: true });
+    } catch (err) {
+        console.error('Admin delete source error:', err);
+        return res.status(500).json({ error: 'Failed to delete source' });
+    }
+});
+
+// POST /api/admin/sources/:id/fetch — trigger Python fetcher for one source
+router.post('/sources/:id/fetch', async (req, res) => {
+    const sourceId = parseInt(req.params.id, 10);
+    if (!sourceId) return res.status(400).json({ error: 'Invalid id' });
+
+    const projectRoot = path.join(__dirname, '..', '..');
+    const scriptPath = path.join(projectRoot, 'engines', 'custom_source_fetcher.py');
+
+    let stdout = '';
+    let stderr = '';
+    let timedOut = false;
+
+    const child = spawn('python', [scriptPath, '--source-id', String(sourceId)], {
+        cwd: projectRoot,
+        env: { ...process.env },
+    });
+
+    const timeout = setTimeout(() => {
+        timedOut = true;
+        child.kill();
+    }, 60000);
+
+    child.stdout.on('data', d => { stdout += d.toString(); });
+    child.stderr.on('data', d => { stderr += d.toString(); });
+
+    child.on('close', (code) => {
+        clearTimeout(timeout);
+        if (timedOut) {
+            return res.status(504).json({ ok: false, error: 'Fetch timed out after 60s' });
+        }
+        try {
+            const result = JSON.parse(stdout.trim() || '{}');
+            return res.json(result);
+        } catch (_e) {
+            return res.status(500).json({
+                ok: false,
+                error: `Fetcher exited with code ${code}`,
+                stderr: stderr.slice(0, 500),
+            });
+        }
+    });
+});
+
+// POST /api/admin/sources/whatsapp — manual paste or file upload
+const waUpload = multer({
+    storage,
+    fileFilter: allowedFileFilter,
+    limits: { fileSize: 25 * 1024 * 1024 },
+});
+
+router.post('/sources/whatsapp', waUpload.single('file'), async (req, res) => {
+    const rawText = (req.body && req.body.text) ? String(req.body.text).trim() : '';
+    const sourceName = (req.body && req.body.source_name) ? String(req.body.source_name).trim() : 'WhatsApp';
+
+    if (!rawText && !req.file) {
+        return res.status(400).json({ error: 'Provide text or a file' });
+    }
+
+    try {
+        // Ensure a "manual" source exists for WhatsApp
+        let manualSource = await dbGet(
+            `SELECT id FROM custom_news_sources WHERE source_type = ${ph(1)} AND name = ${ph(2)}`,
+            ['manual', sourceName]
+        );
+        if (!manualSource) {
+            manualSource = await dbGet(
+                `INSERT INTO custom_news_sources (name, source_type, language) VALUES (${ph(1)},'manual','auto') RETURNING id`,
+                [sourceName]
+            );
+        }
+        const sourceId = manualSource.id;
+
+        // Extract content
+        let content = rawText;
+        let contentType = 'text';
+        if (req.file) {
+            try {
+                const ingest = await extractFile(req.file.path);
+                const fileText = (typeof ingest.extracted_text === 'string' ? ingest.extracted_text : '').trim();
+                content = rawText ? `${rawText}\n\n${fileText}` : fileText;
+                contentType = path.extname(req.file.path).toLowerCase() === '.pdf' ? 'pdf' : 'image';
+            } catch (e) {
+                console.error('WhatsApp file extraction error:', e);
+                if (!rawText) return res.status(500).json({ error: 'Failed to extract file content' });
+            }
+        }
+
+        if (!content) return res.status(400).json({ error: 'No text content could be extracted' });
+
+        // Spawn Python to ingest and match to symbols
+        const projectRoot = path.join(__dirname, '..', '..');
+        const scriptPath = path.join(projectRoot, 'engines', 'custom_source_fetcher.py');
+        const payload = JSON.stringify({ source_id: sourceId, content, content_type: contentType });
+
+        let stdout = '';
+        const child = spawn('python', [scriptPath, '--ingest-text', payload], {
+            cwd: projectRoot,
+            env: { ...process.env },
+        });
+
+        let timedOut = false;
+        const timeout = setTimeout(() => { timedOut = true; child.kill(); }, 30000);
+
+        child.stdout.on('data', d => { stdout += d.toString(); });
+
+        child.on('close', () => {
+            clearTimeout(timeout);
+            if (timedOut) return res.status(504).json({ ok: false, error: 'Processing timed out' });
+            try {
+                const result = JSON.parse(stdout.trim() || '{}');
+                return res.status(result.ok === false ? 500 : 201).json(result);
+            } catch (_e) {
+                return res.status(500).json({ ok: false, error: 'Failed to parse ingest result' });
+            }
+        });
+
+    } catch (err) {
+        console.error('Admin WhatsApp ingest error:', err);
+        return res.status(500).json({ error: 'Failed to process WhatsApp content' });
     }
 });
 

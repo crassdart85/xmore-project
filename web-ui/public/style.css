@@ -3153,8 +3153,100 @@ button:active, .btn:active, .tab-btn:active {
     border: 1px solid rgba(180, 83, 9, 0.4);
 }
 
+/* ── Custom News Sources form ───────────────────── */
+.admin-source-form {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 12px;
+}
+
+.admin-form-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+.admin-form-row label {
+    flex: 0 0 110px;
+    font-size: 0.88em;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.admin-form-row input,
+.admin-form-row select {
+    flex: 1;
+    padding: 7px 10px;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    background: var(--container-bg);
+    color: var(--text-primary);
+    font-size: 0.9em;
+}
+
+.admin-form-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 14px;
+}
+
+.admin-btn {
+    padding: 6px 14px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--card-bg);
+    color: var(--text-primary);
+    cursor: pointer;
+    font-size: 0.85em;
+    transition: background 0.15s, opacity 0.15s;
+}
+
+.admin-btn:hover:not(:disabled) {
+    background: var(--accent);
+    color: #fff;
+    border-color: transparent;
+}
+
+.admin-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.admin-btn-danger:hover:not(:disabled) {
+    background: #ef4444;
+    color: #fff;
+    border-color: transparent;
+}
+
+#sourcesTable td {
+    font-size: 0.85em;
+    vertical-align: middle;
+    padding: 8px 10px;
+}
+
+#sourcesTable td:last-child {
+    white-space: nowrap;
+}
+
 @media (max-width: 768px) {
     .admin-secret-row input {
         min-width: 100%;
+    }
+
+    .admin-form-row {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .admin-form-row label {
+        flex: none;
+    }
+
+    .admin-form-row input,
+    .admin-form-row select {
+        width: 100%;
     }
 }

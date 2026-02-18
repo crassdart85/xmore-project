@@ -130,22 +130,27 @@ jobs:
       - name: Collect prices and news
         run: python collect_data.py
 
-      # Step 2: Sentiment analysis
+      # Step 2: Fetch custom news sources (URLs, RSS, Telegram channels)
+      - name: Fetch custom news sources
+        continue-on-error: true
+        run: python engines/custom_source_fetcher.py --fetch-all
+
+      # Step 3: Sentiment analysis (includes freshly-fetched custom source articles)
       - name: Analyze sentiment
         continue-on-error: true
         run: python sentiment.py
 
-      # Step 3: Run 3-layer agent pipeline
+      # Step 4: Run 3-layer agent pipeline
       # (predictions → consensus → trade recs → briefing → performance eval)
       - name: Run agent pipeline
         run: python run_agents.py
 
-      # Step 4: Generate model portfolios
+      # Step 5: Generate model portfolios
       - name: Generate portfolios
         continue-on-error: true
         run: python engines/generate_portfolios.py
 
-      # Step 5: Evaluate agent prediction accuracy (fills evaluations table)
+      # Step 6: Evaluate agent prediction accuracy (fills evaluations table)
       - name: Evaluate prediction accuracy
         run: python evaluate.py
 

@@ -332,6 +332,46 @@ async function initializeDatabase() {
     `);
     await pool.query('CREATE INDEX IF NOT EXISTS idx_market_reports_upload_date ON market_reports(upload_date DESC)');
 
+    // Table: Custom News Sources (Admin-managed URLs, RSS, Telegram, WhatsApp)
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS custom_news_sources (
+        id SERIAL PRIMARY KEY,
+        name TEXT NOT NULL,
+        source_type TEXT NOT NULL
+          CHECK (source_type IN ('url', 'rss', 'telegram_public', 'telegram_bot', 'manual')),
+        source_url TEXT,
+        bot_token TEXT,
+        chat_id TEXT,
+        language TEXT DEFAULT 'auto',
+        is_active BOOLEAN DEFAULT TRUE,
+        fetch_interval_hours INTEGER DEFAULT 6,
+        last_fetched_at TIMESTAMPTZ,
+        telegram_offset BIGINT DEFAULT 0,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+
+    // Table: Articles fetched from custom sources
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS custom_source_articles (
+        id SERIAL PRIMARY KEY,
+        source_id INTEGER REFERENCES custom_news_sources(id) ON DELETE CASCADE,
+        content_text TEXT NOT NULL,
+        content_type TEXT NOT NULL DEFAULT 'text'
+          CHECK (content_type IN ('text', 'image', 'pdf', 'url_article')),
+        original_url TEXT,
+        external_id TEXT,
+        language TEXT,
+        sentiment_score REAL,
+        sentiment_label TEXT,
+        sentiment_processed BOOLEAN DEFAULT FALSE,
+        fetched_at TIMESTAMPTZ DEFAULT NOW(),
+        message_date TIMESTAMPTZ,
+        UNIQUE(source_id, external_id)
+      )
+    `);
+    await pool.query('CREATE INDEX IF NOT EXISTS idx_custom_articles_source ON custom_source_articles(source_id, fetched_at DESC)');
+
     // Seed ALL EGX stocks (~190)
     console.log('🌱 Seeding EGX stocks...');
     await pool.query(`
