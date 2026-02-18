@@ -362,9 +362,10 @@ def fetch_historical_prices(start_date: str, end_date: str) -> dict:
         logger.error("yfinance not installed")
         return {}
 
-    # Add 60 days buffer so TA indicators have warmup data
+    # Add a generous warmup buffer so short user ranges still have enough
+    # prior sessions for SMA/RSI indicators (EGX has fewer weekly sessions).
     buffer_start = (
-        datetime.strptime(start_date, '%Y-%m-%d') - timedelta(days=60)
+        datetime.strptime(start_date, '%Y-%m-%d') - timedelta(days=180)
     ).strftime('%Y-%m-%d')
 
     logger.info(

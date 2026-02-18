@@ -33,7 +33,8 @@ logger = logging.getLogger('timemachine')
 
 def _has_sufficient_history(price_data: dict, start_date: str) -> bool:
     """
-    Require a minimum number of stocks with enough rows to run indicators.
+    Require a minimum number of stocks with in-range prices.
+    This preflight is for data availability, not signal richness.
     """
     if not price_data:
         return False
@@ -41,9 +42,8 @@ def _has_sufficient_history(price_data: dict, start_date: str) -> bool:
     for symbol, rows in price_data.items():
         if symbol == '^EGX30':
             continue
-        usable = rows
         has_in_range = any(r.get('date', '') >= start_date for r in rows)
-        if len(usable) >= 50 and has_in_range:
+        if has_in_range:
             eligible += 1
     return eligible >= 3
 
@@ -94,12 +94,8 @@ def main():
         logger.info("Step 2/3: Generating retroactive trading signals...")
         signals = generate_signals_for_period(price_data, start_date, end_date)
 
-        if len(signals) < 3:
-            _error(
-                'Too few trading signals found for this period. Try a longer date range.',
-                'عدد إشارات التداول قليل جداً لهذه الفترة. جرب فترة زمنية أطول.'
-            )
-            return
+        # Do not fail short windows with sparse/zero signals.
+        # The engine can still return a valid flat portfolio outcome.
 
         # Step 3: Run backtest simulation (entirely in-memory)
         logger.info("Step 3/3: Running backtest simulation...")

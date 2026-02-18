@@ -216,6 +216,19 @@ Stock trading prediction system with web dashboard. Uses multiple AI agents to p
 - Prediction horizon: 1 day (changed from 7 days for faster evaluation)
 
 ## Recent Changes (Feb 2026)
+- **Time Machine Short-Window No-Data Fix (Feb 18, 2026)**:
+  - Increased Time Machine historical warmup window in `engines/timemachine_data.py` from 60 to 180 days so recent start dates still have enough context for indicators.
+  - Relaxed strict preflight in `engines/timemachine.py` to validate in-range price availability (instead of requiring 50-row history per symbol), preventing false "insufficient data" failures.
+  - Removed hard failure for low signal counts so short windows return a valid flat simulation (0 trades) instead of an error.
+  - Live API verification after fix:
+    - `POST /api/timemachine/simulate` with `{amount: 5000, start_date: "2026-02-17"}` -> `200 OK`, `total_return_pct=0`, `total_trades=0`
+    - `POST /api/timemachine/simulate` with `{amount: 50000, start_date: "2025-11-18"}` -> `200 OK`, `total_return_pct=18.14`, `total_trades=23`
+- **Time Machine Reliability Hotfixes (Feb 18, 2026)**:
+  - Hardened `engines/timemachine.py` preflight validation to check usable historical coverage (>= 3 stocks with sufficient history and in-range data) instead of fragile symbol-count checks.
+  - Added resilient database fallback path in `engines/timemachine_data.py` for missing Yahoo symbols:
+    - PostgreSQL `prices` via `DATABASE_URL` (production/Render)
+    - SQLite `stocks.db` (local fallback)
+  - Result: Time Machine simulation now succeeds for affected short ranges (including `2025-11-18`) even when Yahoo has partial EGX outages.
 - **Event Intelligence + Arabic Sentiment Layer (Feb 18, 2026)**:
   - Added new production package `xmore_event_intel/` with full modular architecture:
     - Source scrapers: Enterprise, Daily News Egypt, Egypt Today, Mubasher Info, and EGX disclosures (`sources/*.py`)
