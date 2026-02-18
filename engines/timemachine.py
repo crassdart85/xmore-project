@@ -33,19 +33,15 @@ logger = logging.getLogger('timemachine')
 
 def _has_sufficient_history(price_data: dict, start_date: str) -> bool:
     """
-    Require a minimum number of stocks with in-range prices.
-    This preflight is for data availability, not signal richness.
+    Require any in-range market data.
+    This preflight is for data availability only, not signal richness.
     """
     if not price_data:
         return False
-    eligible = 0
-    for symbol, rows in price_data.items():
-        if symbol == '^EGX30':
-            continue
-        has_in_range = any(r.get('date', '') >= start_date for r in rows)
-        if has_in_range:
-            eligible += 1
-    return eligible >= 3
+    for rows in price_data.values():
+        if any(r.get('date', '') >= start_date for r in rows):
+            return True
+    return False
 
 
 def main():

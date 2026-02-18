@@ -239,12 +239,16 @@ def _fetch_from_local_db(symbol: str, buffer_start: str, end_date: str) -> list:
             """
             SELECT date, open, high, low, close, volume
             FROM prices
-            WHERE symbol IN (?, ?)
-              AND date >= ?
-              AND date <= ?
-            ORDER BY date ASC
+            WHERE (
+                UPPER(symbol) = UPPER(?)
+                OR UPPER(symbol) = UPPER(?)
+                OR UPPER(REPLACE(symbol, '.CA', '')) = UPPER(?)
+            )
+              AND DATE(SUBSTR(CAST(date AS TEXT), 1, 10)) >= DATE(?)
+              AND DATE(SUBSTR(CAST(date AS TEXT), 1, 10)) <= DATE(?)
+            ORDER BY DATE(SUBSTR(CAST(date AS TEXT), 1, 10)) ASC
             """,
-            (clean, symbol, buffer_start, end_date),
+            (clean, symbol, clean, buffer_start, end_date),
         ).fetchall()
     except Exception as e:
         logger.debug(f"  [localdb] {symbol}: query failed ({e})")
@@ -292,12 +296,16 @@ def _fetch_from_postgres_db(symbol: str, buffer_start: str, end_date: str) -> li
             """
             SELECT date, open, high, low, close, volume
             FROM prices
-            WHERE symbol IN (%s, %s)
-              AND date >= %s
-              AND date <= %s
-            ORDER BY date ASC
+            WHERE (
+                UPPER(symbol) = UPPER(%s)
+                OR UPPER(symbol) = UPPER(%s)
+                OR UPPER(REPLACE(symbol, '.CA', '')) = UPPER(%s)
+            )
+              AND CAST(date AS DATE) >= CAST(%s AS DATE)
+              AND CAST(date AS DATE) <= CAST(%s AS DATE)
+            ORDER BY CAST(date AS DATE) ASC
             """,
-            (clean, symbol, buffer_start, end_date),
+            (clean, symbol, clean, buffer_start, end_date),
         )
         rows = cur.fetchall()
         for r in rows:
