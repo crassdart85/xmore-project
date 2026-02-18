@@ -486,23 +486,23 @@ router.post('/sources/:id/fetch', async (req, res) => {
     });
 });
 
-// POST /api/admin/sources/whatsapp — manual paste or file upload
+// POST /api/admin/sources/manual — manual paste or file upload (Telegram groups, private channels, etc.)
 const waUpload = multer({
     storage,
     fileFilter: allowedFileFilter,
     limits: { fileSize: 25 * 1024 * 1024 },
 });
 
-router.post('/sources/whatsapp', waUpload.single('file'), async (req, res) => {
+router.post('/sources/manual', waUpload.single('file'), async (req, res) => {
     const rawText = (req.body && req.body.text) ? String(req.body.text).trim() : '';
-    const sourceName = (req.body && req.body.source_name) ? String(req.body.source_name).trim() : 'WhatsApp';
+    const sourceName = (req.body && req.body.source_name) ? String(req.body.source_name).trim() : 'Telegram';
 
     if (!rawText && !req.file) {
         return res.status(400).json({ error: 'Provide text or a file' });
     }
 
     try {
-        // Ensure a "manual" source exists for WhatsApp
+        // Ensure a "manual" source exists for this label
         let manualSource = await dbGet(
             `SELECT id FROM custom_news_sources WHERE source_type = ${ph(1)} AND name = ${ph(2)}`,
             ['manual', sourceName]
@@ -525,7 +525,7 @@ router.post('/sources/whatsapp', waUpload.single('file'), async (req, res) => {
                 content = rawText ? `${rawText}\n\n${fileText}` : fileText;
                 contentType = path.extname(req.file.path).toLowerCase() === '.pdf' ? 'pdf' : 'image';
             } catch (e) {
-                console.error('WhatsApp file extraction error:', e);
+                console.error('Manual ingest file extraction error:', e);
                 if (!rawText) return res.status(500).json({ error: 'Failed to extract file content' });
             }
         }
@@ -560,8 +560,8 @@ router.post('/sources/whatsapp', waUpload.single('file'), async (req, res) => {
         });
 
     } catch (err) {
-        console.error('Admin WhatsApp ingest error:', err);
-        return res.status(500).json({ error: 'Failed to process WhatsApp content' });
+        console.error('Admin manual ingest error:', err);
+        return res.status(500).json({ error: 'Failed to process content' });
     }
 });
 

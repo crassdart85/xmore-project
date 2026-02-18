@@ -216,6 +216,7 @@ function bindSecretInput() {
         secretStatus.textContent = getSecret() ? 'Secret saved in browser storage.' : 'Secret cleared.';
         loadSystemHealth();
         loadReports();
+        loadSources();
     };
 
     adminSecretInput.addEventListener('keydown', (event) => {
@@ -421,7 +422,7 @@ function setWaStatus(msg, isError = false) {
 
 async function submitWhatsApp() {
     const text = (waText.value || '').trim();
-    const sourceName = (waSourceName.value || 'WhatsApp').trim();
+    const sourceName = (waSourceName.value || 'Telegram').trim();
 
     if (!text && !waSelectedFile) {
         return setWaStatus('Please paste text or select a file.', true);
@@ -436,7 +437,7 @@ async function submitWhatsApp() {
     if (waSelectedFile) body.append('file', waSelectedFile);
 
     try {
-        const result = await fetchJson(`${API_BASE}/sources/whatsapp`, { method: 'POST', body });
+        const result = await fetchJson(`${API_BASE}/sources/manual`, { method: 'POST', body });
         if (result.ok) {
             const sym = (result.symbols_matched || []).join(', ') || 'general market';
             setWaStatus(`Stored and matched to: ${sym} (${result.language || 'auto'}, ${result.sentiment || '—'})`);
@@ -493,7 +494,14 @@ async function bootstrap() {
     bindSecretInput();
     bindSourceForm();
     bindWaDropZone();
-    await Promise.all([loadSystemHealth(), loadReports(), loadSources()]);
+    if (getSecret()) {
+        await Promise.all([loadSystemHealth(), loadReports(), loadSources()]);
+    } else {
+        auditHealth.innerHTML = '<p class="no-data">Enter admin secret above to load data.</p>';
+        agentHealth.innerHTML = '<p class="no-data">Enter admin secret above to load data.</p>';
+        reportRows.innerHTML = '<tr><td colspan="5" class="no-data">Enter admin secret above to load data.</td></tr>';
+        sourceRows.innerHTML = '<tr><td colspan="8" class="no-data">Enter admin secret above to load data.</td></tr>';
+    }
 }
 
 bootstrap();
