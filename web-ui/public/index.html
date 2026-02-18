@@ -288,11 +288,12 @@
                             <button class="tm-preset" data-months="3" data-translate="tm3Months">3 months ago</button>
                             <button class="tm-preset" data-months="6" data-translate="tm6Months">6 months ago</button>
                             <button class="tm-preset" data-months="12" data-translate="tm12Months">1 year ago</button>
-                            <button class="tm-preset" data-months="0" data-translate="tmMaxRange">Max range</button>
+                            <button class="tm-preset" data-months="0" data-translate="tmMaxRange">Max (2 years)</button>
                         </div>
                     </div>
 
                     <button id="tmSimulateBtn" class="tm-simulate-btn" data-translate="tmSimulate">Simulate</button>
+                    <p class="tm-loading-warning" data-translate="tmLoadingWarning">This may take 30–60 seconds while we fetch live market data.</p>
                 </div>
             </div>
 
@@ -310,6 +311,7 @@
                         <span class="tm-final" id="tmFinalAmount"></span>
                     </div>
                     <div class="tm-hero-return" id="tmReturnBadge"></div>
+                    <div class="tm-hero-duration" id="tmDuration"></div>
                 </div>
 
                 <!-- Key Metrics Row -->
@@ -318,6 +320,10 @@
                         <span class="tm-metric-label" data-translate="tmAlpha">Alpha vs EGX30</span>
                         <span class="tm-metric-value" id="tmAlpha"></span>
                         <span class="tm-metric-sub" data-translate="tmVsEGX30">outperformance</span>
+                    </div>
+                    <div class="tm-metric">
+                        <span class="tm-metric-label" data-translate="tmAnnualized">Annualized Return</span>
+                        <span class="tm-metric-value" id="tmAnnualized"></span>
                     </div>
                     <div class="tm-metric">
                         <span class="tm-metric-label" data-translate="tmTotalTrades">Total Trades</span>
@@ -330,6 +336,10 @@
                     <div class="tm-metric">
                         <span class="tm-metric-label" data-translate="tmMaxDrawdown">Max Drawdown</span>
                         <span class="tm-metric-value" id="tmMaxDrawdown"></span>
+                    </div>
+                    <div class="tm-metric">
+                        <span class="tm-metric-label" data-translate="tmSharpe">Sharpe Ratio</span>
+                        <span class="tm-metric-value" id="tmSharpe"></span>
                     </div>
                 </div>
 
@@ -351,8 +361,14 @@
 
                 <!-- Top Trades -->
                 <div class="tm-trades-section">
-                    <h4 data-translate="tmTopTrades">Best Trades That Built Your Returns</h4>
+                    <h4 data-translate="tmTopTrades">Best Trades</h4>
                     <div id="tmTopTrades" class="tm-trade-cards"></div>
+                </div>
+
+                <!-- Worst Trades -->
+                <div class="tm-trades-section">
+                    <h4 data-translate="tmWorstTrades">Worst Trades</h4>
+                    <div id="tmWorstTrades" class="tm-trade-cards"></div>
                 </div>
 
                 <!-- Timeline -->
@@ -362,14 +378,15 @@
                 </div>
 
                 <!-- Disclaimer -->
-                <div class="tm-disclaimer" data-translate="tmDisclaimer">This simulation uses actual historical Xmore recommendations and real EGX price data. Past performance does not guarantee future results. This is not financial advice.</div>
+                <div class="tm-disclaimer" data-translate="tmDisclaimer">This simulation uses real EGX price data from Yahoo Finance and applies Xmore's signal logic retroactively. Past performance does not guarantee future results. This is not financial advice.</div>
             </div>
 
             <!-- Loading state -->
             <div id="tmLoading" class="tm-loading" style="display:none">
                 <div class="tm-spinner"></div>
                 <p data-translate="tmCalculating">Traveling through time...</p>
-                <p class="tm-loading-sub" data-translate="tmAnalyzing">Replaying Xmore recommendations day by day</p>
+                <p class="tm-loading-sub" data-translate="tmAnalyzing">Fetching live market data &amp; running simulation</p>
+                <p class="tm-loading-warn" data-translate="tmLoadingWarning">This may take 30–60 seconds.</p>
             </div>
         </section>
 
