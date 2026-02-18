@@ -14,6 +14,8 @@ import logging
 import os
 import sqlite3
 import time
+import urllib.error
+import urllib.request
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -87,23 +89,15 @@ def _fetch_yahoo_direct(symbol: str, buffer_start: str, end_date: str) -> list:
     Returns list of row dicts (same format as yfinance parser), or [] on failure.
     """
     try:
-        import requests
-    except ImportError:
-        return []
-
-    try:
         p1 = int(datetime.strptime(buffer_start, '%Y-%m-%d').timestamp())
         p2 = int(datetime.strptime(end_date, '%Y-%m-%d').timestamp()) + 86400  # inclusive
         url = (
             f'https://query1.finance.yahoo.com/v8/finance/chart/{symbol}'
             f'?period1={p1}&period2={p2}&interval=1d&events=history'
         )
-        resp = requests.get(url, headers=_HEADERS, timeout=15)
-        if resp.status_code != 200:
-            logger.debug(f"  {symbol} direct API: HTTP {resp.status_code}")
+        payload = _http_get_json(url, timeout=15)
+        if not payload:
             return []
-
-        payload = resp.json()
         chart = payload.get('chart', {})
         if chart.get('error'):
             logger.debug(f"  {symbol} direct API error: {chart['error']}")
@@ -146,6 +140,41 @@ def _fetch_yahoo_direct(symbol: str, buffer_start: str, end_date: str) -> list:
     except Exception as e:
         logger.debug(f"  {symbol} direct API exception: {e}")
         return []
+
+
+def _http_get_json(url: str, timeout: int = 15) -> dict:
+    """
+    Fetch JSON using requests when available, otherwise urllib (stdlib only).
+    This keeps Time Machine working in Node-only deployments without Python deps.
+    """
+    try:
+        import requests
+
+        resp = requests.get(url, headers=_HEADERS, timeout=timeout)
+        if resp.status_code != 200:
+            logger.debug(f"Direct API HTTP {resp.status_code} for {url[:120]}")
+            return {}
+        return resp.json() if resp.content else {}
+    except ImportError:
+        pass
+    except Exception as e:
+        logger.debug(f"requests fetch failed: {e}")
+
+    try:
+        req = urllib.request.Request(url, headers=_HEADERS)
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            raw = resp.read()
+            if not raw:
+                return {}
+            import json
+
+            return json.loads(raw.decode('utf-8'))
+    except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError) as e:
+        logger.debug(f"urllib fetch failed: {e}")
+        return {}
+    except Exception as e:
+        logger.debug(f"urllib unexpected failure: {e}")
+        return {}
 
 
 # ─── Source 3: EGX30 equal-weight proxy ───────────────────────────────────────
@@ -364,11 +393,11 @@ def fetch_historical_prices(start_date: str, end_date: str) -> dict:
           ...
         }
     """
+    yf = None
     try:
-        import yfinance as yf
+        import yfinance as yf  # type: ignore[assignment]
     except ImportError:
-        logger.error("yfinance not installed")
-        return {}
+        logger.warning("yfinance not installed; using direct Yahoo/API + DB fallbacks only")
 
     # Add a generous warmup buffer so short user ranges still have enough
     # prior sessions for SMA/RSI indicators (EGX has fewer weekly sessions).
@@ -382,20 +411,22 @@ def fetch_historical_prices(start_date: str, end_date: str) -> dict:
 
     # ── Step 1: yfinance batch ────────────────────────────────────────────────
     result: dict = {}
-    try:
-        data = yf.download(
-            tickers=EGX30_SYMBOLS,
-            start=buffer_start,
-            end=end_date,
-            interval='1d',
-            group_by='ticker',
-            auto_adjust=True,
-            progress=False,
-            threads=True,
-        )
-    except Exception as e:
-        logger.error(f"yfinance batch download failed: {e}")
-        data = None
+    data = None
+    if yf is not None:
+        try:
+            data = yf.download(
+                tickers=EGX30_SYMBOLS,
+                start=buffer_start,
+                end=end_date,
+                interval='1d',
+                group_by='ticker',
+                auto_adjust=True,
+                progress=False,
+                threads=True,
+            )
+        except Exception as e:
+            logger.error(f"yfinance batch download failed: {e}")
+            data = None
 
     if data is not None and not data.empty:
         for symbol in EGX30_SYMBOLS:
