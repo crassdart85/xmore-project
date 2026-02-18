@@ -1,0 +1,2 @@
+"""Arabic sentiment subpackage."""
+

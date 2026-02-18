@@ -216,6 +216,19 @@ Stock trading prediction system with web dashboard. Uses multiple AI agents to p
 - Prediction horizon: 1 day (changed from 7 days for faster evaluation)
 
 ## Recent Changes (Feb 2026)
+- **Event Intelligence + Arabic Sentiment Layer (Feb 18, 2026)**:
+  - Added new production package `xmore_event_intel/` with full modular architecture:
+    - Source scrapers: Enterprise, Daily News Egypt, Egypt Today, Mubasher Info, and EGX disclosures (`sources/*.py`)
+    - Arabic sentiment stack: preprocessor, deterministic lexicon, strict JSON-schema LLM extractor (`arabic_sentiment/*.py`)
+    - Deterministic event tagging engine (`event_tagging.py`)
+    - Structured earnings delta extraction (`earnings_extractor.py`)
+    - Historical validation + adaptive event-weighting loop (`performance_validator.py`)
+    - Unified SQLite/PostgreSQL persistence for `articles`, `structured_events`, `sentiment_scores`, `performance_metrics` (+ `event_type_weights`) (`storage.py`)
+    - End-to-end orchestrator CLI (`main.py`)
+  - Live test executed successfully:
+    - Command: `XMORE_EVENT_MAX_ARTICLES_PER_SOURCE=3`, `XMORE_EVENT_DELAY_SECONDS=0.1`, `XMORE_EVENT_TIMEOUT_SECONDS=8`, `XMORE_EVENT_MAX_RETRIES=1`, then `python -m xmore_event_intel.main --limit 10 --log-level INFO`
+    - Result: `articles_collected=6`, `articles_processed=6`, `rolling_accuracy_30=None`, `corr_1d=None`, `corr_3d=None`, `corr_5d=None`
+    - Runtime observations: some sources were skipped due robots/availability constraints (Daily News Egypt, Egypt Today, EGX robots fetch instability), while pipeline remained compliant and completed.
 - **Time Machine Data Reliability Upgrade (Feb 18, 2026)**:
   - Refactored `engines/timemachine_data.py` to use a multi-source fetch strategy for EGX30 history:
     - Source 1: `yfinance` batch download (primary path)
