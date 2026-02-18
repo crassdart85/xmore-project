@@ -1,13 +1,17 @@
 """
 Time Machine Data Fetcher
-Fetches historical OHLCV from Yahoo Finance for a given date range.
-Called by timemachine.py orchestrator. All data stays in-memory — nothing is
-written to the database.
+Fetches historical OHLCV for all EGX30 stocks using a multi-source strategy:
 
+  1. yfinance batch (primary — fast, gets ~27/30 stocks)
+  2. Direct Yahoo Finance v8/chart API via requests (fallback per-symbol)
+  3. EGX30 equal-weight proxy (computed from available stocks — permanent benchmark fix)
+
+All data stays in-memory — nothing is written to the database.
 EGX stocks use .CA suffix on Yahoo Finance (e.g. COMI.CA, HRHO.CA).
 """
 
 import logging
+import time
 from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
@@ -56,10 +60,172 @@ STOCK_NAMES = {
     'TALM.CA': ('Taaleem Management', 'تعليم لإدارة المدارس'),
 }
 
+# Shared session headers — mimic a real browser to avoid 429 blocks
+_HEADERS = {
+    'User-Agent': (
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) '
+        'AppleWebKit/537.36 (KHTML, like Gecko) '
+        'Chrome/121.0.0.0 Safari/537.36'
+    ),
+    'Accept': 'application/json',
+}
+
+
+# ─── Source 2: Direct Yahoo Finance v8/chart API ──────────────────────────────
+
+def _fetch_yahoo_direct(symbol: str, buffer_start: str, end_date: str) -> list:
+    """
+    Fallback for symbols that yfinance batch returns 0 rows (e.g. ESRS.CA).
+    Calls query1.finance.yahoo.com/v8/finance/chart/ directly with requests.
+
+    Returns list of row dicts (same format as yfinance parser), or [] on failure.
+    """
+    try:
+        import requests
+    except ImportError:
+        return []
+
+    try:
+        p1 = int(datetime.strptime(buffer_start, '%Y-%m-%d').timestamp())
+        p2 = int(datetime.strptime(end_date, '%Y-%m-%d').timestamp()) + 86400  # inclusive
+        url = (
+            f'https://query1.finance.yahoo.com/v8/finance/chart/{symbol}'
+            f'?period1={p1}&period2={p2}&interval=1d&events=history'
+        )
+        resp = requests.get(url, headers=_HEADERS, timeout=15)
+        if resp.status_code != 200:
+            logger.debug(f"  {symbol} direct API: HTTP {resp.status_code}")
+            return []
+
+        payload = resp.json()
+        chart = payload.get('chart', {})
+        if chart.get('error'):
+            logger.debug(f"  {symbol} direct API error: {chart['error']}")
+            return []
+
+        result_arr = chart.get('result', [])
+        if not result_arr:
+            return []
+
+        item = result_arr[0]
+        timestamps = item.get('timestamp', [])
+        indicators = item.get('indicators', {})
+        quotes = indicators.get('quote', [{}])[0]
+        adj = indicators.get('adjclose', [{}])
+        adj_close = adj[0].get('adjclose', []) if adj else []
+
+        opens = quotes.get('open', [])
+        highs = quotes.get('high', [])
+        lows = quotes.get('low', [])
+        closes = quotes.get('close', [])
+        volumes = quotes.get('volume', [])
+
+        rows = []
+        for i, ts in enumerate(timestamps):
+            # Skip rows where close is None (market holidays / missing data)
+            close_val = (adj_close[i] if adj_close and i < len(adj_close) else None) or (closes[i] if i < len(closes) else None)
+            if close_val is None:
+                continue
+            date_str = datetime.utcfromtimestamp(ts).strftime('%Y-%m-%d')
+            rows.append({
+                'date': date_str,
+                'open': round(float(opens[i]) if i < len(opens) and opens[i] else close_val, 2),
+                'high': round(float(highs[i]) if i < len(highs) and highs[i] else close_val, 2),
+                'low': round(float(lows[i]) if i < len(lows) and lows[i] else close_val, 2),
+                'close': round(float(close_val), 2),
+                'volume': int(volumes[i]) if i < len(volumes) and volumes[i] else 0,
+            })
+        return rows
+
+    except Exception as e:
+        logger.debug(f"  {symbol} direct API exception: {e}")
+        return []
+
+
+# ─── Source 3: EGX30 equal-weight proxy ───────────────────────────────────────
+
+def _compute_egx30_proxy(price_data: dict, buffer_start: str) -> list:
+    """
+    Build an equal-weight EGX30 proxy from available component stocks.
+    Each stock is normalised to 1.0 at the earliest shared date, then averaged.
+
+    Returns list of {date, open, high, low, close, volume} dicts stored under
+    the key '^EGX30' in the caller's result dict.
+    """
+    # Collect all dates from component stocks (exclude the proxy key itself)
+    component_data = {
+        sym: price_data[sym]
+        for sym in EGX30_SYMBOLS
+        if sym in price_data and price_data[sym]
+    }
+
+    if not component_data:
+        return []
+
+    # Build date → {symbol: close} map
+    date_map: dict = {}
+    for sym, rows in component_data.items():
+        for row in rows:
+            date_map.setdefault(row['date'], {})[sym] = row['close']
+
+    if not date_map:
+        return []
+
+    sorted_dates = sorted(date_map.keys())
+
+    # Find base date: earliest date where ≥ 50% of component stocks have data
+    min_stocks = max(3, len(component_data) // 2)
+    base_date = None
+    base_prices: dict = {}
+    for d in sorted_dates:
+        present = {sym: date_map[d][sym] for sym in date_map[d]}
+        if len(present) >= min_stocks:
+            base_date = d
+            base_prices = present
+            break
+
+    if not base_date:
+        return []
+
+    # Compute proxy value for each date
+    proxy_rows = []
+    for d in sorted_dates:
+        day_prices = date_map[d]
+        # Only use stocks that have both a base price and today's price
+        ratios = []
+        for sym, base_px in base_prices.items():
+            if sym in day_prices and base_px > 0:
+                ratios.append(day_prices[sym] / base_px)
+
+        if not ratios:
+            continue
+
+        avg = sum(ratios) / len(ratios)
+        # Scale to a realistic EGX30-like index starting at 30000
+        index_val = round(avg * 30000, 2)
+        proxy_rows.append({
+            'date': d,
+            'open': index_val,
+            'high': index_val,
+            'low': index_val,
+            'close': index_val,
+            'volume': 0,
+        })
+
+    logger.info(f"  EGX30 proxy: {len(proxy_rows)} days from {len(base_prices)} stocks")
+    return proxy_rows
+
+
+# ─── Public API ───────────────────────────────────────────────────────────────
 
 def fetch_historical_prices(start_date: str, end_date: str) -> dict:
     """
-    Fetch OHLCV data from Yahoo Finance for all EGX30 stocks + EGX30 index.
+    Fetch OHLCV data for all EGX30 stocks + EGX30 benchmark.
+
+    Strategy:
+      1. yfinance batch download (fast primary source)
+      2. Direct Yahoo Finance v8 API per-symbol (fallback for batch failures)
+      3. EGX30 equal-weight proxy (computed from step-1+2 data — always present)
 
     Args:
         start_date: "YYYY-MM-DD"
@@ -67,11 +233,9 @@ def fetch_historical_prices(start_date: str, end_date: str) -> dict:
 
     Returns:
         {
-          "COMI.CA": [
-            {"date": "2025-06-15", "open": 62.0, "high": 63.5, "low": 61.8, "close": 63.2, "volume": 1500000},
-            ...
-          ],
-          "^EGX30": [...],
+          "COMI.CA": [{"date": "2025-06-15", "open": 62.0, "high": 63.5,
+                       "low": 61.8, "close": 63.2, "volume": 1500000}, ...],
+          "^EGX30":  [{"date": "2025-06-15", "close": 30250.0, ...}, ...],
           ...
         }
     """
@@ -81,58 +245,80 @@ def fetch_historical_prices(start_date: str, end_date: str) -> dict:
         logger.error("yfinance not installed")
         return {}
 
-    all_symbols = EGX30_SYMBOLS + ['^EGX30']
+    # Add 60 days buffer so TA indicators have warmup data
+    buffer_start = (
+        datetime.strptime(start_date, '%Y-%m-%d') - timedelta(days=60)
+    ).strftime('%Y-%m-%d')
 
-    # Add 60 days buffer before start_date so TA indicators have warmup data
-    buffer_start = (datetime.strptime(start_date, '%Y-%m-%d') - timedelta(days=60)).strftime('%Y-%m-%d')
+    logger.info(
+        f"Fetching {len(EGX30_SYMBOLS)} EGX stocks from {buffer_start} to {end_date}"
+    )
 
-    logger.info(f"Fetching {len(all_symbols)} symbols from {buffer_start} to {end_date}")
-
+    # ── Step 1: yfinance batch ────────────────────────────────────────────────
+    result: dict = {}
     try:
         data = yf.download(
-            tickers=all_symbols,
+            tickers=EGX30_SYMBOLS,
             start=buffer_start,
             end=end_date,
             interval='1d',
             group_by='ticker',
             auto_adjust=True,
             progress=False,
-            threads=True
+            threads=True,
         )
     except Exception as e:
-        logger.error(f"yfinance download failed: {e}")
-        return {}
+        logger.error(f"yfinance batch download failed: {e}")
+        data = None
 
-    if data is None or data.empty:
-        logger.warning("yfinance returned empty data")
-        return {}
-
-    result = {}
-    for symbol in all_symbols:
-        try:
-            if len(all_symbols) > 1:
+    if data is not None and not data.empty:
+        for symbol in EGX30_SYMBOLS:
+            try:
                 df = data[symbol].dropna(subset=['Close'])
-            else:
-                df = data.dropna(subset=['Close'])
+                rows = []
+                for idx, row in df.iterrows():
+                    rows.append({
+                        'date': idx.strftime('%Y-%m-%d'),
+                        'open': round(float(row['Open']), 2),
+                        'high': round(float(row['High']), 2),
+                        'low': round(float(row['Low']), 2),
+                        'close': round(float(row['Close']), 2),
+                        'volume': int(row['Volume']) if row['Volume'] > 0 else 0,
+                    })
+                if rows:
+                    result[symbol] = rows
+                    logger.info(f"  [batch] {symbol}: {len(rows)} days")
+            except Exception as e:
+                logger.debug(f"  [batch] {symbol}: failed ({e})")
+    else:
+        logger.warning("yfinance batch returned no data — will use direct API for all symbols")
 
-            rows = []
-            for idx, row in df.iterrows():
-                rows.append({
-                    'date': idx.strftime('%Y-%m-%d'),
-                    'open': round(float(row['Open']), 2),
-                    'high': round(float(row['High']), 2),
-                    'low': round(float(row['Low']), 2),
-                    'close': round(float(row['Close']), 2),
-                    'volume': int(row['Volume']) if row['Volume'] > 0 else 0
-                })
+    # ── Step 2: direct Yahoo v8 API for symbols that batch missed ────────────
+    missing = [s for s in EGX30_SYMBOLS if s not in result]
+    if missing:
+        logger.info(f"Step 2: Direct Yahoo API fallback for {len(missing)} symbols: {missing}")
+        for symbol in missing:
+            rows = _fetch_yahoo_direct(symbol, buffer_start, end_date)
             if rows:
                 result[symbol] = rows
-                logger.info(f"  {symbol}: {len(rows)} days")
-        except Exception as e:
-            # Skip symbols that fail — some EGX stocks may not have full history
-            logger.debug(f"  {symbol}: skipped ({e})")
+                logger.info(f"  [direct] {symbol}: {len(rows)} days")
+            else:
+                logger.debug(f"  [direct] {symbol}: no data (delisted or unavailable)")
+            # Small delay to avoid rate-limiting when fetching many symbols
+            time.sleep(0.3)
 
-    logger.info(f"Fetched data for {len(result)} symbols")
+    # ── Step 3: EGX30 equal-weight proxy ─────────────────────────────────────
+    logger.info("Step 3: Building EGX30 equal-weight proxy benchmark...")
+    proxy = _compute_egx30_proxy(result, buffer_start)
+    if proxy:
+        result['^EGX30'] = proxy
+    else:
+        logger.warning("Could not build EGX30 proxy (not enough component data)")
+
+    logger.info(
+        f"Data fetch complete: {len([k for k in result if k != '^EGX30'])} stocks + "
+        f"{'EGX30 proxy' if '^EGX30' in result else 'no benchmark'}"
+    )
     return result
 
 

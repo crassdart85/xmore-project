@@ -3,7 +3,7 @@
 ## Project Overview
 Stock trading prediction system with web dashboard. Uses multiple AI agents to predict stock movements.
 
-**Last Updated**: February 15, 2026
+**Last Updated**: February 18, 2026
 
 ## Deployment Architecture
 - **Render.com** - Hosts web dashboard + PostgreSQL database
@@ -216,6 +216,15 @@ Stock trading prediction system with web dashboard. Uses multiple AI agents to p
 - Prediction horizon: 1 day (changed from 7 days for faster evaluation)
 
 ## Recent Changes (Feb 2026)
+- **Time Machine Data Reliability Upgrade (Feb 18, 2026)**:
+  - Refactored `engines/timemachine_data.py` to use a multi-source fetch strategy for EGX30 history:
+    - Source 1: `yfinance` batch download (primary path)
+    - Source 2: direct Yahoo Finance v8/chart API fallback per-symbol via `requests`
+    - Source 3: computed `^EGX30` equal-weight proxy benchmark from available EGX30 component prices
+  - Added direct API parser and resilient row shaping for missing OHLC fields and null closes.
+  - Added browser-like request headers and a small per-symbol delay in fallback mode to reduce Yahoo rate-limit failures.
+  - Updated logging and fetch summary flow to clearly report batch coverage, fallback-recovered symbols, and proxy creation status.
+  - Kept Time Machine ingestion in-memory only (no direct DB writes in this module); local `stocks.db` was updated in the working tree by runtime activity.
 - **Auth + Deployment Hotfix (Feb 15, 2026)**:
   - Updated `web-ui/middleware/auth.js` startup behavior:
     - Production now auto-generates an ephemeral JWT secret if `JWT_SECRET` is missing (service can boot)
