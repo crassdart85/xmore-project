@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="style.css?v=20260215a">
     <link rel="stylesheet" href="auth.css?v=20260215a">
     <link rel="stylesheet" href="performance-dashboard.css?v=20260215a">
+    <link rel="stylesheet" href="timemachine.css?v=20260218a">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/notyf@3/notyf.min.css">
 </head>
 
@@ -74,6 +75,7 @@
             <button class="tab-btn" data-tab="performance" id="tabPerformance" role="tab" aria-selected="false" aria-controls="tab-performance">Performance</button>
             <button class="tab-btn" data-tab="results" id="tabResults" role="tab" aria-selected="false" aria-controls="tab-results">Results</button>
             <button class="tab-btn" data-tab="prices" id="tabPrices" role="tab" aria-selected="false" aria-controls="tab-prices">Prices</button>
+            <button class="tab-btn" data-tab="timemachine" id="tabTimeMachine" role="tab" aria-selected="false" aria-controls="tab-timemachine">Time Machine</button>
         </nav>
 
         <!-- Tab: Watchlist (requires login) -->
@@ -255,6 +257,122 @@
             </div>
         </section>
 
+        <!-- Tab: Time Machine -->
+        <section class="tab-content" id="tab-timemachine" role="tabpanel" aria-labelledby="tabTimeMachine">
+            <div class="section-header">
+                <p class="section-subtitle" id="timemachineBrief">Enter an amount and a past date to see what your investment would be worth today if you had followed Xmore's recommendations.</p>
+            </div>
+
+            <!-- Input Form -->
+            <div class="tm-input-card">
+                <h3 data-translate="tmTitle">What If You Had Invested?</h3>
+                <p class="tm-subtitle" data-translate="tmSubtitle">See how much your money would be worth if you had followed Xmore's best recommendations.</p>
+
+                <div class="tm-form">
+                    <div class="tm-field">
+                        <label data-translate="tmAmountLabel">Investment Amount (EGP)</label>
+                        <div class="tm-input-group">
+                            <span class="tm-currency">EGP</span>
+                            <input type="number" id="tmAmount" min="5000" max="10000000" step="1000" value="50000" placeholder="50,000">
+                        </div>
+                        <div class="tm-slider-row">
+                            <input type="range" id="tmAmountSlider" min="5000" max="500000" step="5000" value="50000">
+                            <span class="tm-amount-display" id="tmAmountDisplay">50,000 EGP</span>
+                        </div>
+                    </div>
+
+                    <div class="tm-field">
+                        <label data-translate="tmDateLabel">Starting From</label>
+                        <input type="date" id="tmStartDate">
+                        <div class="tm-date-presets">
+                            <button class="tm-preset" data-months="3" data-translate="tm3Months">3 months ago</button>
+                            <button class="tm-preset" data-months="6" data-translate="tm6Months">6 months ago</button>
+                            <button class="tm-preset" data-months="12" data-translate="tm12Months">1 year ago</button>
+                            <button class="tm-preset" data-months="0" data-translate="tmMaxRange">Max range</button>
+                        </div>
+                    </div>
+
+                    <button id="tmSimulateBtn" class="tm-simulate-btn" data-translate="tmSimulate">Simulate</button>
+                </div>
+            </div>
+
+            <!-- Results (hidden until simulation runs) -->
+            <div id="tmResults" class="tm-results" style="display:none">
+                <!-- Hero Result Card -->
+                <div class="tm-hero-card">
+                    <div class="tm-hero-amount">
+                        <span class="tm-label" data-translate="tmYouInvested">You invested</span>
+                        <span class="tm-invested" id="tmInvestedAmount"></span>
+                    </div>
+                    <div class="tm-hero-arrow">&rarr;</div>
+                    <div class="tm-hero-amount tm-hero-final">
+                        <span class="tm-label" data-translate="tmWouldBeWorth">Would be worth today</span>
+                        <span class="tm-final" id="tmFinalAmount"></span>
+                    </div>
+                    <div class="tm-hero-return" id="tmReturnBadge"></div>
+                </div>
+
+                <!-- Key Metrics Row -->
+                <div class="tm-metrics-row">
+                    <div class="tm-metric">
+                        <span class="tm-metric-label" data-translate="tmAlpha">Alpha vs EGX30</span>
+                        <span class="tm-metric-value" id="tmAlpha"></span>
+                        <span class="tm-metric-sub" data-translate="tmVsEGX30">outperformance</span>
+                    </div>
+                    <div class="tm-metric">
+                        <span class="tm-metric-label" data-translate="tmTotalTrades">Total Trades</span>
+                        <span class="tm-metric-value" id="tmTotalTrades"></span>
+                    </div>
+                    <div class="tm-metric">
+                        <span class="tm-metric-label" data-translate="tmWinRate">Win Rate</span>
+                        <span class="tm-metric-value" id="tmWinRate"></span>
+                    </div>
+                    <div class="tm-metric">
+                        <span class="tm-metric-label" data-translate="tmMaxDrawdown">Max Drawdown</span>
+                        <span class="tm-metric-value" id="tmMaxDrawdown"></span>
+                    </div>
+                </div>
+
+                <!-- Equity Curve Chart -->
+                <div class="tm-chart-container">
+                    <h4 data-translate="tmEquityCurve">Your Money Over Time</h4>
+                    <div class="tm-chart-legend">
+                        <span class="tm-legend-xmore">&#9679; Xmore</span>
+                        <span class="tm-legend-egx30">&#9679; EGX30</span>
+                    </div>
+                    <div id="tmEquityChart" style="width:100%;min-height:300px;"></div>
+                </div>
+
+                <!-- Monthly Performance Table -->
+                <div class="tm-monthly">
+                    <h4 data-translate="tmMonthlyBreakdown">Monthly Returns</h4>
+                    <div class="tm-monthly-table" id="tmMonthlyTable"></div>
+                </div>
+
+                <!-- Top Trades -->
+                <div class="tm-trades-section">
+                    <h4 data-translate="tmTopTrades">Best Trades That Built Your Returns</h4>
+                    <div id="tmTopTrades" class="tm-trade-cards"></div>
+                </div>
+
+                <!-- Timeline -->
+                <div class="tm-timeline-section">
+                    <h4 data-translate="tmTimeline">Investment Timeline</h4>
+                    <div id="tmTimeline" class="tm-timeline"></div>
+                </div>
+
+                <!-- Disclaimer -->
+                <div class="tm-disclaimer" data-translate="tmDisclaimer">This simulation uses actual historical Xmore recommendations and real EGX price data. Past performance does not guarantee future results. This is not financial advice.</div>
+            </div>
+
+            <!-- Loading state -->
+            <div id="tmLoading" class="tm-loading" style="display:none">
+                <div class="tm-spinner"></div>
+                <p data-translate="tmCalculating">Traveling through time...</p>
+                <p class="tm-loading-sub" data-translate="tmAnalyzing">Replaying Xmore recommendations day by day</p>
+            </div>
+        </section>
+
         <footer>
             <button id="refreshBtn" class="refresh-btn">Refresh Data</button>
             <div class="disclaimer-block">
@@ -306,6 +424,7 @@
     <script src="trades.js?v=20260215a"></script>
     <script src="briefing.js?v=20260215a"></script>
     <script src="performance-dashboard.js?v=20260215a"></script>
+    <script src="timemachine.js?v=20260218a"></script>
 </body>
 
 </html>

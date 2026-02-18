@@ -412,6 +412,41 @@ const TRANSLATIONS = {
 
         // Accessibility (Upgrade 7)
         skipToContent: 'Skip to content',
+
+        // Time Machine
+        tabTimeMachine: 'Time Machine',
+        timemachineBrief: "Enter an amount and a past date to see what your investment would be worth today if you had followed Xmore's recommendations.",
+        tmTitle: 'What If You Had Invested?',
+        tmSubtitle: "See how much your money would be worth if you had followed Xmore's best recommendations.",
+        tmAmountLabel: 'Investment Amount (EGP)',
+        tmDateLabel: 'Starting From',
+        tm3Months: '3 months ago',
+        tm6Months: '6 months ago',
+        tm12Months: '1 year ago',
+        tmMaxRange: 'Max range',
+        tmSimulate: 'Simulate',
+        tmYouInvested: 'You invested',
+        tmWouldBeWorth: 'Would be worth today',
+        tmAlpha: 'Alpha vs EGX30',
+        tmVsEGX30: 'outperformance',
+        tmTotalTrades: 'Total Trades',
+        tmWinRate: 'Win Rate',
+        tmMaxDrawdown: 'Max Drawdown',
+        tmEquityCurve: 'Your Money Over Time',
+        tmMonthlyBreakdown: 'Monthly Returns',
+        tmMonth: 'Month',
+        tmTopTrades: 'Best Trades That Built Your Returns',
+        tmTimeline: 'Investment Timeline',
+        tmCalculating: 'Traveling through time...',
+        tmAnalyzing: 'Replaying Xmore recommendations day by day',
+        tmDisclaimer: 'This simulation uses actual historical Xmore recommendations and real EGX price data. Past performance does not guarantee future results. This is not financial advice.',
+        tmProfit: 'Profit',
+        tmLoss: 'Loss',
+        tmBought: 'Bought',
+        tmSold: 'Sold',
+        tmHeldFor: 'Held for',
+        tmDays: 'days',
+        tmInvalidAmount: 'Amount must be between 5,000 and 10,000,000 EGP',
     },
     ar: {
         title: 'إكسمور',
@@ -582,6 +617,41 @@ const TRANSLATIONS = {
 
         // Accessibility (Upgrade 7)
         skipToContent: 'الانتقال إلى المحتوى',
+
+        // Time Machine
+        tabTimeMachine: 'آلة الزمن',
+        timemachineBrief: 'أدخل مبلغاً وتاريخاً سابقاً لمعرفة قيمة استثمارك اليوم لو اتبعت توصيات Xmore.',
+        tmTitle: 'ماذا لو كنت استثمرت؟',
+        tmSubtitle: 'شاهد كم ستكون قيمة أموالك لو اتبعت أفضل توصيات Xmore.',
+        tmAmountLabel: 'مبلغ الاستثمار (جنيه)',
+        tmDateLabel: 'بدءاً من',
+        tm3Months: 'منذ ٣ أشهر',
+        tm6Months: 'منذ ٦ أشهر',
+        tm12Months: 'منذ سنة',
+        tmMaxRange: 'أقصى مدة',
+        tmSimulate: 'محاكاة',
+        tmYouInvested: 'لو استثمرت',
+        tmWouldBeWorth: 'ستصبح قيمتها اليوم',
+        tmAlpha: 'ألفا مقابل EGX30',
+        tmVsEGX30: 'تفوق على المؤشر',
+        tmTotalTrades: 'إجمالي الصفقات',
+        tmWinRate: 'نسبة الفوز',
+        tmMaxDrawdown: 'أقصى تراجع',
+        tmEquityCurve: 'أموالك عبر الزمن',
+        tmMonthlyBreakdown: 'العوائد الشهرية',
+        tmMonth: 'الشهر',
+        tmTopTrades: 'أفضل الصفقات التي بنت أرباحك',
+        tmTimeline: 'الجدول الزمني للاستثمار',
+        tmCalculating: '...نسافر عبر الزمن',
+        tmAnalyzing: 'نعيد تشغيل توصيات Xmore يوماً بيوم',
+        tmDisclaimer: 'تستخدم هذه المحاكاة توصيات Xmore التاريخية الفعلية وبيانات أسعار البورصة المصرية الحقيقية. الأداء السابق لا يضمن النتائج المستقبلية. هذا ليس نصيحة مالية.',
+        tmProfit: 'ربح',
+        tmLoss: 'خسارة',
+        tmBought: 'شراء',
+        tmSold: 'بيع',
+        tmHeldFor: 'مدة الاحتفاظ',
+        tmDays: 'يوم',
+        tmInvalidAmount: 'يجب أن يكون المبلغ بين ٥٬٠٠٠ و ١٠٬٠٠٠٬٠٠٠ جنيه',
     }
 };
 
@@ -709,7 +779,7 @@ function applyLanguage() {
     });
 
     // Tab buttons
-    const tabs = ['tabPredictions', 'tabBriefing', 'tabTrades', 'tabPortfolio', 'tabWatchlist', 'tabConsensus', 'tabPerformance', 'tabResults', 'tabPrices'];
+    const tabs = ['tabPredictions', 'tabBriefing', 'tabTrades', 'tabPortfolio', 'tabWatchlist', 'tabConsensus', 'tabPerformance', 'tabResults', 'tabPrices', 'tabTimeMachine'];
     tabs.forEach(id => {
         const btn = document.getElementById(id);
         if (btn) btn.textContent = t(id);
@@ -724,7 +794,7 @@ function applyLanguage() {
     if (perfMonthlyTitle) perfMonthlyTitle.textContent = t('monthlyTrend');
     const resultsTitle = document.getElementById('resultsTitle');
     if (resultsTitle) resultsTitle.textContent = t('tabResults');
-    const briefIds = ['predictionsBrief', 'watchlistBrief', 'performanceBrief', 'consensusBrief', 'resultsBrief', 'pricesBrief', 'briefingBrief', 'tradesBrief', 'portfolioBrief'];
+    const briefIds = ['predictionsBrief', 'watchlistBrief', 'performanceBrief', 'consensusBrief', 'resultsBrief', 'pricesBrief', 'briefingBrief', 'tradesBrief', 'portfolioBrief', 'timemachineBrief'];
     briefIds.forEach(id => {
         const el = document.getElementById(id);
         if (el) el.textContent = t(id);
@@ -767,6 +837,7 @@ function applyLanguage() {
     if (typeof updateWatchlistLanguage === 'function') updateWatchlistLanguage();
     if (typeof updateTradesLanguage === 'function') updateTradesLanguage();
     if (typeof updateBriefingLanguage === 'function') updateBriefingLanguage();
+    if (typeof updateTimeMachineLanguage === 'function') updateTimeMachineLanguage();
 }
 
 // ============================================
@@ -813,6 +884,7 @@ function switchToTab(tabId, updateHash) {
     if (tabId === 'trades' && typeof loadTrades === 'function') loadTrades();
     if (tabId === 'portfolio' && typeof loadPortfolio === 'function') loadPortfolio();
     if (tabId === 'performance' && typeof loadPerformanceDashboard === 'function') loadPerformanceDashboard();
+    if (tabId === 'timemachine' && typeof loadTimeMachine === 'function') loadTimeMachine();
 }
 
 function initTabs() {
