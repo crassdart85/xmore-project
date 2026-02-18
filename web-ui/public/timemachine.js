@@ -138,16 +138,24 @@
             const data = await res.json();
 
             if (!res.ok || data.error) {
-                throw new Error(data.error || data.message || 'Simulation failed');
+                // Use friendly message, fall back to error code
+                const msg = data.message || data.error || 'Simulation failed';
+                throw new Error(msg);
             }
 
             renderResults(data.simulation || data);
         } catch (err) {
             console.error('Simulation error:', err);
-            if (typeof showToast === 'function') showToast('error', err.message);
+            const _t = typeof t === 'function' ? t : (k) => k;
+            const esc = typeof escapeHtml === 'function' ? escapeHtml : (s) => s;
             if (resultsDiv) {
                 resultsDiv.style.display = 'block';
-                resultsDiv.innerHTML = `<div class="tm-error"><p>${typeof escapeHtml === 'function' ? escapeHtml(err.message) : err.message}</p></div>`;
+                resultsDiv.innerHTML = `
+                    <div class="tm-empty-state">
+                        <div class="tm-empty-icon">📭</div>
+                        <h3>${esc(err.message)}</h3>
+                        <p class="tm-empty-hint">${esc(_t('tmNoDataHint'))}</p>
+                    </div>`;
             }
         } finally {
             if (loadingDiv) loadingDiv.style.display = 'none';

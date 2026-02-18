@@ -447,6 +447,7 @@ const TRANSLATIONS = {
         tmHeldFor: 'Held for',
         tmDays: 'days',
         tmInvalidAmount: 'Amount must be between 5,000 and 10,000,000 EGP',
+        tmNoDataHint: 'Xmore needs trade recommendation history to run a simulation. Try a more recent date range, or check back once the daily pipeline has generated recommendations.',
     },
     ar: {
         title: 'إكسمور',
@@ -652,6 +653,7 @@ const TRANSLATIONS = {
         tmHeldFor: 'مدة الاحتفاظ',
         tmDays: 'يوم',
         tmInvalidAmount: 'يجب أن يكون المبلغ بين ٥٬٠٠٠ و ١٠٬٠٠٠٬٠٠٠ جنيه',
+        tmNoDataHint: 'يحتاج Xmore إلى سجل توصيات التداول لتشغيل المحاكاة. جرّب نطاق تاريخ أحدث، أو عُد بعد أن ينشئ النظام التوصيات اليومية.',
     }
 };
 

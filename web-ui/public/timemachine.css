@@ -551,11 +551,33 @@ canvas#tmEquityChart {
     line-height: 1.5;
 }
 
-/* ─── Error ───────────────────────────────── */
-.tm-error {
+/* ─── Empty State / Error ─────────────────── */
+.tm-empty-state {
     text-align: center;
-    padding: 40px 20px;
+    padding: 60px 24px;
+    background: var(--card-bg);
+    border-radius: 16px;
+    border: 1px dashed var(--border-color);
+}
+
+.tm-empty-icon {
+    font-size: 3rem;
+    margin-bottom: 16px;
+}
+
+.tm-empty-state h3 {
+    margin: 0 0 8px;
+    font-size: 1.15rem;
+    color: var(--text-primary);
+}
+
+.tm-empty-hint {
+    margin: 0;
+    font-size: 0.9rem;
     color: var(--text-muted);
+    max-width: 480px;
+    margin: 0 auto;
+    line-height: 1.6;
 }
 
 /* ─── Responsive ──────────────────────────── */
