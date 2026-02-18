@@ -11,6 +11,7 @@ EGX stocks use .CA suffix on Yahoo Finance (e.g. COMI.CA, HRHO.CA).
 """
 
 import logging
+import os
 import sqlite3
 import time
 from datetime import datetime, timedelta
@@ -268,6 +269,70 @@ def _fetch_from_local_db(symbol: str, buffer_start: str, end_date: str) -> list:
     return rows_out
 
 
+def _fetch_from_postgres_db(symbol: str, buffer_start: str, end_date: str) -> list:
+    """
+    Read historical OHLCV from PostgreSQL prices table (Render/prod fallback).
+    """
+    database_url = os.getenv('DATABASE_URL')
+    if not database_url:
+        return []
+
+    try:
+        import psycopg2
+    except ImportError:
+        return []
+
+    clean = symbol.replace('.CA', '')
+    conn = None
+    rows_out: list = []
+    try:
+        conn = psycopg2.connect(database_url)
+        cur = conn.cursor()
+        cur.execute(
+            """
+            SELECT date, open, high, low, close, volume
+            FROM prices
+            WHERE symbol IN (%s, %s)
+              AND date >= %s
+              AND date <= %s
+            ORDER BY date ASC
+            """,
+            (clean, symbol, buffer_start, end_date),
+        )
+        rows = cur.fetchall()
+        for r in rows:
+            try:
+                close_val = float(r[4])
+                rows_out.append({
+                    'date': str(r[0]),
+                    'open': round(float(r[1]) if r[1] is not None else close_val, 2),
+                    'high': round(float(r[2]) if r[2] is not None else close_val, 2),
+                    'low': round(float(r[3]) if r[3] is not None else close_val, 2),
+                    'close': round(close_val, 2),
+                    'volume': int(r[5]) if r[5] is not None else 0,
+                })
+            except Exception:
+                continue
+    except Exception as e:
+        logger.debug(f"  [pgdb] {symbol}: query failed ({e})")
+        return []
+    finally:
+        if conn is not None:
+            conn.close()
+
+    return rows_out
+
+
+def _fetch_from_db_fallback(symbol: str, buffer_start: str, end_date: str) -> list:
+    """
+    Prefer PostgreSQL (prod) then SQLite (local) as resilient fallback.
+    """
+    rows = _fetch_from_postgres_db(symbol, buffer_start, end_date)
+    if rows:
+        return rows
+    return _fetch_from_local_db(symbol, buffer_start, end_date)
+
+
 # ─── Public API ───────────────────────────────────────────────────────────────
 
 def fetch_historical_prices(start_date: str, end_date: str) -> dict:
@@ -362,12 +427,12 @@ def fetch_historical_prices(start_date: str, end_date: str) -> dict:
     # ── Step 3: local DB fallback for still-missing symbols ──────────────────
     still_missing = [s for s in EGX30_SYMBOLS if s not in result]
     if still_missing:
-        logger.info(f"Step 3: Local DB fallback for {len(still_missing)} symbols")
+        logger.info(f"Step 3: Database fallback for {len(still_missing)} symbols")
         for symbol in still_missing:
-            rows = _fetch_from_local_db(symbol, buffer_start, end_date)
+            rows = _fetch_from_db_fallback(symbol, buffer_start, end_date)
             if rows:
                 result[symbol] = rows
-                logger.info(f"  [localdb] {symbol}: {len(rows)} days")
+                logger.info(f"  [db] {symbol}: {len(rows)} days")
 
     # ── Step 4: EGX30 equal-weight proxy ─────────────────────────────────────
     logger.info("Step 4: Building EGX30 equal-weight proxy benchmark...")
