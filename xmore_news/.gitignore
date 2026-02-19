@@ -1,0 +1,25 @@
+# Xmore News — local ignores
+
+# Database files
+*.db
+*.db-shm
+*.db-wal
+
+# Downloaded PDFs cache
+downloaded_pdfs/
+
+# Environment config
+.env
+
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+.venv/
+venv/
+env/
