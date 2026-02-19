@@ -460,8 +460,18 @@ const TRANSLATIONS = {
         tmSubFutureLabel: '⏭ Future',
         fcTitle: 'Future Forecast',
         fcSubtitle: 'AI picks the best EGX30 stock for your horizon. 5,000 Monte Carlo paths.',
+        fcModeAuto: '🤖 AI picks for me',
+        fcModeManual: '🔍 I pick manually',
         fcEndDateLabel: 'Target Date',
         fcEndDateHint: 'Up to 30 days from today — AI picks the best EGX30 stock for you',
+        fcSymbolLabel: 'Stock Symbol',
+        fcHorizonLabel: 'Time Horizon',
+        fc3Months: '3 months',
+        fc6Months: '6 months',
+        fc1Year: '1 year',
+        fc2Years: '2 years',
+        fcRunBtnManual: 'Run Forecast',
+        fcSelectSymbol: 'Please select a stock.',
         fcScenarioLabel: 'Scenario',
         fcBase: 'Base',
         fcBaseHint: 'Historical drift',
@@ -708,8 +718,18 @@ const TRANSLATIONS = {
         tmSubFutureLabel: '⏭ المستقبل',
         fcTitle: 'التوقع المستقبلي',
         fcSubtitle: 'الذكاء الاصطناعي يختار أفضل سهم EGX30 لأفقك الزمني. ٥٬٠٠٠ مسار مونتي كارلو.',
+        fcModeAuto: '🤖 الذكاء الاصطناعي يختار لي',
+        fcModeManual: '🔍 أختار بنفسي',
         fcEndDateLabel: 'التاريخ المستهدف',
         fcEndDateHint: 'حتى ٣٠ يوماً من اليوم — الذكاء الاصطناعي يختار أفضل سهم لك',
+        fcSymbolLabel: 'رمز السهم',
+        fcHorizonLabel: 'الأفق الزمني',
+        fc3Months: '٣ أشهر',
+        fc6Months: '٦ أشهر',
+        fc1Year: 'سنة',
+        fc2Years: 'سنتان',
+        fcRunBtnManual: 'تشغيل التوقع',
+        fcSelectSymbol: 'يرجى اختيار سهم.',
         fcScenarioLabel: 'السيناريو',
         fcBase: 'قاعدي',
         fcBaseHint: 'الانجراف التاريخي',

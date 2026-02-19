@@ -410,7 +410,14 @@
                 <p class="tm-subtitle" data-translate="fcSubtitle">Monte Carlo simulation using historical drift &amp; volatility. 5,000 probabilistic paths.</p>
 
                 <div class="tm-form">
-                    <!-- Investment amount -->
+
+                    <!-- Mode toggle -->
+                    <div class="fc-mode-toggle" role="group" aria-label="Forecast mode">
+                        <button class="fc-mode-btn fc-mode-active" id="fcModeAuto" data-translate="fcModeAuto">🤖 AI picks for me</button>
+                        <button class="fc-mode-btn" id="fcModeManual" data-translate="fcModeManual">🔍 I pick manually</button>
+                    </div>
+
+                    <!-- Investment amount (always visible) -->
                     <div class="tm-field">
                         <label data-translate="tmAmountLabel">Investment Amount (EGP)</label>
                         <div class="tm-input-group">
@@ -423,14 +430,39 @@
                         </div>
                     </div>
 
-                    <!-- Target date (calendar picker, max 30 days ahead) -->
-                    <div class="tm-field">
-                        <label for="fcEndDate" data-translate="fcEndDateLabel">Target Date</label>
-                        <input type="date" id="fcEndDate" class="tm-date-input">
-                        <p class="fc-date-hint" data-translate="fcEndDateHint">Up to 30 days from today — AI picks the best EGX30 stock for you</p>
+                    <!-- AUTO MODE: date picker -->
+                    <div id="fcAutoSection">
+                        <div class="tm-field">
+                            <label for="fcEndDate" data-translate="fcEndDateLabel">Target Date</label>
+                            <input type="date" id="fcEndDate" class="tm-date-input">
+                            <p class="fc-date-hint" data-translate="fcEndDateHint">Up to 30 days from today — AI picks the best EGX30 stock for you</p>
+                        </div>
                     </div>
 
-                    <!-- Scenario -->
+                    <!-- MANUAL MODE: stock selector + horizon presets -->
+                    <div id="fcManualSection" style="display:none">
+                        <div class="tm-field">
+                            <label for="fcSymbol" data-translate="fcSymbolLabel">Stock Symbol</label>
+                            <div class="fc-symbol-wrapper">
+                                <input type="text" id="fcSymbolSearch" placeholder="Search stock…" autocomplete="off" class="fc-symbol-search">
+                                <select id="fcSymbol" class="fc-symbol-select" size="1">
+                                    <option value="">Loading stocks…</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="tm-field">
+                            <label data-translate="fcHorizonLabel">Time Horizon</label>
+                            <div class="tm-date-presets">
+                                <button class="tm-preset fc-horizon-btn fc-horizon-active" data-days="63" data-translate="fc3Months">3 months</button>
+                                <button class="tm-preset fc-horizon-btn" data-days="126" data-translate="fc6Months">6 months</button>
+                                <button class="tm-preset fc-horizon-btn" data-days="252" data-translate="fc1Year">1 year</button>
+                                <button class="tm-preset fc-horizon-btn" data-days="504" data-translate="fc2Years">2 years</button>
+                            </div>
+                            <input type="hidden" id="fcHorizon" value="63">
+                        </div>
+                    </div>
+
+                    <!-- Scenario (always visible) -->
                     <div class="tm-field">
                         <label data-translate="fcScenarioLabel">Scenario</label>
                         <div class="fc-scenario-row">
@@ -452,7 +484,7 @@
                         </div>
                     </div>
 
-                    <button id="fcRunBtn" class="tm-simulate-btn" data-translate="fcRunBtn">Run Forecast</button>
+                    <button id="fcRunBtn" class="tm-simulate-btn" id="fcRunBtn" data-translate="fcRunBtn">Find Best Stock &amp; Forecast</button>
                 </div>
             </div>
 

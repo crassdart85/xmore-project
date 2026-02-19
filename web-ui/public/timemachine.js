@@ -9,6 +9,8 @@
 (function () {
     let tmChart = null;       // LW Charts instance (Past equity curve)
     let fcBandChart = null;   // LW Charts instance (Future band chart)
+    let fcStocksLoaded = false;
+    let fcMode = 'auto';      // 'auto' | 'manual'
 
     // ─── Public entry point (called by switchToTab) ───────────
     window.loadTimeMachine = function () {
@@ -41,6 +43,8 @@
             pastBtn.classList.remove('tm-subtab-active');
             futureBtn.setAttribute('aria-selected', 'true');
             pastBtn.setAttribute('aria-selected', 'false');
+            // Load stock list on first visit to manual mode area
+            if (!fcStocksLoaded) loadForecastSymbols();
         }
 
         if (!pastBtn._tmSubBound) {
@@ -533,6 +537,39 @@
     // FUTURE TAB — Monte Carlo Forecast
     // ================================================================
 
+    // ─── Load stock list into selector ───────────────────────
+    async function loadForecastSymbols() {
+        const select = document.getElementById('fcSymbol');
+        const search = document.getElementById('fcSymbolSearch');
+        if (!select || fcStocksLoaded) return;
+        try {
+            const res = await fetch('/api/stocks', { credentials: 'include' });
+            if (!res.ok) throw new Error('Failed to load stocks');
+            const data = await res.json();
+            const stocks = data.stocks || data || [];
+            const lang = (typeof currentLang !== 'undefined') ? currentLang : 'en';
+            select.innerHTML = '<option value="">— Select stock —</option>' +
+                stocks.map(s => {
+                    const name = lang === 'ar' ? (s.name_ar || s.name_en) : (s.name_en || s.name_ar);
+                    const sym  = s.symbol.replace('.CA', '');
+                    return `<option value="${s.symbol}" data-name="${escHtml(name)}" data-sym="${escHtml(sym)}">${escHtml(sym)} — ${escHtml(name)}</option>`;
+                }).join('');
+            fcStocksLoaded = true;
+            if (search) {
+                search.addEventListener('input', () => {
+                    const q = search.value.toLowerCase();
+                    Array.from(select.options).forEach(opt => {
+                        if (!opt.value) return;
+                        const text = (opt.dataset.sym + ' ' + (opt.dataset.name || '')).toLowerCase();
+                        opt.style.display = text.includes(q) ? '' : 'none';
+                    });
+                });
+            }
+        } catch (err) {
+            if (select) select.innerHTML = '<option value="">Could not load stocks</option>';
+        }
+    }
+
     // ─── Escape helper (local fallback) ──────────────────────
     function escHtml(v) {
         return typeof escapeHtml === 'function' ? escapeHtml(v) : String(v ?? '');
@@ -575,6 +612,50 @@
             if (!datePicker.value) datePicker.value = defDate.toISOString().split('T')[0];
         }
 
+        // Mode toggle (AI auto / manual pick)
+        const modeAutoBtn   = document.getElementById('fcModeAuto');
+        const modeManualBtn = document.getElementById('fcModeManual');
+        const autoSection   = document.getElementById('fcAutoSection');
+        const manualSection = document.getElementById('fcManualSection');
+        const runBtn2       = document.getElementById('fcRunBtn');
+        const _t = typeof t === 'function' ? t : (k) => k;
+
+        function setMode(mode) {
+            fcMode = mode;
+            if (mode === 'auto') {
+                autoSection.style.display   = '';
+                manualSection.style.display = 'none';
+                modeAutoBtn.classList.add('fc-mode-active');
+                modeManualBtn.classList.remove('fc-mode-active');
+                if (runBtn2) runBtn2.setAttribute('data-translate', 'fcRunBtn');
+                if (runBtn2 && typeof t === 'function') runBtn2.textContent = t('fcRunBtn');
+            } else {
+                autoSection.style.display   = 'none';
+                manualSection.style.display = '';
+                modeManualBtn.classList.add('fc-mode-active');
+                modeAutoBtn.classList.remove('fc-mode-active');
+                if (runBtn2) runBtn2.setAttribute('data-translate', 'fcRunBtnManual');
+                if (runBtn2 && typeof t === 'function') runBtn2.textContent = t('fcRunBtnManual');
+                if (!fcStocksLoaded) loadForecastSymbols();
+            }
+        }
+
+        if (modeAutoBtn && !modeAutoBtn._modeBound) {
+            modeAutoBtn._modeBound = true;
+            modeAutoBtn.addEventListener('click', () => setMode('auto'));
+            modeManualBtn.addEventListener('click', () => setMode('manual'));
+        }
+
+        // Horizon preset buttons (manual mode)
+        document.querySelectorAll('.fc-horizon-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.fc-horizon-btn').forEach(b => b.classList.remove('fc-horizon-active'));
+                btn.classList.add('fc-horizon-active');
+                const hid = document.getElementById('fcHorizon');
+                if (hid) hid.value = btn.getAttribute('data-days');
+            });
+        });
+
         // Scenario radio buttons — highlight active
         document.querySelectorAll('input[name="fcScenario"]').forEach(radio => {
             radio.addEventListener('change', () => {
@@ -589,10 +670,9 @@
         }
     }
 
-    // ─── Run Monte Carlo forecast (auto-select mode) ──────────
+    // ─── Run Monte Carlo forecast ─────────────────────────────
     async function runForecast() {
         const amount     = parseFloat(document.getElementById('fcAmount')?.value) || 0;
-        const endDateVal = document.getElementById('fcEndDate')?.value || '';
         const scenario   = document.querySelector('input[name="fcScenario"]:checked')?.value || 'base';
         const resultsDiv = document.getElementById('fcResults');
         const loadingDiv = document.getElementById('fcLoading');
@@ -603,21 +683,34 @@
             if (typeof showToast === 'function') showToast('error', _t('tmInvalidAmount') || 'Enter a valid amount (min 1,000 EGP).');
             return;
         }
-        if (!endDateVal) {
-            if (typeof showToast === 'function') showToast('error', _t('fcSelectDate') || 'Please pick a target date.');
-            return;
-        }
 
-        // Convert calendar days to approximate trading days (×5/7)
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const endDate = new Date(endDateVal);
-        const calDays = Math.round((endDate - today) / (1000 * 60 * 60 * 24));
-        const horizon  = Math.max(5, Math.round(calDays * 5 / 7));
+        let payload = { investment_amount: amount, scenario };
 
-        if (calDays < 1) {
-            if (typeof showToast === 'function') showToast('error', _t('fcSelectDate') || 'Target date must be in the future.');
-            return;
+        if (fcMode === 'manual') {
+            // Manual: user-picked stock + preset horizon
+            const symbol  = (document.getElementById('fcSymbol')?.value || '').trim();
+            const horizon = parseInt(document.getElementById('fcHorizon')?.value, 10) || 63;
+            if (!symbol) {
+                if (typeof showToast === 'function') showToast('error', _t('fcSelectSymbol') || 'Please select a stock.');
+                return;
+            }
+            payload.symbol  = symbol;
+            payload.horizon = horizon;
+        } else {
+            // Auto: derive horizon from calendar date picker
+            const endDateVal = document.getElementById('fcEndDate')?.value || '';
+            if (!endDateVal) {
+                if (typeof showToast === 'function') showToast('error', _t('fcSelectDate') || 'Please pick a target date.');
+                return;
+            }
+            const today = new Date(); today.setHours(0, 0, 0, 0);
+            const endDate = new Date(endDateVal);
+            const calDays = Math.round((endDate - today) / (1000 * 60 * 60 * 24));
+            if (calDays < 1) {
+                if (typeof showToast === 'function') showToast('error', _t('fcSelectDate') || 'Target date must be in the future.');
+                return;
+            }
+            payload.horizon = Math.max(5, Math.round(calDays * 5 / 7));
         }
 
         if (resultsDiv) resultsDiv.style.display = 'none';
@@ -625,11 +718,10 @@
         if (runBtn) runBtn.disabled = true;
 
         try {
-            // No symbol — backend auto-selects best EGX30 stock
             const res = await fetch('/api/timemachine/forecast', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ investment_amount: amount, horizon, scenario }),
+                body: JSON.stringify(payload),
             });
             const data = await res.json();
 
