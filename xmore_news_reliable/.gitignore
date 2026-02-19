@@ -1,0 +1,20 @@
+# OAuth credentials — NEVER commit these
+credentials.json
+token.json
+
+# Runtime data
+xmore_news.db
+xmore_news.log
+*.log
+
+# Downloaded PDFs (runtime cache)
+downloaded_pdfs/*.pdf
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# Environment
+.env
