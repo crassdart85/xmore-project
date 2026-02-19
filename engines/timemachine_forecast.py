@@ -323,64 +323,184 @@ def simulate(payload: dict) -> dict:
 
 # ── Auto-selection ────────────────────────────────────────────────────────────
 
+def _batch_prices_yfinance(symbols: list, lookback_years: int = 3) -> dict:
+    """
+    ONE batch yfinance download for all symbols.
+    Returns {symbol: [close, ...]} for symbols with >= 60 data points.
+    Much faster than 30 sequential downloads.
+    """
+    try:
+        import yfinance as yf
+        end = date.today()
+        start = (end - timedelta(days=lookback_years * 365 + 60)).isoformat()
+
+        data = yf.download(
+            tickers=symbols,
+            start=start,
+            end=end.isoformat(),
+            interval='1d',
+            group_by='ticker',
+            auto_adjust=True,
+            progress=False,
+            threads=True,
+        )
+        if data is None or data.empty:
+            return {}
+
+        result = {}
+        for sym in symbols:
+            try:
+                # With group_by='ticker', columns are multi-index (metric, symbol)
+                if len(symbols) == 1:
+                    df = data
+                    close_col = 'Close'
+                else:
+                    df = data[sym]
+                    close_col = 'Close'
+
+                closes = df[close_col].dropna()
+                prices = [float(v) for v in closes.values
+                          if v is not None and not np.isnan(float(v))]
+                if len(prices) >= 60:
+                    result[sym] = prices
+            except Exception as e:
+                logger.debug("batch parse %s: %s", sym, e)
+
+        return result
+    except ImportError:
+        logger.warning("yfinance not installed; auto-select limited to DB data")
+        return {}
+    except Exception as e:
+        logger.warning("batch yfinance download failed: %s", e)
+        return {}
+
+
 def auto_select_best(amount: float, horizon_days: int, scenario: str,
                      sentiment_score: float = 0.0) -> dict:
     """
-    Run Monte Carlo on all EGX30 stocks and return the best pick.
-    Score = prob_positive * (1 + max(expected_return_pct, 0) / 100)
-    Returns the full simulate() result for the winner, plus:
-      auto_selected, auto_symbol_name_en/ar, auto_ranking (top 5)
-    """
-    ranking = []
-    for sym in EGX30_FORECAST_SYMBOLS:
-        try:
-            r = simulate({
-                'symbol': sym,
-                'investment_amount': amount,
-                'horizon': horizon_days,
-                'scenario': scenario,
-                'sentiment_score': sentiment_score,
-            })
-            if not r.get('ok'):
-                continue
-            score = (r['probability_positive'] / 100.0) * (
-                1.0 + max(r['expected_return_pct'], 0.0) / 100.0
-            )
-            ranking.append((score, r))
-        except Exception as exc:
-            logger.debug("auto-select skipped %s: %s", sym, exc)
+    Fetch prices for all EGX30 stocks in as few network calls as possible,
+    run MC on each in numpy (fast), rank by score, return best.
 
-    if not ranking:
+    Strategy:
+      1. DB lookup for all 30 symbols (fast, no network)
+      2. ONE batch yfinance download for any DB misses
+      3. Vectorised MC for each stock (numpy, <100 ms each)
+    """
+    LOOKBACK = 3  # years
+
+    # ── Step 1: DB lookup (fast) ──────────────────────────────────────────────
+    all_prices = {}
+    for sym in EGX30_FORECAST_SYMBOLS:
+        p = _prices_from_db(sym, LOOKBACK)
+        if len(p) >= 60:
+            all_prices[sym] = p
+
+    # ── Step 2: One batch yfinance call for DB misses ─────────────────────────
+    missing = [s for s in EGX30_FORECAST_SYMBOLS if s not in all_prices]
+    if missing:
+        logger.info("auto-select: %d DB hits, %d need yfinance batch",
+                    len(all_prices), len(missing))
+        batch = _batch_prices_yfinance(missing, LOOKBACK)
+        all_prices.update(batch)
+    else:
+        logger.info("auto-select: all %d stocks from DB", len(all_prices))
+
+    if not all_prices:
         return {
             'ok': False,
-            'error': 'Could not build a forecast for any EGX30 stock. '
+            'error': 'Could not fetch price data for any EGX30 stock. '
                      'Market data may be temporarily unavailable.',
         }
 
-    ranking.sort(key=lambda x: x[0], reverse=True)
+    # ── Step 3: Vectorised MC for each stock ──────────────────────────────────
+    ranked = []
+    for sym, prices in all_prices.items():
+        try:
+            mu, sigma, S0 = compute_gbm_params(prices)
+            shares = amount / S0
+            terminal_prices, mu_used = run_monte_carlo(
+                S0=S0, mu=mu, sigma=sigma,
+                horizon_days=horizon_days,
+                scenario=scenario,
+                sentiment_score=sentiment_score,
+            )
+            tv = shares * terminal_prices
+            expected = float(np.mean(tv))
+            prob_pos = float(np.mean(tv > amount)) * 100
+            exp_ret_pct = round((expected / amount - 1) * 100, 2)
+            score = (prob_pos / 100.0) * (1.0 + max(exp_ret_pct, 0.0) / 100.0)
+            ranked.append({
+                'sym': sym, 'prices': prices,
+                'mu': mu, 'mu_used': mu_used, 'sigma': sigma, 'S0': S0,
+                'tv': tv, 'expected': expected,
+                'prob_pos': prob_pos, 'exp_ret_pct': exp_ret_pct, 'score': score,
+                'pct': np.percentile(tv, [5, 25, 50, 75, 95]),
+            })
+        except Exception as exc:
+            logger.debug("MC skip %s: %s", sym, exc)
 
-    best_score, best = ranking[0]
+    if not ranked:
+        return {
+            'ok': False,
+            'error': 'Monte Carlo failed for all available EGX30 stocks.',
+        }
 
-    # Build top-5 summary
+    ranked.sort(key=lambda x: x['score'], reverse=True)
+    w = ranked[0]  # winner
+
+    # ── Step 4: Build full result for the winner ──────────────────────────────
+    counts, edges = np.histogram(w['tv'], bins=30)
+    band_data = build_band_data(amount, w['mu_used'], w['sigma'], horizon_days)
+    name_en, name_ar = STOCK_NAMES.get(w['sym'], (w['sym'].replace('.CA', ''),
+                                                    w['sym'].replace('.CA', '')))
+
     top5 = []
-    for sc, r in ranking[:5]:
-        name_en, name_ar = STOCK_NAMES.get(r['symbol'], (r['symbol'], r['symbol']))
+    for r in ranked[:5]:
+        n_en, n_ar = STOCK_NAMES.get(r['sym'], (r['sym'].replace('.CA', ''),
+                                                 r['sym'].replace('.CA', '')))
         top5.append({
-            'symbol': r['symbol'].replace('.CA', ''),
-            'name_en': name_en,
-            'name_ar': name_ar,
-            'score': round(sc, 4),
-            'probability_positive': r['probability_positive'],
-            'expected_return_pct': r['expected_return_pct'],
-            'volatility_annual_pct': r['volatility_annual_pct'],
+            'symbol': r['sym'].replace('.CA', ''),
+            'name_en': n_en, 'name_ar': n_ar,
+            'score': round(r['score'], 4),
+            'probability_positive': round(r['prob_pos'], 1),
+            'expected_return_pct': r['exp_ret_pct'],
+            'volatility_annual_pct': round(r['sigma'] * 100, 2),
         })
 
-    name_en, name_ar = STOCK_NAMES.get(best['symbol'], (best['symbol'], best['symbol']))
-    best['auto_selected'] = True
-    best['auto_symbol_name_en'] = name_en
-    best['auto_symbol_name_ar'] = name_ar
-    best['auto_ranking'] = top5
-    return best
+    pct = w['pct']
+    return {
+        'ok': True,
+        'symbol': w['sym'],
+        'investment_amount': amount,
+        'last_price': round(w['S0'], 4),
+        'shares': round(amount / w['S0'], 6),
+        'horizon_days': horizon_days,
+        'scenario': scenario,
+        'simulations_count': N_SIMULATIONS,
+        'drift_annual_pct': round(w['mu'] * 100, 2),
+        'drift_used_pct': round(w['mu_used'] * 100, 2),
+        'volatility_annual_pct': round(w['sigma'] * 100, 2),
+        'data_points': len(w['prices']),
+        'expected_value': round(w['expected'], 2),
+        'expected_return_pct': w['exp_ret_pct'],
+        'median_value': round(float(pct[2]), 2),
+        'median_return_pct': round((float(pct[2]) / amount - 1) * 100, 2),
+        'worst_case_value': round(float(pct[0]), 2),
+        'best_case_value': round(float(pct[4]), 2),
+        'quartile_25': round(float(pct[1]), 2),
+        'quartile_75': round(float(pct[3]), 2),
+        'probability_positive': round(w['prob_pos'], 1),
+        'histogram': {
+            'counts': counts.tolist(),
+            'edges': [round(float(e), 2) for e in edges.tolist()],
+        },
+        'band_data': band_data,
+        # Auto-select fields
+        'auto_selected': True,
+        'auto_symbol_name_en': name_en,
+        'auto_symbol_name_ar': name_ar,
+        'auto_ranking': top5,
+    }
 
 
 # ── Entry Point ───────────────────────────────────────────────────────────────
