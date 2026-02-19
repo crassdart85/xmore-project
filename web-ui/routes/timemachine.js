@@ -9,7 +9,11 @@ const CACHE_TTL = 60 * 60 * 1000; // 1 hour
 const MAX_CACHE_SIZE = 50;
 
 function getCacheKey(amount, startDate) {
-    return `${amount}_${startDate}`;
+    return `past_${amount}_${startDate}`;
+}
+
+function getForecastCacheKey(symbol, amount, horizon, scenario) {
+    return `forecast_${symbol}_${amount}_${horizon}_${scenario}`;
 }
 
 // POST /api/timemachine/simulate
@@ -124,6 +128,100 @@ router.post('/simulate', async (req, res) => {
             error: true,
             message_en: 'Simulation failed. The market data might be temporarily unavailable. Please try again.',
             message_ar: 'فشلت المحاكاة. بيانات السوق قد تكون غير متاحة مؤقتاً. يرجى المحاولة مرة أخرى.'
+        });
+    }
+});
+
+// POST /api/timemachine/forecast
+// Monte Carlo / GBM probabilistic forecast for a single EGX stock.
+router.post('/forecast', async (req, res) => {
+    try {
+        const { symbol, investment_amount, horizon, scenario } = req.body;
+
+        // Validation
+        if (!symbol || typeof symbol !== 'string') {
+            return res.status(400).json({ ok: false, error: 'symbol is required' });
+        }
+        const sym = symbol.trim().toUpperCase();
+
+        const amount = parseFloat(investment_amount);
+        if (isNaN(amount) || amount < 1000 || amount > 100_000_000) {
+            return res.status(400).json({ ok: false, error: 'investment_amount must be between 1,000 and 100,000,000' });
+        }
+
+        const horizonDays = parseInt(horizon, 10);
+        if (isNaN(horizonDays) || horizonDays < 5 || horizonDays > 1825) {
+            return res.status(400).json({ ok: false, error: 'horizon must be between 5 and 1825 days' });
+        }
+
+        const sc = (scenario || 'base').toLowerCase();
+        if (!['base', 'bull', 'bear'].includes(sc)) {
+            return res.status(400).json({ ok: false, error: 'scenario must be base, bull, or bear' });
+        }
+
+        // Cache check
+        const cacheKey = getForecastCacheKey(sym, amount, horizonDays, sc);
+        const cached = cache.get(cacheKey);
+        if (cached && (Date.now() - cached.timestamp < CACHE_TTL)) {
+            return res.json(cached.data);
+        }
+
+        // Spawn Python forecast engine
+        const inputJson = JSON.stringify({
+            symbol: sym,
+            investment_amount: amount,
+            horizon: horizonDays,
+            scenario: sc,
+        });
+        const pythonScript = path.resolve(__dirname, '../../engines/timemachine_forecast.py');
+        const projectRoot = path.resolve(__dirname, '../../');
+        const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
+
+        const result = await new Promise((resolve, reject) => {
+            const proc = spawn(pythonCmd, [pythonScript, inputJson], {
+                cwd: projectRoot,
+                timeout: 30000, // 30-second timeout (MC is fast)
+                env: { ...process.env, PYTHONIOENCODING: 'utf-8' },
+            });
+
+            let stdout = '';
+            let stderr = '';
+            proc.stdout.on('data', (d) => { stdout += d.toString(); });
+            proc.stderr.on('data', (d) => { stderr += d.toString(); });
+
+            proc.on('close', (code) => {
+                if (stderr) console.log('Forecast Python log:', stderr.substring(0, 500));
+                if (code !== 0 && !stdout) {
+                    reject(new Error(stderr || 'Python forecast process failed'));
+                    return;
+                }
+                try {
+                    resolve(JSON.parse(stdout));
+                } catch (e) {
+                    reject(new Error('Invalid JSON from forecast engine: ' + stdout.substring(0, 200)));
+                }
+            });
+
+            proc.on('error', (err) => reject(new Error('Failed to spawn Python: ' + err.message)));
+        });
+
+        if (!result.ok) {
+            return res.status(422).json(result);
+        }
+
+        // Cache successful result
+        cache.set(cacheKey, { data: result, timestamp: Date.now() });
+        if (cache.size > MAX_CACHE_SIZE) {
+            cache.delete(cache.keys().next().value);
+        }
+
+        return res.json(result);
+
+    } catch (err) {
+        console.error('Forecast error:', err.message);
+        return res.status(500).json({
+            ok: false,
+            error: 'Forecast simulation failed. Please try again.',
         });
     }
 });

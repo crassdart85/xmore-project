@@ -260,8 +260,19 @@
         <!-- Tab: Time Machine -->
         <section class="tab-content" id="tab-timemachine" role="tabpanel" aria-labelledby="tabTimeMachine">
             <div class="section-header">
-                <p class="section-subtitle" id="timemachineBrief">Enter an amount and a past date to see what your investment would be worth today if you had followed Xmore's recommendations.</p>
+                <p class="section-subtitle" id="timemachineBrief">Explore your portfolio's past performance or simulate the probabilistic future of any EGX stock.</p>
             </div>
+
+            <!-- Past / Future sub-tabs -->
+            <div class="tm-subtab-row" role="tablist">
+                <button class="tm-subtab-btn tm-subtab-active" id="tmSubPast" role="tab"
+                    aria-selected="true" aria-controls="tmTabPast" data-translate="tmSubPastLabel">⏮ Past</button>
+                <button class="tm-subtab-btn" id="tmSubFuture" role="tab"
+                    aria-selected="false" aria-controls="tmTabFuture" data-translate="tmSubFutureLabel">⏭ Future</button>
+            </div>
+
+            <!-- ═══ PAST TAB ═══════════════════════════════════════════════ -->
+            <div id="tmTabPast">
 
             <!-- Input Form -->
             <div class="tm-input-card">
@@ -388,6 +399,174 @@
                 <p class="tm-loading-sub" data-translate="tmAnalyzing">Fetching live market data &amp; running simulation</p>
                 <p class="tm-loading-warn" data-translate="tmLoadingWarning">This may take 30–60 seconds.</p>
             </div>
+
+            </div><!-- /tmTabPast -->
+
+            <!-- ═══ FUTURE TAB ════════════════════════════════════════════ -->
+            <div id="tmTabFuture" style="display:none">
+
+            <div class="tm-input-card">
+                <h3 data-translate="fcTitle">Future Forecast</h3>
+                <p class="tm-subtitle" data-translate="fcSubtitle">Monte Carlo simulation using historical drift &amp; volatility. 5,000 probabilistic paths.</p>
+
+                <div class="tm-form">
+                    <!-- Stock selector -->
+                    <div class="tm-field">
+                        <label for="fcSymbol" data-translate="fcSymbolLabel">Stock Symbol</label>
+                        <div class="fc-symbol-wrapper">
+                            <input type="text" id="fcSymbolSearch" placeholder="Search stock…" autocomplete="off" class="fc-symbol-search">
+                            <select id="fcSymbol" class="fc-symbol-select" size="1">
+                                <option value="">Loading stocks…</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Investment amount -->
+                    <div class="tm-field">
+                        <label data-translate="tmAmountLabel">Investment Amount (EGP)</label>
+                        <div class="tm-input-group">
+                            <span class="tm-currency">EGP</span>
+                            <input type="number" id="fcAmount" min="1000" max="10000000" step="1000" value="50000" placeholder="50,000">
+                        </div>
+                        <div class="tm-slider-row">
+                            <input type="range" id="fcAmountSlider" min="1000" max="500000" step="1000" value="50000">
+                            <span class="tm-amount-display" id="fcAmountDisplay">50,000 EGP</span>
+                        </div>
+                    </div>
+
+                    <!-- Horizon -->
+                    <div class="tm-field">
+                        <label for="fcHorizon" data-translate="fcHorizonLabel">Time Horizon</label>
+                        <div class="tm-date-presets">
+                            <button class="tm-preset fc-horizon-btn fc-horizon-active" data-days="63" data-translate="fc3Months">3 months</button>
+                            <button class="tm-preset fc-horizon-btn" data-days="126" data-translate="fc6Months">6 months</button>
+                            <button class="tm-preset fc-horizon-btn" data-days="252" data-translate="fc1Year">1 year</button>
+                            <button class="tm-preset fc-horizon-btn" data-days="504" data-translate="fc2Years">2 years</button>
+                        </div>
+                        <input type="hidden" id="fcHorizon" value="63">
+                    </div>
+
+                    <!-- Scenario -->
+                    <div class="tm-field">
+                        <label data-translate="fcScenarioLabel">Scenario</label>
+                        <div class="fc-scenario-row">
+                            <label class="fc-scenario-opt fc-scenario-active">
+                                <input type="radio" name="fcScenario" value="base" checked>
+                                <span class="fc-scenario-label" data-translate="fcBase">Base</span>
+                                <span class="fc-scenario-hint" data-translate="fcBaseHint">Historical drift</span>
+                            </label>
+                            <label class="fc-scenario-opt">
+                                <input type="radio" name="fcScenario" value="bull">
+                                <span class="fc-scenario-label" data-translate="fcBull">Bull</span>
+                                <span class="fc-scenario-hint" data-translate="fcBullHint">+2% drift boost</span>
+                            </label>
+                            <label class="fc-scenario-opt">
+                                <input type="radio" name="fcScenario" value="bear">
+                                <span class="fc-scenario-label" data-translate="fcBear">Bear</span>
+                                <span class="fc-scenario-hint" data-translate="fcBearHint">−2% drift drag</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <button id="fcRunBtn" class="tm-simulate-btn" data-translate="fcRunBtn">Run Forecast</button>
+                </div>
+            </div>
+
+            <!-- Forecast Results (hidden until sim runs) -->
+            <div id="fcResults" style="display:none">
+
+                <!-- Hero metrics row -->
+                <div class="fc-hero-grid">
+                    <div class="fc-hero-card fc-hero-main">
+                        <div class="fc-hero-label" data-translate="fcExpectedValue">Expected Value</div>
+                        <div class="fc-hero-value" id="fcExpectedValue">—</div>
+                        <div class="fc-hero-return" id="fcExpectedReturn"></div>
+                    </div>
+                    <div class="fc-hero-card">
+                        <div class="fc-hero-label" data-translate="fcProbProfit">Probability of Profit</div>
+                        <div class="fc-prob-bar-wrap">
+                            <div class="fc-prob-bar" id="fcProbBar"></div>
+                        </div>
+                        <div class="fc-hero-value fc-prob-value" id="fcProbValue">—</div>
+                    </div>
+                    <div class="fc-hero-card">
+                        <div class="fc-hero-label" data-translate="fcVolatility">Annual Volatility</div>
+                        <div class="fc-hero-value" id="fcVolatility">—</div>
+                        <div class="fc-hero-sub" id="fcDriftUsed"></div>
+                    </div>
+                </div>
+
+                <!-- Min / Max range -->
+                <div class="fc-range-card">
+                    <div class="fc-range-item fc-range-worst">
+                        <div class="fc-range-label" data-translate="fcWorstCase">Worst Case (5th pct)</div>
+                        <div class="fc-range-value" id="fcWorstCase">—</div>
+                    </div>
+                    <div class="fc-range-mid">
+                        <div class="fc-range-label" data-translate="fcMedian">Median</div>
+                        <div class="fc-range-value" id="fcMedian">—</div>
+                    </div>
+                    <div class="fc-range-item fc-range-best">
+                        <div class="fc-range-label" data-translate="fcBestCase">Best Case (95th pct)</div>
+                        <div class="fc-range-value" id="fcBestCase">—</div>
+                    </div>
+                </div>
+
+                <!-- Projection band chart -->
+                <div class="tm-chart-container">
+                    <h4 data-translate="fcBandChartTitle">Projected Portfolio Value</h4>
+                    <div class="fc-chart-legend">
+                        <span class="fc-legend-best">&#9679; Best (95%)</span>
+                        <span class="fc-legend-median">&#9679; Median</span>
+                        <span class="fc-legend-worst">&#9679; Worst (5%)</span>
+                    </div>
+                    <div id="fcBandChart" style="width:100%;min-height:280px;"></div>
+                </div>
+
+                <!-- Outcome distribution histogram -->
+                <div class="tm-chart-container">
+                    <h4 data-translate="fcHistTitle">Distribution of Final Values</h4>
+                    <p class="fc-hist-sub" data-translate="fcHistSub">5,000 simulated outcomes. Green = profit, Red = loss.</p>
+                    <canvas id="fcHistogram" height="200"></canvas>
+                </div>
+
+                <!-- Model parameters -->
+                <div class="fc-params-row">
+                    <div class="fc-param">
+                        <span class="fc-param-label" data-translate="fcDrift">Historical Drift</span>
+                        <span class="fc-param-value" id="fcDrift">—</span>
+                    </div>
+                    <div class="fc-param">
+                        <span class="fc-param-label" data-translate="fcScenarioUsed">Scenario Adj.</span>
+                        <span class="fc-param-value" id="fcScenarioUsed">—</span>
+                    </div>
+                    <div class="fc-param">
+                        <span class="fc-param-label" data-translate="fcDataPoints">Data Points</span>
+                        <span class="fc-param-value" id="fcDataPoints">—</span>
+                    </div>
+                    <div class="fc-param">
+                        <span class="fc-param-label" data-translate="fcSimCount">Simulations</span>
+                        <span class="fc-param-value" id="fcSimCount">—</span>
+                    </div>
+                </div>
+
+                <!-- Disclaimer -->
+                <div class="tm-disclaimer" data-translate="fcDisclaimer">
+                    This projection is model-based and does not constitute financial advice.
+                    Results depend on historical statistical assumptions and market conditions.
+                    Monte Carlo simulation assumes Geometric Brownian Motion. Past volatility does not guarantee future volatility.
+                </div>
+            </div>
+
+            <!-- Forecast loading state -->
+            <div id="fcLoading" class="tm-loading" style="display:none">
+                <div class="tm-spinner"></div>
+                <p data-translate="fcCalculating">Running 5,000 simulated futures…</p>
+                <p class="tm-loading-sub" data-translate="fcAnalyzing">Computing GBM parameters &amp; Monte Carlo paths</p>
+            </div>
+
+            </div><!-- /tmTabFuture -->
+
         </section>
 
         <footer>

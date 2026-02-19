@@ -626,3 +626,300 @@ canvas#tmEquityChart {
     .tm-trade-card { transition: none; }
     .tm-simulate-btn { transition: none; }
 }
+
+/* ============================================
+   TIME MACHINE v2 — Past / Future Sub-tabs
+   ============================================ */
+
+.tm-subtab-row {
+    display: flex;
+    gap: 4px;
+    background: var(--container-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 4px;
+    margin-bottom: 20px;
+    width: fit-content;
+}
+
+.tm-subtab-btn {
+    padding: 8px 24px;
+    border: none;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+
+.tm-subtab-btn:hover {
+    background: var(--card-bg);
+    color: var(--text-primary);
+}
+
+.tm-subtab-active {
+    background: var(--accent);
+    color: #fff !important;
+}
+
+/* ============================================
+   FUTURE TAB — Form
+   ============================================ */
+
+.fc-symbol-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.fc-symbol-search {
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--container-bg);
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.fc-symbol-select {
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--container-bg);
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    width: 100%;
+    box-sizing: border-box;
+    cursor: pointer;
+    max-height: 180px;
+}
+
+.fc-scenario-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.fc-scenario-opt {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 10px 16px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    flex: 1;
+    min-width: 80px;
+}
+
+.fc-scenario-opt input[type="radio"] {
+    display: none;
+}
+
+.fc-scenario-opt:hover {
+    border-color: var(--accent);
+    background: var(--container-bg);
+}
+
+.fc-scenario-active {
+    border-color: var(--accent) !important;
+    background: var(--container-bg);
+}
+
+.fc-scenario-label {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--text-primary);
+}
+
+.fc-scenario-hint {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+.fc-horizon-active {
+    background: var(--accent) !important;
+    color: #fff !important;
+    border-color: var(--accent) !important;
+}
+
+/* ============================================
+   FUTURE TAB — Results
+   ============================================ */
+
+.fc-hero-grid {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+@media (max-width: 640px) {
+    .fc-hero-grid { grid-template-columns: 1fr; }
+}
+
+.fc-hero-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.fc-hero-main {
+    border-left: 3px solid var(--accent);
+}
+
+.fc-hero-label {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.fc-hero-value {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.fc-hero-return {
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.fc-hero-sub {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+}
+
+.fc-prob-bar-wrap {
+    height: 8px;
+    background: var(--border-color);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.fc-prob-bar {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.6s ease;
+    background: var(--accent);
+}
+
+.fc-prob-value {
+    font-size: 1.6rem !important;
+}
+
+/* ─── Range card ───────────────────────────── */
+.fc-range-card {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 0;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 16px;
+    text-align: center;
+}
+
+.fc-range-item,
+.fc-range-mid {
+    padding: 14px 10px;
+}
+
+.fc-range-item + .fc-range-mid,
+.fc-range-mid + .fc-range-item {
+    border-left: 1px solid var(--border-color);
+}
+
+.fc-range-worst { border-right: 1px solid var(--border-color); }
+.fc-range-best  { border-left: 1px solid var(--border-color); }
+
+.fc-range-label {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin-bottom: 4px;
+}
+
+.fc-range-value {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+/* ─── Chart legends ────────────────────────── */
+.fc-chart-legend {
+    display: flex;
+    gap: 16px;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+}
+
+.fc-legend-best   { color: #22c55e; }
+.fc-legend-median { color: #667eea; }
+.fc-legend-worst  { color: #ef4444; }
+
+/* ─── Histogram ────────────────────────────── */
+.fc-hist-sub {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin: 0 0 8px;
+}
+
+#fcHistogram {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+}
+
+/* ─── Model parameters row ─────────────────── */
+.fc-params-row {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    background: var(--container-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin-top: 16px;
+}
+
+.fc-param {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1;
+    min-width: 120px;
+}
+
+.fc-param-label {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.fc-param-value {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+/* RTL adjustments */
+.rtl .tm-subtab-row { direction: rtl; }
+.rtl .fc-scenario-row { direction: rtl; }
+.rtl .fc-range-card { direction: rtl; }
+.rtl .fc-hero-main { border-left: none; border-right: 3px solid var(--accent); }
