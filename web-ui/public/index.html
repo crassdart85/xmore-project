@@ -410,17 +410,6 @@
                 <p class="tm-subtitle" data-translate="fcSubtitle">Monte Carlo simulation using historical drift &amp; volatility. 5,000 probabilistic paths.</p>
 
                 <div class="tm-form">
-                    <!-- Stock selector -->
-                    <div class="tm-field">
-                        <label for="fcSymbol" data-translate="fcSymbolLabel">Stock Symbol</label>
-                        <div class="fc-symbol-wrapper">
-                            <input type="text" id="fcSymbolSearch" placeholder="Search stock…" autocomplete="off" class="fc-symbol-search">
-                            <select id="fcSymbol" class="fc-symbol-select" size="1">
-                                <option value="">Loading stocks…</option>
-                            </select>
-                        </div>
-                    </div>
-
                     <!-- Investment amount -->
                     <div class="tm-field">
                         <label data-translate="tmAmountLabel">Investment Amount (EGP)</label>
@@ -434,16 +423,11 @@
                         </div>
                     </div>
 
-                    <!-- Horizon -->
+                    <!-- Target date (calendar picker, max 30 days ahead) -->
                     <div class="tm-field">
-                        <label for="fcHorizon" data-translate="fcHorizonLabel">Time Horizon</label>
-                        <div class="tm-date-presets">
-                            <button class="tm-preset fc-horizon-btn fc-horizon-active" data-days="63" data-translate="fc3Months">3 months</button>
-                            <button class="tm-preset fc-horizon-btn" data-days="126" data-translate="fc6Months">6 months</button>
-                            <button class="tm-preset fc-horizon-btn" data-days="252" data-translate="fc1Year">1 year</button>
-                            <button class="tm-preset fc-horizon-btn" data-days="504" data-translate="fc2Years">2 years</button>
-                        </div>
-                        <input type="hidden" id="fcHorizon" value="63">
+                        <label for="fcEndDate" data-translate="fcEndDateLabel">Target Date</label>
+                        <input type="date" id="fcEndDate" class="tm-date-input">
+                        <p class="fc-date-hint" data-translate="fcEndDateHint">Up to 30 days from today — AI picks the best EGX30 stock for you</p>
                     </div>
 
                     <!-- Scenario -->
@@ -474,6 +458,18 @@
 
             <!-- Forecast Results (hidden until sim runs) -->
             <div id="fcResults" style="display:none">
+
+                <!-- AI-chosen stock banner -->
+                <div id="fcChosenBanner" class="fc-chosen-banner" style="display:none">
+                    <div class="fc-chosen-left">
+                        <span class="fc-chosen-tag" data-translate="fcChosenBy">AI Best Pick</span>
+                        <span class="fc-chosen-name" id="fcChosenName">—</span>
+                        <span class="fc-chosen-symbol" id="fcChosenSymbol"></span>
+                    </div>
+                    <button class="fc-ranking-toggle" id="fcRankingToggle" data-translate="fcSeeRanking">See ranking ▼</button>
+                </div>
+                <!-- Top-5 ranking (collapsible) -->
+                <div id="fcRanking" class="fc-ranking" style="display:none"></div>
 
                 <!-- Hero metrics row -->
                 <div class="fc-hero-grid">

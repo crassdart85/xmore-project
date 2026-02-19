@@ -138,11 +138,9 @@ router.post('/forecast', async (req, res) => {
     try {
         const { symbol, investment_amount, horizon, scenario } = req.body;
 
-        // Validation
-        if (!symbol || typeof symbol !== 'string') {
-            return res.status(400).json({ ok: false, error: 'symbol is required' });
-        }
-        const sym = symbol.trim().toUpperCase();
+        // symbol is optional — omitting triggers auto-select across all EGX30 stocks
+        const isAuto = !symbol || symbol === 'auto';
+        const sym = isAuto ? 'auto' : String(symbol).trim().toUpperCase();
 
         const amount = parseFloat(investment_amount);
         if (isNaN(amount) || amount < 1000 || amount > 100_000_000) {
@@ -168,7 +166,8 @@ router.post('/forecast', async (req, res) => {
 
         // Spawn Python forecast engine
         const inputJson = JSON.stringify({
-            symbol: sym,
+            auto: isAuto,
+            symbol: isAuto ? undefined : sym,
             investment_amount: amount,
             horizon: horizonDays,
             scenario: sc,
@@ -177,10 +176,13 @@ router.post('/forecast', async (req, res) => {
         const projectRoot = path.resolve(__dirname, '../../');
         const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
 
+        // Auto mode scans 30 stocks — allow more time
+        const timeoutMs = isAuto ? 90000 : 30000;
+
         const result = await new Promise((resolve, reject) => {
             const proc = spawn(pythonCmd, [pythonScript, inputJson], {
                 cwd: projectRoot,
-                timeout: 30000, // 30-second timeout (MC is fast)
+                timeout: timeoutMs,
                 env: { ...process.env, PYTHONIOENCODING: 'utf-8' },
             });
 

@@ -37,6 +37,49 @@ SCENARIO_DRIFT_ADJ = {
     'bear': -0.02,
 }
 
+# EGX30 constituents for auto-selection mode
+EGX30_FORECAST_SYMBOLS = [
+    'COMI.CA', 'HRHO.CA', 'SWDY.CA', 'TMGH.CA', 'EKHO.CA',
+    'EFIH.CA', 'ORWE.CA', 'PHDC.CA', 'ABUK.CA', 'CLHO.CA',
+    'ESRS.CA', 'ETEL.CA', 'JUFO.CA', 'MNHD.CA', 'OCDI.CA',
+    'HELI.CA', 'AMOC.CA', 'AUTO.CA', 'CCAP.CA', 'EGAL.CA',
+    'ELEC.CA', 'FWRY.CA', 'GBCO.CA', 'ISPH.CA', 'MFPC.CA',
+    'PHAR.CA', 'SKPC.CA', 'SPIN.CA', 'SUGR.CA', 'TALM.CA',
+]
+
+STOCK_NAMES = {
+    'COMI.CA': ('Commercial International Bank', 'البنك التجاري الدولي'),
+    'HRHO.CA': ('Hermes Holding', 'هيرميس القابضة'),
+    'SWDY.CA': ('Elsewedy Electric', 'السويدي إلكتريك'),
+    'TMGH.CA': ('Talaat Moustafa Group', 'مجموعة طلعت مصطفى'),
+    'EKHO.CA': ('Egyptian Kuwaiti Holding', 'المصرية الكويتية القابضة'),
+    'EFIH.CA': ('EFG Hermes Holding', 'إي إف جي هيرميس'),
+    'ORWE.CA': ('Oriental Weavers', 'السجاد الشرقي'),
+    'PHDC.CA': ('Palm Hills Development', 'بالم هيلز للتعمير'),
+    'ABUK.CA': ('Abu Qir Fertilizers', 'أبو قير للأسمدة'),
+    'CLHO.CA': ('Cleopatra Hospital', 'مستشفى كليوباترا'),
+    'ESRS.CA': ('Ezz Steel', 'حديد عز'),
+    'ETEL.CA': ('Telecom Egypt', 'المصرية للاتصالات'),
+    'JUFO.CA': ('Juhayna Food Industries', 'جهينة للصناعات الغذائية'),
+    'MNHD.CA': ('Madinet Nasr Housing', 'مدينة نصر للإسكان'),
+    'OCDI.CA': ('Orascom Development', 'أوراسكوم للتنمية'),
+    'HELI.CA': ('Heliopolis Housing', 'مصر الجديدة للإسكان'),
+    'AMOC.CA': ('Alexandria Mineral Oils', 'الإسكندرية للزيوت المعدنية'),
+    'AUTO.CA': ('GB Auto', 'جي بي أوتو'),
+    'CCAP.CA': ('Citadel Capital', 'القلعة القابضة'),
+    'EGAL.CA': ('Edita Food Industries', 'إيديتا للصناعات الغذائية'),
+    'ELEC.CA': ('El Sewedy Electric', 'الكابلات الكهربائية'),
+    'FWRY.CA': ('Fawry for Banking', 'فوري للمدفوعات'),
+    'GBCO.CA': ('SODIC', 'سوديك'),
+    'ISPH.CA': ('Ibnsina Pharma', 'ابن سينا فارما'),
+    'MFPC.CA': ('Misr Fertilizers', 'مصر للأسمدة'),
+    'PHAR.CA': ('Pharos Holding', 'فاروس القابضة'),
+    'SKPC.CA': ('Sidi Kerir Petrochemicals', 'سيدي كرير للبتروكيماويات'),
+    'SPIN.CA': ('Spinneys Egypt', 'سبينيز مصر'),
+    'SUGR.CA': ('Delta Sugar', 'الدلتا للسكر'),
+    'TALM.CA': ('Taaleem Management', 'تعليم لإدارة المدارس'),
+}
+
 # ── Data Fetching ─────────────────────────────────────────────────────────────
 
 def _prices_from_db(symbol: str, lookback_years: int = 5) -> list:
@@ -278,6 +321,68 @@ def simulate(payload: dict) -> dict:
     }
 
 
+# ── Auto-selection ────────────────────────────────────────────────────────────
+
+def auto_select_best(amount: float, horizon_days: int, scenario: str,
+                     sentiment_score: float = 0.0) -> dict:
+    """
+    Run Monte Carlo on all EGX30 stocks and return the best pick.
+    Score = prob_positive * (1 + max(expected_return_pct, 0) / 100)
+    Returns the full simulate() result for the winner, plus:
+      auto_selected, auto_symbol_name_en/ar, auto_ranking (top 5)
+    """
+    ranking = []
+    for sym in EGX30_FORECAST_SYMBOLS:
+        try:
+            r = simulate({
+                'symbol': sym,
+                'investment_amount': amount,
+                'horizon': horizon_days,
+                'scenario': scenario,
+                'sentiment_score': sentiment_score,
+            })
+            if not r.get('ok'):
+                continue
+            score = (r['probability_positive'] / 100.0) * (
+                1.0 + max(r['expected_return_pct'], 0.0) / 100.0
+            )
+            ranking.append((score, r))
+        except Exception as exc:
+            logger.debug("auto-select skipped %s: %s", sym, exc)
+
+    if not ranking:
+        return {
+            'ok': False,
+            'error': 'Could not build a forecast for any EGX30 stock. '
+                     'Market data may be temporarily unavailable.',
+        }
+
+    ranking.sort(key=lambda x: x[0], reverse=True)
+
+    best_score, best = ranking[0]
+
+    # Build top-5 summary
+    top5 = []
+    for sc, r in ranking[:5]:
+        name_en, name_ar = STOCK_NAMES.get(r['symbol'], (r['symbol'], r['symbol']))
+        top5.append({
+            'symbol': r['symbol'].replace('.CA', ''),
+            'name_en': name_en,
+            'name_ar': name_ar,
+            'score': round(sc, 4),
+            'probability_positive': r['probability_positive'],
+            'expected_return_pct': r['expected_return_pct'],
+            'volatility_annual_pct': r['volatility_annual_pct'],
+        })
+
+    name_en, name_ar = STOCK_NAMES.get(best['symbol'], (best['symbol'], best['symbol']))
+    best['auto_selected'] = True
+    best['auto_symbol_name_en'] = name_en
+    best['auto_symbol_name_ar'] = name_ar
+    best['auto_ranking'] = top5
+    return best
+
+
 # ── Entry Point ───────────────────────────────────────────────────────────────
 
 if __name__ == '__main__':
@@ -287,7 +392,15 @@ if __name__ == '__main__':
 
     try:
         payload = json.loads(sys.argv[1])
-        result = simulate(payload)
+        if payload.get('auto'):
+            result = auto_select_best(
+                amount=float(payload.get('investment_amount', 10000)),
+                horizon_days=int(payload.get('horizon', 21)),
+                scenario=str(payload.get('scenario', 'base')).lower(),
+                sentiment_score=float(payload.get('sentiment_score', 0.0)),
+            )
+        else:
+            result = simulate(payload)
         print(json.dumps(result))
     except json.JSONDecodeError as e:
         print(json.dumps({'ok': False, 'error': f'Invalid JSON payload: {e}'}))

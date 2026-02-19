@@ -9,7 +9,6 @@
 (function () {
     let tmChart = null;       // LW Charts instance (Past equity curve)
     let fcBandChart = null;   // LW Charts instance (Future band chart)
-    let fcStocksLoaded = false;
 
     // ─── Public entry point (called by switchToTab) ───────────
     window.loadTimeMachine = function () {
@@ -42,7 +41,6 @@
             pastBtn.classList.remove('tm-subtab-active');
             futureBtn.setAttribute('aria-selected', 'true');
             pastBtn.setAttribute('aria-selected', 'false');
-            if (!fcStocksLoaded) loadForecastSymbols();
         }
 
         if (!pastBtn._tmSubBound) {
@@ -535,44 +533,6 @@
     // FUTURE TAB — Monte Carlo Forecast
     // ================================================================
 
-    // ─── Load stock list into selector ───────────────────────
-    async function loadForecastSymbols() {
-        const select = document.getElementById('fcSymbol');
-        const search = document.getElementById('fcSymbolSearch');
-        if (!select) return;
-
-        try {
-            const res = await fetch('/api/stocks', { credentials: 'include' });
-            if (!res.ok) throw new Error('Failed to load stocks');
-            const data = await res.json();
-            const stocks = data.stocks || data || [];
-
-            const lang = (typeof currentLang !== 'undefined') ? currentLang : 'en';
-            select.innerHTML = '<option value="">— Select stock —</option>' +
-                stocks.map(s => {
-                    const name = lang === 'ar' ? (s.name_ar || s.name_en) : (s.name_en || s.name_ar);
-                    const sym  = s.symbol.replace('.CA', '');
-                    return `<option value="${s.symbol}" data-name="${escHtml(name)}" data-sym="${escHtml(sym)}">${escHtml(sym)} — ${escHtml(name)}</option>`;
-                }).join('');
-
-            fcStocksLoaded = true;
-
-            // Live search filter
-            if (search) {
-                search.addEventListener('input', () => {
-                    const q = search.value.toLowerCase();
-                    Array.from(select.options).forEach(opt => {
-                        if (!opt.value) return; // keep placeholder
-                        const text = (opt.dataset.sym + ' ' + (opt.dataset.name || '')).toLowerCase();
-                        opt.style.display = text.includes(q) ? '' : 'none';
-                    });
-                });
-            }
-        } catch (err) {
-            if (select) select.innerHTML = '<option value="">Could not load stocks</option>';
-        }
-    }
-
     // ─── Escape helper (local fallback) ──────────────────────
     function escHtml(v) {
         return typeof escapeHtml === 'function' ? escapeHtml(v) : String(v ?? '');
@@ -584,6 +544,7 @@
         const amountInput  = document.getElementById('fcAmount');
         const slider       = document.getElementById('fcAmountSlider');
         const display      = document.getElementById('fcAmountDisplay');
+        const datePicker   = document.getElementById('fcEndDate');
         if (!runBtn) return;
 
         // Amount ↔ slider sync
@@ -602,15 +563,17 @@
         }
         syncFcDisplay();
 
-        // Horizon preset buttons
-        document.querySelectorAll('.fc-horizon-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                document.querySelectorAll('.fc-horizon-btn').forEach(b => b.classList.remove('fc-horizon-active'));
-                btn.classList.add('fc-horizon-active');
-                const hid = document.getElementById('fcHorizon');
-                if (hid) hid.value = btn.getAttribute('data-days');
-            });
-        });
+        // Date picker: min = tomorrow, max = today + 30 days, default = today + 14 days
+        if (datePicker && !datePicker._fcDateBound) {
+            datePicker._fcDateBound = true;
+            const today = new Date();
+            const tomorrow = new Date(today); tomorrow.setDate(today.getDate() + 1);
+            const maxDate  = new Date(today); maxDate.setDate(today.getDate() + 30);
+            const defDate  = new Date(today); defDate.setDate(today.getDate() + 14);
+            datePicker.min = tomorrow.toISOString().split('T')[0];
+            datePicker.max = maxDate.toISOString().split('T')[0];
+            if (!datePicker.value) datePicker.value = defDate.toISOString().split('T')[0];
+        }
 
         // Scenario radio buttons — highlight active
         document.querySelectorAll('input[name="fcScenario"]').forEach(radio => {
@@ -626,23 +589,34 @@
         }
     }
 
-    // ─── Run Monte Carlo forecast ─────────────────────────────
+    // ─── Run Monte Carlo forecast (auto-select mode) ──────────
     async function runForecast() {
-        const symbol    = (document.getElementById('fcSymbol')?.value || '').trim();
-        const amount    = parseFloat(document.getElementById('fcAmount')?.value) || 0;
-        const horizon   = parseInt(document.getElementById('fcHorizon')?.value, 10) || 63;
-        const scenario  = document.querySelector('input[name="fcScenario"]:checked')?.value || 'base';
+        const amount     = parseFloat(document.getElementById('fcAmount')?.value) || 0;
+        const endDateVal = document.getElementById('fcEndDate')?.value || '';
+        const scenario   = document.querySelector('input[name="fcScenario"]:checked')?.value || 'base';
         const resultsDiv = document.getElementById('fcResults');
         const loadingDiv = document.getElementById('fcLoading');
-        const runBtn    = document.getElementById('fcRunBtn');
+        const runBtn     = document.getElementById('fcRunBtn');
         const _t = typeof t === 'function' ? t : (k) => k;
 
-        if (!symbol) {
-            if (typeof showToast === 'function') showToast('error', _t('fcSelectSymbol') || 'Please select a stock.');
-            return;
-        }
         if (!amount || amount < 1000) {
             if (typeof showToast === 'function') showToast('error', _t('tmInvalidAmount') || 'Enter a valid amount (min 1,000 EGP).');
+            return;
+        }
+        if (!endDateVal) {
+            if (typeof showToast === 'function') showToast('error', _t('fcSelectDate') || 'Please pick a target date.');
+            return;
+        }
+
+        // Convert calendar days to approximate trading days (×5/7)
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const endDate = new Date(endDateVal);
+        const calDays = Math.round((endDate - today) / (1000 * 60 * 60 * 24));
+        const horizon  = Math.max(5, Math.round(calDays * 5 / 7));
+
+        if (calDays < 1) {
+            if (typeof showToast === 'function') showToast('error', _t('fcSelectDate') || 'Target date must be in the future.');
             return;
         }
 
@@ -651,10 +625,11 @@
         if (runBtn) runBtn.disabled = true;
 
         try {
+            // No symbol — backend auto-selects best EGX30 stock
             const res = await fetch('/api/timemachine/forecast', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ symbol, investment_amount: amount, horizon, scenario }),
+                body: JSON.stringify({ investment_amount: amount, horizon, scenario }),
             });
             const data = await res.json();
 
@@ -669,7 +644,7 @@
                 resultsDiv.innerHTML = `<div class="tm-empty-state">
                     <div class="tm-empty-icon">📊</div>
                     <h3>${escHtml(err.message)}</h3>
-                    <p class="tm-empty-hint">Try a different stock or check that price data is available.</p>
+                    <p class="tm-empty-hint">${escHtml(_t('tmTryDifferent') || 'Try a different date or amount.')}</p>
                 </div>`;
             }
         } finally {
@@ -683,9 +658,53 @@
         const resultsDiv = document.getElementById('fcResults');
         if (!resultsDiv) return;
 
+        const lang = (typeof currentLang !== 'undefined') ? currentLang : 'en';
+        const _t = typeof t === 'function' ? t : (k) => k;
         const fmtEGP = (v) => v !== null && v !== undefined ? formatEGP(v) + ' EGP' : '—';
         const fmtPct = (v) => v !== null && v !== undefined
             ? (v >= 0 ? '+' : '') + v.toFixed(2) + '%' : '—';
+
+        // ── Chosen stock banner ──
+        const banner = document.getElementById('fcChosenBanner');
+        const chosenName = document.getElementById('fcChosenName');
+        const chosenSym  = document.getElementById('fcChosenSymbol');
+        if (banner && d.auto_selected) {
+            const name = lang === 'ar' ? (d.auto_symbol_name_ar || d.auto_symbol_name_en) : (d.auto_symbol_name_en || d.auto_symbol_name_ar);
+            if (chosenName) chosenName.textContent = name || d.symbol;
+            if (chosenSym)  chosenSym.textContent  = '(' + d.symbol.replace('.CA', '') + ')';
+            banner.style.display = 'flex';
+        } else if (banner) {
+            banner.style.display = 'none';
+        }
+
+        // ── Ranking collapsible ──
+        const rankingDiv   = document.getElementById('fcRanking');
+        const rankToggle   = document.getElementById('fcRankingToggle');
+        if (rankingDiv && d.auto_ranking && d.auto_ranking.length) {
+            const rows = d.auto_ranking.map((r, i) => {
+                const rname = lang === 'ar' ? (r.name_ar || r.name_en) : (r.name_en || r.name_ar);
+                const retCls = r.expected_return_pct >= 0 ? 'tm-pos' : 'tm-neg';
+                return `<div class="fc-rank-row ${i === 0 ? 'fc-rank-winner' : ''}">
+                    <span class="fc-rank-pos">${i + 1}</span>
+                    <span class="fc-rank-sym">${escHtml(r.symbol)}</span>
+                    <span class="fc-rank-name">${escHtml(rname)}</span>
+                    <span class="fc-rank-prob">${r.probability_positive}% win</span>
+                    <span class="fc-rank-ret ${retCls}">${r.expected_return_pct >= 0 ? '+' : ''}${r.expected_return_pct}%</span>
+                </div>`;
+            }).join('');
+            rankingDiv.innerHTML = rows;
+
+            if (rankToggle && !rankToggle._rankBound) {
+                rankToggle._rankBound = true;
+                rankToggle.addEventListener('click', () => {
+                    const open = rankingDiv.style.display !== 'none';
+                    rankingDiv.style.display = open ? 'none' : 'block';
+                    rankToggle.textContent = open
+                        ? (_t('fcSeeRanking') || 'See ranking ▼')
+                        : (_t('fcHideRanking') || 'Hide ▲');
+                });
+            }
+        }
 
         // Expected value
         const evEl = document.getElementById('fcExpectedValue');
