@@ -25,8 +25,8 @@ logger = logging.getLogger(__name__)
 EGX30_SYMBOLS = [
     'COMI.CA', 'HRHO.CA', 'SWDY.CA', 'TMGH.CA', 'EKHO.CA',
     'EFIH.CA', 'ORWE.CA', 'PHDC.CA', 'ABUK.CA', 'CLHO.CA',
-    'ESRS.CA', 'ETEL.CA', 'JUFO.CA', 'MNHD.CA', 'OCDI.CA',
-    'HELI.CA', 'AMOC.CA', 'AUTO.CA', 'CCAP.CA', 'EGAL.CA',
+    'ESRS.CA', 'ETEL.CA', 'JUFO.CA', 'ALCN.CA', 'OCDI.CA',
+    'HELI.CA', 'AMOC.CA', 'EAST.CA', 'CCAP.CA', 'EGAL.CA',
     'ELEC.CA', 'FWRY.CA', 'GBCO.CA', 'ISPH.CA', 'MFPC.CA',
     'PHAR.CA', 'SKPC.CA', 'SPIN.CA', 'SUGR.CA', 'TALM.CA'
 ]
@@ -46,11 +46,11 @@ STOCK_NAMES = {
     'ESRS.CA': ('Ezz Steel', 'حديد عز'),
     'ETEL.CA': ('Telecom Egypt', 'المصرية للاتصالات'),
     'JUFO.CA': ('Juhayna Food Industries', 'جهينة للصناعات الغذائية'),
-    'MNHD.CA': ('Madinet Nasr Housing', 'مدينة نصر للإسكان'),
+    'ALCN.CA': ('Alexandria Container', 'الإسكندرية للحاويات والبضائع'),
     'OCDI.CA': ('Orascom Development', 'أوراسكوم للتنمية'),
     'HELI.CA': ('Heliopolis Housing', 'مصر الجديدة للإسكان'),
     'AMOC.CA': ('Alexandria Mineral Oils', 'الإسكندرية للزيوت المعدنية'),
-    'AUTO.CA': ('GB Auto', 'جي بي أوتو'),
+    'EAST.CA': ('Eastern Company', 'الشركة الشرقية للدخان'),
     'CCAP.CA': ('Citadel Capital', 'القلعة القابضة'),
     'EGAL.CA': ('Edita Food Industries', 'إيديتا للصناعات الغذائية'),
     'ELEC.CA': ('El Sewedy Electric', 'الكابلات الكهربائية'),
