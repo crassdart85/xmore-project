@@ -20,6 +20,7 @@
     "tesseract.js": "^7.0.0"
   },
   "optionalDependencies": {
-    "sqlite3": "^5.1.7"
+    "sqlite3": "^5.1.7",
+    "yahoo-finance2": "^2.13.3"
   }
 }

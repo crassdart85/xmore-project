@@ -1,12 +1,23 @@
+'use strict';
 const express = require('express');
 const router = express.Router();
 const { spawn } = require('child_process');
 const path = require('path');
+const { simulateStock, autoSelectBest } = require('../services/forecastEngine');
 
 // Simple in-memory cache (TTL: 1 hour)
 const cache = new Map();
 const CACHE_TTL = 60 * 60 * 1000; // 1 hour
 const MAX_CACHE_SIZE = 50;
+
+// DB reference set via attachDb() called from server.js
+let _db = null;
+let _isPostgres = false;
+
+function attachDb(db, isPostgres) {
+    _db = db;
+    _isPostgres = !!isPostgres;
+}
 
 function getCacheKey(amount, startDate) {
     return `past_${amount}_${startDate}`;
@@ -16,7 +27,13 @@ function getForecastCacheKey(symbol, amount, horizon, scenario) {
     return `forecast_${symbol}_${amount}_${horizon}_${scenario}`;
 }
 
-// POST /api/timemachine/simulate
+function evictCache() {
+    if (cache.size > MAX_CACHE_SIZE) {
+        cache.delete(cache.keys().next().value);
+    }
+}
+
+// POST /api/timemachine/simulate  (past simulation — Python engine)
 router.post('/simulate', async (req, res) => {
     try {
         const { amount, start_date } = req.body;
@@ -113,12 +130,7 @@ router.post('/simulate', async (req, res) => {
 
         // Cache the successful result (in-memory only — no DB)
         cache.set(cacheKey, { data: result, timestamp: Date.now() });
-
-        // Evict old cache entries (keep max 50)
-        if (cache.size > MAX_CACHE_SIZE) {
-            const oldestKey = cache.keys().next().value;
-            cache.delete(oldestKey);
-        }
+        evictCache();
 
         return res.json(result);
 
@@ -133,7 +145,7 @@ router.post('/simulate', async (req, res) => {
 });
 
 // POST /api/timemachine/forecast
-// Monte Carlo / GBM probabilistic forecast for a single EGX stock.
+// Monte Carlo / GBM probabilistic forecast — pure JavaScript engine (no Python dependency).
 router.post('/forecast', async (req, res) => {
     try {
         const { symbol, investment_amount, horizon, scenario } = req.body;
@@ -164,48 +176,10 @@ router.post('/forecast', async (req, res) => {
             return res.json(cached.data);
         }
 
-        // Spawn Python forecast engine
-        const inputJson = JSON.stringify({
-            auto: isAuto,
-            symbol: isAuto ? undefined : sym,
-            investment_amount: amount,
-            horizon: horizonDays,
-            scenario: sc,
-        });
-        const pythonScript = path.resolve(__dirname, '../../engines/timemachine_forecast.py');
-        const projectRoot = path.resolve(__dirname, '../../');
-        const pythonCmd = process.platform === 'win32' ? 'python' : 'python3';
-
-        // Auto mode scans 30 stocks — allow more time
-        const timeoutMs = isAuto ? 90000 : 30000;
-
-        const result = await new Promise((resolve, reject) => {
-            const proc = spawn(pythonCmd, [pythonScript, inputJson], {
-                cwd: projectRoot,
-                timeout: timeoutMs,
-                env: { ...process.env, PYTHONIOENCODING: 'utf-8' },
-            });
-
-            let stdout = '';
-            let stderr = '';
-            proc.stdout.on('data', (d) => { stdout += d.toString(); });
-            proc.stderr.on('data', (d) => { stderr += d.toString(); });
-
-            proc.on('close', (code) => {
-                if (stderr) console.log('Forecast Python log:', stderr.substring(0, 500));
-                if (code !== 0 && !stdout) {
-                    reject(new Error(stderr || 'Python forecast process failed'));
-                    return;
-                }
-                try {
-                    resolve(JSON.parse(stdout));
-                } catch (e) {
-                    reject(new Error('Invalid JSON from forecast engine: ' + stdout.substring(0, 200)));
-                }
-            });
-
-            proc.on('error', (err) => reject(new Error('Failed to spawn Python: ' + err.message)));
-        });
+        // Run pure-JS forecast engine (no Python spawn required)
+        const result = isAuto
+            ? await autoSelectBest(amount, horizonDays, sc, _db)
+            : await simulateStock(sym.endsWith('.CA') ? sym : `${sym}.CA`, amount, horizonDays, sc, _db);
 
         if (!result.ok) {
             return res.status(422).json(result);
@@ -213,9 +187,7 @@ router.post('/forecast', async (req, res) => {
 
         // Cache successful result
         cache.set(cacheKey, { data: result, timestamp: Date.now() });
-        if (cache.size > MAX_CACHE_SIZE) {
-            cache.delete(cache.keys().next().value);
-        }
+        evictCache();
 
         return res.json(result);
 
@@ -228,4 +200,4 @@ router.post('/forecast', async (req, res) => {
     }
 });
 
-module.exports = router;
+module.exports = { router, attachDb };
