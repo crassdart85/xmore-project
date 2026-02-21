@@ -220,7 +220,7 @@ router.post('/forecast', async (req, res) => {
         return res.json(result);
 
     } catch (err) {
-        console.error('Forecast error:', err.message);
+        console.error('Forecast error:', err.stack || err.message);
         return res.status(500).json({
             ok: false,
             error: 'Forecast simulation failed. Please try again.',
