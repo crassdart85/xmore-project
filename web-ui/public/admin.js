@@ -523,6 +523,7 @@ const TAB_DEFS = [
     { id: 'tab-health',   label: 'System Health' },
     { id: 'tab-kb',       label: 'Knowledge Base' },
     { id: 'tab-reports',  label: 'Reports' },
+    { id: 'tab-prices',   label: 'Prices' },
     { id: 'tab-sources',  label: 'News Sources' },
     { id: 'tab-telegram', label: 'Telegram Feed' },
 ];
@@ -632,6 +633,129 @@ function initTabs() {
 // ============================================================
 // BOOTSTRAP
 // ============================================================
+// LATEST STOCK PRICES
+// ============================================================
+
+// Minimal company name map — ticker -> display name
+const COMPANY_NAMES = {
+    // EGX
+    'COMI.CA': 'Commercial International Bank',
+    'HRHO.CA': 'Heliopolis Housing',
+    'ETEL.CA': 'Telecom Egypt',
+    'EFIC.CA': 'EFG Hermes',
+    'PHDC.CA': 'Palm Hills Developments',
+    'CLHO.CA': 'City Edge Developments',
+    'MNHD.CA': 'Madinet Nasr Housing',
+    'SKPC.CA': 'Sidi Kerir Petrochemicals',
+    'SWDY.CA': 'El Sewedy Electric',
+    'ESRS.CA': 'Ezz Steel',
+    'EGTS.CA': 'Egyptian Gas',
+    'ORWE.CA': 'Oriental Weavers',
+    'ISPH.CA': 'Ibnsina Pharma',
+    'AMOC.CA': 'Alexandria Mineral Oils',
+    'ABUK.CA': 'Abu Kir Fertilizers',
+    'HELI.CA': 'Helios Investment',
+    // US
+    'AAPL':  'Apple',
+    'MSFT':  'Microsoft',
+    'GOOGL': 'Alphabet',
+    'AMZN':  'Amazon',
+    'TSLA':  'Tesla',
+    'NVDA':  'NVIDIA',
+    'META':  'Meta',
+    'JPM':   'JPMorgan Chase',
+    'GS':    'Goldman Sachs',
+    'XOM':   'ExxonMobil',
+};
+
+let _allPriceRows = [];    // full dataset for client-side search
+
+function formatChange(change, pct) {
+    if (change == null || isNaN(change)) return '<td class="num">—</td><td class="num">—</td>';
+    const sign  = change >= 0 ? '+' : '';
+    const cls   = change >= 0 ? 'price-up' : 'price-down';
+    const arrow = change >= 0 ? '&#9650;' : '&#9660;';
+    return `<td class="num ${cls}">${sign}${change.toFixed(2)}</td>
+            <td class="num ${cls}">${arrow} ${sign}${pct.toFixed(2)}%</td>`;
+}
+
+function formatVolume(v) {
+    if (v == null || isNaN(v)) return '—';
+    if (v >= 1_000_000) return (v / 1_000_000).toFixed(2) + 'M';
+    if (v >= 1_000)     return (v / 1_000).toFixed(1) + 'K';
+    return String(v);
+}
+
+function renderPriceRows(rows) {
+    const tbody = document.getElementById('priceRows');
+    if (!tbody) return;
+    if (!rows || rows.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7" class="no-data">No price data available yet. Data is collected Mon–Fri at 4:30 PM EST.</td></tr>';
+        return;
+    }
+    tbody.innerHTML = rows.map(r => {
+        const name   = COMPANY_NAMES[r.symbol] || '—';
+        const close  = r.close != null ? Number(r.close).toFixed(2) : '—';
+        const vol    = formatVolume(r.volume);
+        const change = r.change != null ? Number(r.change) : null;
+        const pct    = r.change_pct != null ? Number(r.change_pct) : null;
+        const changeCells = (change != null && pct != null)
+            ? formatChange(change, pct)
+            : '<td class="num">—</td><td class="num">—</td>';
+        return `<tr>
+            <td><strong>${escapeHtml(r.symbol)}</strong></td>
+            <td>${escapeHtml(name)}</td>
+            <td class="num">${escapeHtml(close)}</td>
+            ${changeCells}
+            <td class="num">${escapeHtml(vol)}</td>
+            <td>${escapeHtml(r.date || '—')}</td>
+        </tr>`;
+    }).join('');
+}
+
+function filterPrices(query) {
+    if (!query) return renderPriceRows(_allPriceRows);
+    const q = query.toLowerCase();
+    const filtered = _allPriceRows.filter(r =>
+        r.symbol.toLowerCase().includes(q) ||
+        (COMPANY_NAMES[r.symbol] || '').toLowerCase().includes(q)
+    );
+    renderPriceRows(filtered);
+}
+
+async function loadPrices() {
+    const tbody = document.getElementById('priceRows');
+    const dateEl = document.getElementById('pricesDate');
+    if (tbody) tbody.innerHTML = '<tr><td colspan="7" class="no-data">Loading…</td></tr>';
+    try {
+        const rows = await fetchJson('/api/prices');
+        _allPriceRows = rows || [];
+        renderPriceRows(_allPriceRows);
+        if (dateEl && _allPriceRows.length > 0) {
+            const latest = _allPriceRows.reduce((a, b) => (a.date > b.date ? a : b)).date || '';
+            dateEl.textContent = latest ? `As of: ${latest}` : '';
+        }
+    } catch (err) {
+        if (tbody) tbody.innerHTML = `<tr><td colspan="7" class="error-message">${escapeHtml(err.message)}</td></tr>`;
+    }
+}
+
+function bindPricesTab() {
+    const searchEl  = document.getElementById('pricesSearch');
+    const refreshBtn = document.getElementById('pricesRefreshBtn');
+    if (searchEl)  searchEl.addEventListener('input', () => filterPrices(searchEl.value.trim()));
+    if (refreshBtn) refreshBtn.addEventListener('click', loadPrices);
+
+    // Load prices when the tab is first activated
+    document.getElementById('adminTabList').addEventListener('click', (e) => {
+        const btn = e.target.closest('.admin-tab-btn');
+        if (btn && btn.dataset.tab === 'tab-prices' && _allPriceRows.length === 0) {
+            loadPrices();
+        }
+    });
+}
+
+// ============================================================
 
 async function bootstrap() {
     applyThemeAndLanguage();
@@ -642,6 +766,7 @@ async function bootstrap() {
     bindSecretInput();
     bindSourceForm();
     bindWaDropZone();
+    bindPricesTab();
     if (getSecret()) {
         await Promise.all([loadSystemHealth(), loadReports(), loadSources()]);
     } else {
@@ -650,6 +775,9 @@ async function bootstrap() {
         reportRows.innerHTML = '<tr><td colspan="5" class="no-data">Enter admin secret above to load data.</td></tr>';
         sourceRows.innerHTML = '<tr><td colspan="8" class="no-data">Enter admin secret above to load data.</td></tr>';
     }
+    // Load prices if the Prices tab is the initial active tab
+    const activePanel = document.querySelector('.admin-tab-panel.active');
+    if (activePanel && activePanel.id === 'tab-prices') loadPrices();
 }
 
 bootstrap();

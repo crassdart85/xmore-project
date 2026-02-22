@@ -3417,3 +3417,27 @@ button:active, .btn:active, .tab-btn:active {
     color: var(--text-primary);
     background: var(--border-color);
 }
+
+/* ── Prices tab ─────────────────────────────────── */
+.admin-prices-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+}
+.admin-prices-search {
+    flex: 1;
+    min-width: 160px;
+    max-width: 300px;
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--card-bg);
+    color: var(--text-primary);
+    font-size: 0.88em;
+}
+#pricesTable td.num,
+#pricesTable th.num { text-align: right; }
+.price-up   { color: #059669; font-weight: 600; }
+.price-down { color: #dc2626; font-weight: 600; }

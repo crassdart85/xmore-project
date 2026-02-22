@@ -30,6 +30,7 @@
                 <button class="admin-tab-btn" data-tab="tab-health" role="tab">System Health</button>
                 <button class="admin-tab-btn" data-tab="tab-kb" role="tab">Knowledge Base</button>
                 <button class="admin-tab-btn" data-tab="tab-reports" role="tab">Reports</button>
+                <button class="admin-tab-btn" data-tab="tab-prices" role="tab">Prices</button>
                 <button class="admin-tab-btn" data-tab="tab-sources" role="tab">News Sources</button>
                 <button class="admin-tab-btn" data-tab="tab-telegram" role="tab">Telegram Feed</button>
             </div>
@@ -227,6 +228,51 @@
                 </table>
             </div>
             <div id="sourceStatus" class="admin-upload-status"></div>
+        </section>
+
+        <!-- ================================================ -->
+        <!-- LATEST STOCK PRICES                              -->
+        <!-- ================================================ -->
+        <section class="section admin-tab-panel" id="tab-prices" role="tabpanel">
+            <h2>Latest Stock Prices</h2>
+            <div class="admin-info-banner" data-hint="tab-prices">
+                <span class="admin-info-icon">&#9432;</span>
+                <div class="admin-info-body">
+                    <strong>What is this?</strong> The most recent closing price and volume for every tracked stock.
+                    <ul class="admin-info-list">
+                        <li>Data is collected Monday–Friday at 4:30 PM EST via the GitHub Actions workflow.</li>
+                        <li>The <strong>Change</strong> column shows the daily move in EGP/USD and as a percentage.</li>
+                        <li>Use the search box to filter by ticker or company name.</li>
+                        <li>If no data appears, the daily collection job has not run yet today.</li>
+                    </ul>
+                </div>
+                <button class="admin-info-dismiss" aria-label="Dismiss" data-dismiss="tab-prices">&#10005;</button>
+            </div>
+
+            <div class="admin-prices-toolbar">
+                <input id="pricesSearch" type="search" placeholder="Filter by ticker or name…" class="admin-prices-search">
+                <span id="pricesDate" class="admin-muted"></span>
+                <button id="pricesRefreshBtn" class="admin-btn">&#8635; Refresh</button>
+            </div>
+
+            <div class="scrollable-container">
+                <table id="pricesTable">
+                    <thead>
+                        <tr>
+                            <th>Ticker</th>
+                            <th>Company</th>
+                            <th class="num">Close</th>
+                            <th class="num">Change</th>
+                            <th class="num">Change %</th>
+                            <th class="num">Volume</th>
+                            <th>Date</th>
+                        </tr>
+                    </thead>
+                    <tbody id="priceRows">
+                        <tr><td colspan="7" class="no-data">Loading prices…</td></tr>
+                    </tbody>
+                </table>
+            </div>
         </section>
 
         <!-- ================================================ -->
