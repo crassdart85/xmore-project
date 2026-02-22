@@ -33,6 +33,7 @@
                 <button class="admin-tab-btn" data-tab="tab-prices" role="tab">Prices</button>
                 <button class="admin-tab-btn" data-tab="tab-sources" role="tab">News Sources</button>
                 <button class="admin-tab-btn" data-tab="tab-telegram" role="tab">Telegram Feed</button>
+                <button class="admin-tab-btn" data-tab="tab-settings" role="tab">Settings</button>
             </div>
             <div class="admin-tab-config-wrap">
                 <button class="admin-tab-config-btn" id="tabConfigBtn" title="Show / hide tabs" aria-expanded="false" aria-controls="tabConfigPanel">&#9881;</button>
@@ -261,6 +262,9 @@
                         <tr>
                             <th>Ticker</th>
                             <th>Company</th>
+                            <th class="num">Open</th>
+                            <th class="num">High</th>
+                            <th class="num">Low</th>
                             <th class="num">Close</th>
                             <th class="num">Change</th>
                             <th class="num">Change %</th>
@@ -269,7 +273,7 @@
                         </tr>
                     </thead>
                     <tbody id="priceRows">
-                        <tr><td colspan="7" class="no-data">Loading prices…</td></tr>
+                        <tr><td colspan="10" class="no-data">Loading prices…</td></tr>
                     </tbody>
                 </table>
             </div>
@@ -316,6 +320,35 @@
                 </div>
             </div>
             <div id="waStatus" class="admin-upload-status"></div>
+        </section>
+
+        <!-- ================================================ -->
+        <!-- SETTINGS (frontend tab visibility)               -->
+        <!-- ================================================ -->
+        <section class="section admin-tab-panel" id="tab-settings" role="tabpanel">
+            <h2>Dashboard Settings</h2>
+            <div class="admin-info-banner" data-hint="tab-settings">
+                <span class="admin-info-icon">&#9432;</span>
+                <div class="admin-info-body">
+                    <strong>What is this?</strong> Control which tabs are visible in the main trading dashboard for all users on this browser.
+                    <ul class="admin-info-list">
+                        <li>Toggle any tab off to hide it from the main navigation — it won't load or be accessible.</li>
+                        <li><strong>Predictions</strong> is always shown and cannot be hidden.</li>
+                        <li>Settings are saved in <code>localStorage</code> — they apply to this browser only.</li>
+                        <li>Changes take effect immediately the next time the dashboard is loaded or refreshed.</li>
+                    </ul>
+                </div>
+                <button class="admin-info-dismiss" aria-label="Dismiss" data-dismiss="tab-settings">&#10005;</button>
+            </div>
+
+            <div class="admin-settings-card">
+                <h3 class="admin-settings-card-title">Frontend Tab Visibility</h3>
+                <p class="admin-muted" style="margin-bottom:16px;">Each toggle controls whether the tab appears in the main dashboard navigation.</p>
+                <div id="frontendTabToggles" class="admin-settings-toggles"></div>
+                <div class="admin-form-actions" style="margin-top:16px;">
+                    <button id="resetFrontendTabsBtn" class="admin-btn">Reset to Defaults</button>
+                </div>
+            </div>
         </section>
     </div>
 

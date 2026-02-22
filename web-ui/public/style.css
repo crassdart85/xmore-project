@@ -3441,3 +3441,62 @@ button:active, .btn:active, .tab-btn:active {
 #pricesTable th.num { text-align: right; }
 .price-up   { color: #059669; font-weight: 600; }
 .price-down { color: #dc2626; font-weight: 600; }
+
+/* ── Settings tab ───────────────────────────────── */
+.admin-settings-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 20px;
+}
+.admin-settings-card-title {
+    margin: 0 0 4px;
+    font-size: 1em;
+    color: var(--text-primary);
+}
+.admin-settings-card > p {
+    margin: 0 0 14px;
+    font-size: 0.85em;
+    color: var(--text-secondary);
+}
+.admin-settings-toggles { list-style: none; padding: 0; margin: 0; }
+.admin-settings-toggle-row {
+    padding: 10px 0;
+    border-bottom: 1px solid var(--border-color);
+}
+.admin-settings-toggle-row:last-child { border-bottom: none; }
+.admin-toggle-label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    cursor: pointer;
+}
+.admin-toggle-name { font-size: 0.9em; color: var(--text-primary); flex: 1; }
+.admin-toggle-switch { position: relative; flex-shrink: 0; }
+.admin-toggle-switch input {
+    opacity: 0; width: 0; height: 0; position: absolute;
+}
+.admin-toggle-track {
+    display: block;
+    width: 42px; height: 24px;
+    background: var(--border-color);
+    border-radius: 999px;
+    cursor: pointer;
+    position: relative;
+    transition: background 0.2s;
+}
+.admin-toggle-track::after {
+    content: '';
+    position: absolute;
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    background: #fff;
+    top: 3px; left: 3px;
+    transition: transform 0.2s;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+.admin-toggle-switch input:checked + .admin-toggle-track { background: var(--accent); }
+.admin-toggle-switch input:checked + .admin-toggle-track::after { transform: translateX(18px); }
+.admin-toggle-switch input:disabled + .admin-toggle-track { opacity: 0.5; cursor: not-allowed; }
+.admin-settings-reset-wrap { margin-top: 16px; display: flex; justify-content: flex-end; }

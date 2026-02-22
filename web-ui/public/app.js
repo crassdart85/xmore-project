@@ -993,7 +993,24 @@ function switchToTab(tabId, updateHash) {
     if (tabId === 'timemachine' && typeof loadTimeMachine === 'function') loadTimeMachine();
 }
 
+// Key shared with admin dashboard for frontend tab visibility
+const FRONTEND_HIDDEN_TABS_KEY = 'xmore_hidden_frontend_tabs';
+
+function applyFrontendTabVisibility() {
+    let hidden = new Set();
+    try { hidden = new Set(JSON.parse(localStorage.getItem(FRONTEND_HIDDEN_TABS_KEY) || '[]')); }
+    catch (_) {}
+    // 'predictions' is always visible — remove it from the hidden set as a safety guard
+    hidden.delete('predictions');
+    document.querySelectorAll('.tab-btn[data-tab]').forEach(btn => {
+        const tabId = btn.getAttribute('data-tab');
+        const isHidden = hidden.has(tabId);
+        btn.style.display = isHidden ? 'none' : '';
+    });
+}
+
 function initTabs() {
+    applyFrontendTabVisibility();
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.setAttribute('tabindex', '0');
         btn.addEventListener('click', () => {

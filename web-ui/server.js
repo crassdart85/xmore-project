@@ -317,17 +317,25 @@ app.get('/api/performance/detailed', (req, res) => {
   });
 });
 
-// 3. Get latest stock prices
+// 3. Get latest stock prices (open, high, low, close, volume + intraday change)
 app.get('/api/prices', (req, res) => {
-  // Use JOIN instead of correlated subquery for better performance
+  // Returns the single most-recent row per symbol.
+  // change / change_pct are computed as close - open (intraday proxy).
   const query = DATABASE_URL
-    ? `SELECT DISTINCT ON (p.symbol) p.symbol, p.date, p.close, p.volume
+    ? `SELECT DISTINCT ON (p.symbol)
+         p.symbol, p.date,
+         p.open, p.high, p.low, p.close, p.volume,
+         ROUND((p.close - p.open)::numeric, 4)                          AS change,
+         ROUND(((p.close - p.open) / NULLIF(p.open, 0) * 100)::numeric, 2) AS change_pct
        FROM prices p
        ORDER BY p.symbol, p.date DESC`
-    : `SELECT p.symbol, p.date, p.close, p.volume
+    : `SELECT p.symbol, p.date,
+         p.open, p.high, p.low, p.close, p.volume,
+         ROUND(p.close - p.open, 4)                               AS change,
+         ROUND((p.close - p.open) / NULLIF(p.open, 0) * 100, 2)  AS change_pct
        FROM prices p
        INNER JOIN (
-         SELECT symbol, MAX(date) as max_date
+         SELECT symbol, MAX(date) AS max_date
          FROM prices
          GROUP BY symbol
        ) latest ON p.symbol = latest.symbol AND p.date = latest.max_date

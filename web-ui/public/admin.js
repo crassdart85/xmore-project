@@ -526,6 +526,7 @@ const TAB_DEFS = [
     { id: 'tab-prices',   label: 'Prices' },
     { id: 'tab-sources',  label: 'News Sources' },
     { id: 'tab-telegram', label: 'Telegram Feed' },
+    { id: 'tab-settings', label: 'Settings' },
 ];
 
 const HIDDEN_TABS_KEY = 'admin_hidden_tabs';
@@ -690,12 +691,16 @@ function renderPriceRows(rows) {
     const tbody = document.getElementById('priceRows');
     if (!tbody) return;
     if (!rows || rows.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="7" class="no-data">No price data available yet. Data is collected Mon–Fri at 4:30 PM EST.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="10" class="no-data">No price data available yet. Data is collected Mon–Fri at 4:30 PM EST.</td></tr>';
         return;
     }
     tbody.innerHTML = rows.map(r => {
         const name   = COMPANY_NAMES[r.symbol] || '—';
-        const close  = r.close != null ? Number(r.close).toFixed(2) : '—';
+        const fmt    = v => (v != null && !isNaN(v)) ? Number(v).toFixed(2) : '—';
+        const open   = fmt(r.open);
+        const high   = fmt(r.high);
+        const low    = fmt(r.low);
+        const close  = fmt(r.close);
         const vol    = formatVolume(r.volume);
         const change = r.change != null ? Number(r.change) : null;
         const pct    = r.change_pct != null ? Number(r.change_pct) : null;
@@ -705,6 +710,9 @@ function renderPriceRows(rows) {
         return `<tr>
             <td><strong>${escapeHtml(r.symbol)}</strong></td>
             <td>${escapeHtml(name)}</td>
+            <td class="num">${escapeHtml(open)}</td>
+            <td class="num">${escapeHtml(high)}</td>
+            <td class="num">${escapeHtml(low)}</td>
             <td class="num">${escapeHtml(close)}</td>
             ${changeCells}
             <td class="num">${escapeHtml(vol)}</td>
@@ -756,6 +764,82 @@ function bindPricesTab() {
 }
 
 // ============================================================
+// FRONTEND TAB VISIBILITY (Settings tab)
+// ============================================================
+
+const FRONTEND_HIDDEN_TABS_KEY = 'xmore_hidden_frontend_tabs';
+
+// All tabs that exist in the main dashboard
+const FRONTEND_TAB_DEFS = [
+    { id: 'predictions', label: 'Predictions',  locked: true  },
+    { id: 'briefing',    label: 'Briefing',     locked: false },
+    { id: 'trades',      label: 'Trades',       locked: false },
+    { id: 'portfolio',   label: 'Portfolio',    locked: false },
+    { id: 'watchlist',   label: 'Watchlist',    locked: false },
+    { id: 'consensus',   label: 'Consensus',    locked: false },
+    { id: 'performance', label: 'Performance',  locked: false },
+    { id: 'results',     label: 'Results',      locked: false },
+    { id: 'prices',      label: 'Prices',       locked: false },
+    { id: 'timemachine', label: 'Time Machine', locked: false },
+];
+
+function loadFrontendHidden() {
+    try { return new Set(JSON.parse(localStorage.getItem(FRONTEND_HIDDEN_TABS_KEY) || '[]')); }
+    catch (_) { return new Set(); }
+}
+
+function saveFrontendHidden(hiddenSet) {
+    // Never store 'predictions' as hidden
+    hiddenSet.delete('predictions');
+    localStorage.setItem(FRONTEND_HIDDEN_TABS_KEY, JSON.stringify([...hiddenSet]));
+}
+
+function renderFrontendTabToggles() {
+    const container = document.getElementById('frontendTabToggles');
+    if (!container) return;
+    const hidden = loadFrontendHidden();
+
+    container.innerHTML = FRONTEND_TAB_DEFS.map(({ id, label, locked }) => {
+        const checked  = !hidden.has(id) ? 'checked' : '';
+        const disabled = locked ? 'disabled' : '';
+        const lockedNote = locked ? ' <span class="admin-muted">(always visible)</span>' : '';
+        return `<div class="admin-settings-toggle-row">
+            <label class="admin-toggle-label">
+                <span class="admin-toggle-name">${escapeHtml(label)}${lockedNote}</span>
+                <span class="admin-toggle-switch">
+                    <input type="checkbox" data-frontend-tab="${escapeHtml(id)}" ${checked} ${disabled}>
+                    <span class="admin-toggle-track"></span>
+                </span>
+            </label>
+        </div>`;
+    }).join('');
+
+    container.querySelectorAll('input[data-frontend-tab]').forEach(cb => {
+        cb.addEventListener('change', () => {
+            const hidden = loadFrontendHidden();
+            if (cb.checked) { hidden.delete(cb.dataset.frontendTab); }
+            else            { hidden.add(cb.dataset.frontendTab); }
+            saveFrontendHidden(hidden);
+        });
+    });
+}
+
+function bindSettingsTab() {
+    const resetBtn = document.getElementById('resetFrontendTabsBtn');
+    if (!resetBtn) return;
+    resetBtn.addEventListener('click', () => {
+        localStorage.removeItem(FRONTEND_HIDDEN_TABS_KEY);
+        renderFrontendTabToggles();
+    });
+
+    // Re-render toggles when the Settings tab is activated (picks up fresh state)
+    document.getElementById('adminTabList').addEventListener('click', (e) => {
+        const btn = e.target.closest('.admin-tab-btn');
+        if (btn && btn.dataset.tab === 'tab-settings') renderFrontendTabToggles();
+    });
+}
+
+// ============================================================
 
 async function bootstrap() {
     applyThemeAndLanguage();
@@ -767,6 +851,8 @@ async function bootstrap() {
     bindSourceForm();
     bindWaDropZone();
     bindPricesTab();
+    renderFrontendTabToggles();
+    bindSettingsTab();
     if (getSecret()) {
         await Promise.all([loadSystemHealth(), loadReports(), loadSources()]);
     } else {
