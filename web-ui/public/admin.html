@@ -48,6 +48,18 @@
 
         <section class="section admin-tab-panel" id="tab-health" role="tabpanel">
             <h2>System Health</h2>
+            <div class="admin-info-banner" data-hint="tab-health">
+                <span class="admin-info-icon">&#9432;</span>
+                <div class="admin-info-body">
+                    <strong>What is this?</strong> A live snapshot of the system's database and prediction engine.
+                    <ul class="admin-info-list">
+                        <li><strong>Audit Log</strong> — records every data change automatically. No action needed.</li>
+                        <li><strong>Agent Snapshot</strong> — shows the latest win-rate for trading agents. Updates every Friday after predictions run via GitHub Actions.</li>
+                        <li>If values show "No data", the first scheduled run hasn't completed yet.</li>
+                    </ul>
+                </div>
+                <button class="admin-info-dismiss" aria-label="Dismiss" data-dismiss="tab-health">&#10005;</button>
+            </div>
             <div class="admin-health-grid">
                 <article class="admin-health-card">
                     <h3>Latest Audit Log</h3>
@@ -62,6 +74,19 @@
 
         <section class="section admin-tab-panel" id="tab-kb" role="tabpanel">
             <h2>Knowledge Base Upload</h2>
+            <div class="admin-info-banner" data-hint="tab-kb">
+                <span class="admin-info-icon">&#9432;</span>
+                <div class="admin-info-body">
+                    <strong>What is this?</strong> Upload market reports, CBE circulars, research PDFs, or scanned images to enrich the trading intelligence pipeline.
+                    <ul class="admin-info-list">
+                        <li>Supports <strong>PDF, PNG, JPG, WEBP, BMP, TIFF</strong> — up to 25 MB per file.</li>
+                        <li>Text is extracted automatically. Arabic and English are both recognised.</li>
+                        <li>Scanned images are processed with OCR — text quality depends on scan resolution.</li>
+                        <li>Uploaded files appear in the <strong>Reports</strong> tab once processed.</li>
+                    </ul>
+                </div>
+                <button class="admin-info-dismiss" aria-label="Dismiss" data-dismiss="tab-kb">&#10005;</button>
+            </div>
             <div id="dropZone" class="admin-drop-zone" tabindex="0" role="button" aria-label="Upload PDF or image report">
                 <p><strong>Drag and drop PDF or image here</strong></p>
                 <p>or click to browse</p>
@@ -72,6 +97,19 @@
 
         <section class="section admin-tab-panel" id="tab-reports" role="tabpanel">
             <h2>Report List</h2>
+            <div class="admin-info-banner" data-hint="tab-reports">
+                <span class="admin-info-icon">&#9432;</span>
+                <div class="admin-info-body">
+                    <strong>What is this?</strong> All documents uploaded to the knowledge base, with extracted metadata.
+                    <ul class="admin-info-list">
+                        <li><strong>Status: Processed</strong> — text was extracted successfully and is searchable.</li>
+                        <li><strong>Status: Pending</strong> — extraction failed or the file was unreadable (e.g. image-only PDF with no OCR text).</li>
+                        <li><strong>Insight</strong> — an auto-generated summary of the document's key topics, tickers, and tone.</li>
+                        <li>Language is detected automatically from the extracted text.</li>
+                    </ul>
+                </div>
+                <button class="admin-info-dismiss" aria-label="Dismiss" data-dismiss="tab-reports">&#10005;</button>
+            </div>
             <div class="scrollable-container">
                 <table>
                     <thead>
@@ -96,6 +134,21 @@
         <!-- ================================================ -->
         <section class="section admin-tab-panel" id="tab-sources" role="tabpanel">
             <h2>Custom News Sources</h2>
+            <div class="admin-info-banner" data-hint="tab-sources">
+                <span class="admin-info-icon">&#9432;</span>
+                <div class="admin-info-body">
+                    <strong>What is this?</strong> Register external sources that the system polls automatically for new articles.
+                    <ul class="admin-info-list">
+                        <li><strong>RSS Feed</strong> — most news sites provide an RSS URL (e.g. <em>https://example.com/feed</em>). This is the most reliable source type.</li>
+                        <li><strong>Single URL</strong> — fetches one specific article page. Use for one-off items.</li>
+                        <li><strong>Telegram Public Channel</strong> — enter the channel handle (e.g. <em>t.me/channelname</em>). Only public channels work here.</li>
+                        <li><strong>Telegram Bot</strong> — for private channels via a bot. Requires a bot token and chat ID.</li>
+                        <li>Use <strong>Pause</strong> to stop fetching without deleting the source or its articles.</li>
+                        <li>Use <strong>Fetch Now</strong> to pull new items immediately instead of waiting for the schedule.</li>
+                    </ul>
+                </div>
+                <button class="admin-info-dismiss" aria-label="Dismiss" data-dismiss="tab-sources">&#10005;</button>
+            </div>
             <p class="admin-muted">Add URLs, RSS feeds, or Telegram channels to feed into the sentiment pipeline.</p>
 
             <!-- Add source form -->
@@ -181,6 +234,20 @@
         <!-- ================================================ -->
         <section class="section admin-tab-panel" id="tab-telegram" role="tabpanel">
             <h2>Telegram Manual Feed</h2>
+            <div class="admin-info-banner" data-hint="tab-telegram">
+                <span class="admin-info-icon">&#9432;</span>
+                <div class="admin-info-body">
+                    <strong>What is this?</strong> A manual ingestion lane for content from private Telegram groups or any source that can't be auto-fetched.
+                    <ul class="admin-info-list">
+                        <li>Paste forwarded message text directly into the text box, or upload a screenshot / PDF.</li>
+                        <li>Set a <strong>Source Label</strong> to group these articles together in the sentiment dashboard (e.g. "Telegram — EGX Insiders").</li>
+                        <li>Arabic and English are both supported — language is detected automatically.</li>
+                        <li>Submitted content goes through the same sentiment pipeline as auto-fetched articles.</li>
+                        <li>You can submit text and a file at the same time — both will be processed.</li>
+                    </ul>
+                </div>
+                <button class="admin-info-dismiss" aria-label="Dismiss" data-dismiss="tab-telegram">&#10005;</button>
+            </div>
             <p class="admin-muted">Paste messages from private Telegram groups or upload screenshots and PDFs (Arabic or English). The text is processed through the sentiment pipeline automatically.</p>
 
             <div class="admin-source-form">

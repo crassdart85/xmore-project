@@ -484,6 +484,38 @@ function bindWaDropZone() {
 }
 
 // ============================================================
+// INFO BANNERS (dismissible hints for new admins)
+// ============================================================
+
+const DISMISSED_HINTS_KEY = 'admin_dismissed_hints';
+
+function loadDismissedHints() {
+    try { return new Set(JSON.parse(localStorage.getItem(DISMISSED_HINTS_KEY) || '[]')); }
+    catch (_) { return new Set(); }
+}
+
+function initInfoBanners() {
+    const dismissed = loadDismissedHints();
+    document.querySelectorAll('.admin-info-banner').forEach(banner => {
+        const key = banner.dataset.hint;
+        if (key && dismissed.has(key)) banner.classList.add('dismissed');
+    });
+
+    document.addEventListener('click', (e) => {
+        const btn = e.target.closest('.admin-info-dismiss');
+        if (!btn) return;
+        const key = btn.dataset.dismiss;
+        const banner = btn.closest('.admin-info-banner');
+        if (banner) banner.classList.add('dismissed');
+        if (key) {
+            const set = loadDismissedHints();
+            set.add(key);
+            localStorage.setItem(DISMISSED_HINTS_KEY, JSON.stringify([...set]));
+        }
+    });
+}
+
+// ============================================================
 // TAB SHOW / HIDE
 // ============================================================
 
@@ -604,6 +636,7 @@ function initTabs() {
 async function bootstrap() {
     applyThemeAndLanguage();
     adminSecretInput.value = getSecret();
+    initInfoBanners();
     initTabs();
     bindDropZone();
     bindSecretInput();

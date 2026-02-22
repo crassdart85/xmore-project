@@ -3367,3 +3367,53 @@ button:active, .btn:active, .tab-btn:active {
 @media (max-width: 600px) {
     .admin-tab-btn { padding: 8px 12px; font-size: 0.82em; }
 }
+
+/* ── Admin info banners ─────────────────────────── */
+.admin-info-banner {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    background: rgba(102, 126, 234, 0.07);
+    border: 1px solid rgba(102, 126, 234, 0.25);
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-bottom: 20px;
+    font-size: 0.88em;
+    color: var(--text-primary);
+    line-height: 1.55;
+}
+.admin-info-banner.dismissed { display: none; }
+
+.admin-info-icon {
+    font-size: 1.2em;
+    color: var(--accent);
+    flex-shrink: 0;
+    margin-top: 1px;
+}
+
+.admin-info-body { flex: 1; }
+.admin-info-body strong { color: var(--text-primary); }
+
+.admin-info-list {
+    margin: 6px 0 0 0;
+    padding-left: 18px;
+}
+.admin-info-list li { margin-bottom: 4px; }
+.admin-info-list li:last-child { margin-bottom: 0; }
+
+.admin-info-dismiss {
+    flex-shrink: 0;
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 0.9em;
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 4px;
+    line-height: 1;
+    transition: color 0.15s, background 0.15s;
+}
+.admin-info-dismiss:hover {
+    color: var(--text-primary);
+    background: var(--border-color);
+}
