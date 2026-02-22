@@ -484,12 +484,127 @@ function bindWaDropZone() {
 }
 
 // ============================================================
+// TAB SHOW / HIDE
+// ============================================================
+
+const TAB_DEFS = [
+    { id: 'tab-health',   label: 'System Health' },
+    { id: 'tab-kb',       label: 'Knowledge Base' },
+    { id: 'tab-reports',  label: 'Reports' },
+    { id: 'tab-sources',  label: 'News Sources' },
+    { id: 'tab-telegram', label: 'Telegram Feed' },
+];
+
+const HIDDEN_TABS_KEY = 'admin_hidden_tabs';
+const ACTIVE_TAB_KEY  = 'admin_active_tab';
+
+function loadHiddenTabs() {
+    try { return new Set(JSON.parse(localStorage.getItem(HIDDEN_TABS_KEY) || '[]')); }
+    catch (_) { return new Set(); }
+}
+
+function saveHiddenTabs(hiddenSet) {
+    localStorage.setItem(HIDDEN_TABS_KEY, JSON.stringify([...hiddenSet]));
+}
+
+function applyTabVisibility(hiddenSet) {
+    TAB_DEFS.forEach(({ id }) => {
+        const btn = document.querySelector(`[data-tab="${id}"]`);
+        if (btn) btn.dataset.hidden = hiddenSet.has(id) ? 'true' : 'false';
+    });
+}
+
+function switchTab(tabId) {
+    document.querySelectorAll('.admin-tab-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.tab === tabId);
+        btn.setAttribute('aria-selected', btn.dataset.tab === tabId ? 'true' : 'false');
+    });
+    document.querySelectorAll('.admin-tab-panel').forEach(panel => {
+        panel.classList.toggle('active', panel.id === tabId);
+    });
+    localStorage.setItem(ACTIVE_TAB_KEY, tabId);
+}
+
+function firstVisibleTab(hiddenSet) {
+    for (const { id } of TAB_DEFS) {
+        if (!hiddenSet.has(id)) return id;
+    }
+    return TAB_DEFS[0].id;
+}
+
+function buildTabCheckboxes(hiddenSet) {
+    const container = document.getElementById('tabCheckboxes');
+    if (!container) return;
+    container.innerHTML = TAB_DEFS.map(({ id, label }) => {
+        const checked = !hiddenSet.has(id) ? 'checked' : '';
+        return `<label>
+            <input type="checkbox" data-tab-toggle="${escapeHtml(id)}" ${checked}>
+            ${escapeHtml(label)}
+        </label>`;
+    }).join('');
+
+    container.querySelectorAll('input[data-tab-toggle]').forEach(cb => {
+        cb.addEventListener('change', () => {
+            const hidden = loadHiddenTabs();
+            if (cb.checked) { hidden.delete(cb.dataset.tabToggle); }
+            else            { hidden.add(cb.dataset.tabToggle); }
+
+            // Keep at least one tab visible
+            const allHidden = TAB_DEFS.every(({ id }) => hidden.has(id));
+            if (allHidden) { hidden.delete(cb.dataset.tabToggle); cb.checked = true; }
+
+            saveHiddenTabs(hidden);
+            applyTabVisibility(hidden);
+
+            // If the active tab just got hidden, switch to first visible
+            const activeId = localStorage.getItem(ACTIVE_TAB_KEY) || TAB_DEFS[0].id;
+            if (hidden.has(activeId)) switchTab(firstVisibleTab(hidden));
+        });
+    });
+}
+
+function bindTabBar() {
+    document.getElementById('adminTabList').addEventListener('click', (e) => {
+        const btn = e.target.closest('.admin-tab-btn');
+        if (btn && btn.dataset.tab) switchTab(btn.dataset.tab);
+    });
+
+    const configBtn   = document.getElementById('tabConfigBtn');
+    const configPanel = document.getElementById('tabConfigPanel');
+
+    configBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isOpen = !configPanel.hidden;
+        configPanel.hidden = isOpen;
+        configBtn.setAttribute('aria-expanded', String(!isOpen));
+    });
+
+    document.addEventListener('click', (e) => {
+        if (!configPanel.hidden && !configPanel.contains(e.target) && e.target !== configBtn) {
+            configPanel.hidden = true;
+            configBtn.setAttribute('aria-expanded', 'false');
+        }
+    });
+}
+
+function initTabs() {
+    const hidden = loadHiddenTabs();
+    applyTabVisibility(hidden);
+    buildTabCheckboxes(hidden);
+    bindTabBar();
+    const saved  = localStorage.getItem(ACTIVE_TAB_KEY);
+    const target = (saved && !hidden.has(saved)) ? saved : firstVisibleTab(hidden);
+    switchTab(target);
+}
+
+// ============================================================
 // BOOTSTRAP
 // ============================================================
 
 async function bootstrap() {
     applyThemeAndLanguage();
     adminSecretInput.value = getSecret();
+    initTabs();
     bindDropZone();
     bindSecretInput();
     bindSourceForm();

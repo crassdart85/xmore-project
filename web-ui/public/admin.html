@@ -22,7 +22,31 @@
             </div>
         </section>
 
-        <section class="section">
+        <!-- ================================================ -->
+        <!-- TAB NAVIGATION BAR                               -->
+        <!-- ================================================ -->
+        <nav class="admin-tab-bar" aria-label="Admin sections">
+            <div class="admin-tab-list" id="adminTabList" role="tablist">
+                <button class="admin-tab-btn" data-tab="tab-health" role="tab">System Health</button>
+                <button class="admin-tab-btn" data-tab="tab-kb" role="tab">Knowledge Base</button>
+                <button class="admin-tab-btn" data-tab="tab-reports" role="tab">Reports</button>
+                <button class="admin-tab-btn" data-tab="tab-sources" role="tab">News Sources</button>
+                <button class="admin-tab-btn" data-tab="tab-telegram" role="tab">Telegram Feed</button>
+            </div>
+            <div class="admin-tab-config-wrap">
+                <button class="admin-tab-config-btn" id="tabConfigBtn" title="Show / hide tabs" aria-expanded="false" aria-controls="tabConfigPanel">&#9881;</button>
+                <div class="admin-tab-config-panel" id="tabConfigPanel" hidden>
+                    <p class="admin-muted" style="margin:0 0 8px;font-size:11px;text-transform:uppercase;letter-spacing:.05em;">Show / hide tabs</p>
+                    <div id="tabCheckboxes"></div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- ================================================ -->
+        <!-- TAB PANELS                                       -->
+        <!-- ================================================ -->
+
+        <section class="section admin-tab-panel" id="tab-health" role="tabpanel">
             <h2>System Health</h2>
             <div class="admin-health-grid">
                 <article class="admin-health-card">
@@ -36,7 +60,7 @@
             </div>
         </section>
 
-        <section class="section">
+        <section class="section admin-tab-panel" id="tab-kb" role="tabpanel">
             <h2>Knowledge Base Upload</h2>
             <div id="dropZone" class="admin-drop-zone" tabindex="0" role="button" aria-label="Upload PDF or image report">
                 <p><strong>Drag and drop PDF or image here</strong></p>
@@ -46,7 +70,7 @@
             <div id="uploadStatus" class="admin-upload-status"></div>
         </section>
 
-        <section class="section">
+        <section class="section admin-tab-panel" id="tab-reports" role="tabpanel">
             <h2>Report List</h2>
             <div class="scrollable-container">
                 <table>
@@ -70,7 +94,7 @@
         <!-- ================================================ -->
         <!-- CUSTOM NEWS SOURCES                              -->
         <!-- ================================================ -->
-        <section class="section">
+        <section class="section admin-tab-panel" id="tab-sources" role="tabpanel">
             <h2>Custom News Sources</h2>
             <p class="admin-muted">Add URLs, RSS feeds, or Telegram channels to feed into the sentiment pipeline.</p>
 
@@ -123,7 +147,7 @@
                     </div>
                     <div class="admin-form-actions">
                         <button id="saveSrcBtn" class="refresh-btn admin-btn">Save Source</button>
-                        <button id="cancelSrcBtn" class="admin-btn" style="background:var(--border)">Cancel</button>
+                        <button id="cancelSrcBtn" class="admin-btn" style="background:var(--border-color)">Cancel</button>
                     </div>
                 </div>
             </div>
@@ -155,7 +179,7 @@
         <!-- ================================================ -->
         <!-- TELEGRAM MANUAL FEED                             -->
         <!-- ================================================ -->
-        <section class="section">
+        <section class="section admin-tab-panel" id="tab-telegram" role="tabpanel">
             <h2>Telegram Manual Feed</h2>
             <p class="admin-muted">Paste messages from private Telegram groups or upload screenshots and PDFs (Arabic or English). The text is processed through the sentiment pipeline automatically.</p>
 
@@ -166,7 +190,7 @@
                 </div>
                 <div class="admin-form-row">
                     <label for="waText">Paste text</label>
-                    <textarea id="waText" rows="5" placeholder="Paste forwarded message here…" style="width:100%;box-sizing:border-box;resize:vertical;font-family:inherit;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--container-bg);color:var(--text-primary);"></textarea>
+                    <textarea id="waText" rows="5" placeholder="Paste forwarded message here…" style="width:100%;box-sizing:border-box;resize:vertical;font-family:inherit;padding:8px;border:1px solid var(--border-color);border-radius:6px;background:var(--container-bg);color:var(--text-primary);"></textarea>
                 </div>
                 <div id="waDropZone" class="admin-drop-zone" tabindex="0" role="button" aria-label="Upload image or PDF">
                     <p><strong>Drag & drop image or PDF</strong></p>
